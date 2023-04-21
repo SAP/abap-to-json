@@ -1,8 +1,8 @@
-# ABAP 2 JSON => Open source version of standard /UI2/CL_JSON class
+# ABAP 2 JSON
 
 ## About this project
 
-One more ABAP to JSON Serializer and Deserializer
+This is Open source version of standard /UI2/CL_JSON class and its public documentation were previosly available on SCN wiki as "One more ABAP to JSON Serializer and Deserializer"
 
 ## Requirements and Setup
 
