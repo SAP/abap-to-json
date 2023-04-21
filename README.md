@@ -1,4 +1,6 @@
 # ABAP 2 JSON
+<!-- markdown-link-check-disable-next-line -->
+[![REUSE status](https://api.reuse.software/badge/github.com/SAP/abap-file-formats)](https://api.reuse.software/info/github.com/SAP/abap-file-formats)
 
 ## About this project
 
