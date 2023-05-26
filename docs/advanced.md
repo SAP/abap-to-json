@@ -1,0 +1,365 @@
+# Custom ABAP to JSON, JSON to ABAP name mapping
+By default, you control the way JSON names are formatted/mapped to ABAP names by selecting proper pretty_mode as a parameter for SERIALIZE/DESERIALIZE/GENERATE method. But in some cases, the standard, hard-coded formatting, is not enough. For example, if you need special rules for name formatting (for using special characters) or because JSON attribute name is too long and you can not map it to ABAP name (which has 30 characters length limit). 
+
+The recommended way for custom mapping was an extension of the /UI2/CL_JSON class and redefining methods PRETTY_NAME or PRETTY_NAME_EX, but since note 2526405 there is an easier way, without the need in own class. If you have a static list of field mappings from ABAP to JSON you can pass the name mapping table as a parameter for the constructor/serialize/deserialize and control the way JSON names are formatted/mapped to ABAP names. 
+
+## ABAP to JSON name mapping example
+```abap
+TYPES:
+  BEGIN OF tp_s_data,
+    sschema             TYPE string,
+    odatacontext        TYPE string,
+    shortened_abap_name TYPE string,
+    standard            TYPE string,
+  END OF tp_s_data.
+
+DATA: ls_exp      TYPE tp_s_data,
+      lt_mapping  TYPE /ui2/cl_json=>name_mappings,
+      lv_json     TYPE /ui2/cl_json=>json.
+
+lt_mapping = VALUE #( ( abap = `SSCHEMA` json = `$schema` )
+                      ( abap = `ODATACONTEXT` json = `@odata.context` )
+                      ( abap = `SHORTENED_ABAP_NAME` json = `VeeeeryyyyyLooooongJSONAttrbuuuuuuuuuteeeeeeeeeee` ) ).
+
+lv_json = /ui2/cl_json=>serialize( data = ls_exp name_mappings = lt_mapping ).
+```
+
+# Custom formatting of values for serialization of ABAP into JSON
+In some cases, you need to have custom formatting for your ABAP data, when serializing it into JSON. Or another use case, you have some custom, DDIC defined data types, that are not automatically recognized by standard code, and therefore no appropriate formatting is applied (for example custom boolean or timestamp type). 
+
+In this case, you have the following options:
+1. Extend the class and overwrite the method DUMP_TYPE. See an example in section "/UI2/CL_JSON extension".
+2. Add conversion exits for your custom type and apply formatting as part of the conversion exit.
+3. Create an alternative structure, with your custom types replaced by supported types, only for serialization, and do the move of data before the serialization.
+
+# Serialization/deserialization of hierarchical/recursive data
+
+Handling the recursive data structure in ABAP is not very trivial. And it is not very trivial to serialize and deserialize it either.
+If you would like to model your hierarchical data (tree-like) as ABAP structures, the only allowed way will be to do it like in the example below, where you use references to generic data:
+```abap
+TYPES: 
+  BEGIN OF ts_node,
+    id        TYPE i,
+    children  TYPE STANDARD TABLE OF REF TO data WITH DEFAULT KEY,
+  END OF ts_node.
+
+DATA: lv_exp    TYPE string,
+      lv_act    TYPE string,
+      ls_data   TYPE ts_node,
+      lr_data   LIKE REF TO ls_data.
+
+ls_data-id = 1.
+
+CREATE DATA lr_data.
+lr_data->id = 2.
+APPEND lr_data TO ls_data-children.
+```
+Such a way is more or less straightforward and will work, but leads to losing type information for data persisted in children table. That will mean that you will need to cast data when you access it. In addition to that, it blocks you from being able to deserialize such data from JSON, while the parser will not be able to deduce the type of data that needs to be created in the children's table. But serialization will work fine:
+```abap
+lv_exp = '{"ID":1,"CHILDREN":[{"ID":2,"CHILDREN":[]}]}'.
+lv_act = /ui2/cl_json=>serialize( data = ls_data ).
+cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of recursive data structure fails' ).
+```
+The better way to model hierarchical data in ABAP is with help of objects, while objects are always processed as references and ABAP allow you to create nested data structures, referring to objects of the same type:
+```abap
+CLASS lcl_test DEFINITION FINAL.
+  PUBLIC SECTION.
+    DATA: id TYPE i.
+    DATA: children TYPE STANDARD TABLE OF REF TO lcl_test.
+ENDCLASS.                    "lcl_test DEFINITION
+```
+In that manner, you can process data in the same way as with ABAP structures but using typed access and serialization/deserialization of data in JSON works fine while types can be deduced on 
+```abap
+DATA: lo_act    TYPE REF TO lcl_test,
+      lo_exp    TYPE REF TO lcl_test,
+      lv_json   TYPE string,
+      lo_child  TYPE REF TO lcl_test.
+
+CREATE OBJECT lo_exp.
+
+lo_exp ->id = 1.
+
+CREATE OBJECT lo_child.
+lo_child->id = 2.
+APPEND lo_child TO lo_exp->children.
+
+lv_json = /ui2/cl_json=>serialize( data = lo_exp ).
+ui2/cl_json=>deserialize( EXPORTING json = lv_json CHANGING data =  lo_act ).
+```
+Remark: There are some constraints for data design that exist regarding the deserialization of objects:
+* You cannot use constructors with obligatory parameters
+* References to interfaces will be not deserialized
+
+## Serializing of protected and private attributes
+If you do the serialization from outside of your class, you can access only the public attributes of that class. To serialize all types of attributes (private+protected) you need to allow /ui2/cl_json access to them. This can be done by defining /ui2/cl_json as a friend of your class. In this way, you do not disrupt your encapsulation for other classes but enable /ui2/cl_json to access all data of your class.
+
+If you do not own a class you want to serialize, you probably can inherit it from your class and add friends there. In this case, you can access at least protected attributes.
+
+# Partial serialization/deserialization
+When it is needed:
+* You deserialize JSON to ABAP but would like some known parts to be deserialized as JSON string, while you do not know nesting JSON structure.
+* You deserialize a collection (array/associative array) that has objects with heterogeneous structures (for example the same field has a different type depending on object type). Using partial deserialization, you can restore such a type as JSON string in ABAP and apply later additional deserialization based on the object type.  
+* You serialize ABAP to JSON and have some ready JSON pieces (strings) which you would like to mix in. 
+
+The solution /UI2/CL_JSON has for this type /UI2/CL_JSON=>JSON (alias for built-in type string). ABAP fields using declared with this type will be serialized/deserialized as JSON pieces. Be aware that during serialization from ABAP to JSON, the content of such JSON piece is not validated for correctness, so if you pass an invalid JSON block, it may destroy the whole resulting JSON string at the end.
+
+Below you can find examples for partial serialization/deserialization.
+
+Serialization:
+```abap
+TYPES: BEGIN OF ts_record,
+        id      TYPE string,
+        columns TYPE /ui2/cl_json=>json,
+       END OF ts_record.
+
+DATA: lv_json   TYPE /ui2/cl_json=>json,
+      lt_data   TYPE SORTED TABLE OF ts_record WITH UNIQUE KEY id,
+      ls_data   LIKE LINE OF lt_data.
+
+ls_data-id = 'O000001ZZ_SO_GRES_CONTACTS'.
+ls_data-columns = '{"AGE":{"bVisible":true,"iPosition":2},"BRSCH":{"bVisible":true}}'.
+INSERT ls_data INTO TABLE lt_data.
+
+ls_data-id = 'O000001ZZ_TRANSIENT_TEST_A'.
+ls_data-columns = '{"ABTNR":{"bVisible":false},"CITY1":{"bVisible":false},"IC_COMPANY_KEY":{"bVisible":true}}'.
+INSERT ls_data INTO TABLE lt_data.
+
+lv_json = /ui2/cl_json=>serialize( data = lt_data assoc_arrays = abap_true pretty_name = /ui2/cl_json=>pretty_mode-camel_case ).
+
+WRITE / lv_json.
+```
+Results in:
+```json
+{
+    "O000001ZZ_SO_GRES_CONTACTS": {
+        "columns": {
+            "AGE": {
+                "bVisible": true,
+                "iPosition": 2
+            },
+            "BRSCH": {
+                "bVisible": true
+            }
+        }
+    },
+    "O000001ZZ_TRANSIENT_TEST_A": {
+        "columns": {
+            "ABTNR": {
+                "bVisible": false
+            },
+            "CITY1": {
+                "bVisible": false
+            },
+            "IC_COMPANY_KEY": {
+                "bVisible": true
+            }
+        }
+    }
+}
+```
+Deserialization:
+```abap
+TYPES: BEGIN OF ts_record,
+        id      TYPE string,
+        columns TYPE /ui2/cl_json=>json,
+       END OF ts_record.
+
+DATA: lv_json  TYPE string,
+      lt_act   TYPE SORTED TABLE OF ts_record WITH UNIQUE KEY id.
+
+CONCATENATE 
+'{"O000001ZZ_SO_GRES_CONTACTS":{"columns":{"AGE":{"bVisible":true,"iPosition":2},"BRSCH":{"bVisible":true}}},'
+'"O000001ZZ_TRANSIENT_TEST_A":{"columns":{"ABTNR":{"bVisible":false},"CITY1":{"bVisible":false},"IC_COMPANY_KEY":{"bVisible":true}}}}'
+INTO lv_json.
+
+" if you know first level of underlying structure ("columns" field) -> Output Var 1
+/ui2/cl_json=>deserialize( EXPORTING json = lv_json assoc_arrays = abap_true CHANGING data = lt_act ).
+ 
+" if you do not know underlying structure of first level (naming of second filed e.g columns in example does not matter )
+" => result is a little bit different -> Output Var 2
+/ui2/cl_json=>deserialize( EXPORTING json = lv_json assoc_arrays = abap_true assoc_arrays_opt = abap_true CHANGING data = lt_act ).
+```
+Results in the following ABAP data:
+## ABAP Output (variant 1)
+```
+ID(CString)	                COLUMNS(CString)
+O000001ZZ_SO_GRES_CONTACTS  {"AGE":{"bVisible":true,"iPosition":2},"BRSCH":{"bVisible":true}}
+O000001ZZ_TRANSIENT_TEST_A  {"ABTNR":{"bVisible":false},"CITY1":{"bVisible":false},"IC_COMPANY_KEY":{"bVisible":true}}
+```
+## ABAP Output (variant 2)
+```
+ID(CString)	                COLUMNS(CString)
+O000001ZZ_SO_GRES_CONTACTS  {"columns":{"AGE":{"bVisible":true,"iPosition":2},"BRSCH":{"bVisible":true}}}
+O000001ZZ_TRANSIENT_TEST_A  {"columns":{"ABTNR":{"bVisible":false},"CITY1":{"bVisible":false},"IC_COMPANY_KEY":{"bVisible":true}}}
+```
+
+# Deserialization of an untyped (unknown) JSON object
+If you need to deserialize a JSON object with an unknown structure, or you do not have a passing data type on the ABAP side, or the data type of the resulting object may vary, you can generate an ABAP object on the fly, using the corresponding GENERATE method. The method has some limitations compared to standard deserialization like:
+
+* all fields are generated as a reference (even elementary types)
+* you can not control how deserialized arrays or timestamps
+* you can not access components of generated structure statically (while the structure is unknown at compile time) and need to use dynamic access
+The simplest example, with straightforward access:
+```abap
+DATA: lv_json TYPE /ui2/cl_json=>json,
+      lr_data TYPE REF TO data.
+
+FIELD-SYMBOLS:
+  <data>   TYPE data,
+  <struct> TYPE any,
+  <field>  TYPE any.
+
+lv_json = `{"name":"Key1","properties":{"field1":"Value1","field2":"Value2"}}`.
+lr_data = /ui2/cl_json=>generate( json = lv_json ).
+
+" OK, generated, now let us access somete field :(
+IF lr_data IS BOUND.
+  ASSIGN lr_data->* TO <data>.
+  ASSIGN COMPONENT `PROPERTIES` OF STRUCTURE <data> TO <field>.
+  IF <field> IS ASSIGNED.
+    lr_data = <field>.
+    ASSIGN lr_data->* TO <data>.
+    ASSIGN COMPONENT `FIELD1` OF STRUCTURE <data> TO <field>.
+    IF <field> IS ASSIGNED.
+      lr_data = <field>.
+      ASSIGN lr_data->* TO <data>.
+      WRITE: <data>. " We got it -> Value1
+    ENDIF.
+  ENDIF.
+ENDIF.
+```
+A nice alternative, using [dynamic data accessor helper class](https://web.archive.org/web/20220430102034/https://wiki.scn.sap.com/wiki/display/Snippets/Dynamic+Data+Accessor+Helper+Class+for+ABAP): 
+```abap
+DATA: lv_json TYPE /ui2/cl_json=>json,
+      lr_data TYPE REF TO data,
+      lv_val  TYPE string.
+
+lv_json = `{"name":"Key1","properties":{"field1":"Value1","field2":"Value2"}}`.
+lr_data = /ui2/cl_json=>generate( json = lv_json ).
+
+/ui2/cl_data_access=>create( ir_data = lr_data iv_component = `properties-field1`)->value( IMPORTING ev_data = lv_val ).
+WRITE: lv_val.
+```
+
+# Implicit generation of ABAP objects on deserialization
+In addition to the explicit generation of the ABAP data objects from JSON string, the deserializer supports an implicit way of generation, during DESERIALIZE(INT) call. To trigger generation, your output data structure shall contain a field with the type REF TO DATA, and the name of the field shall match the JSON attribute (pretty name rules are considered). Depending on the value of the field, the behavior may differ:
+* The value is not bound (initial): deserialize will use generation rules when creating corresponding data types of the referenced value
+* The value is bound (but may be empty): the deserializer will create a new referenced value based on the referenced type.
+
+## Example of implicit generation of ABAP data from JSON string
+```abap
+TYPES:
+  BEGIN OF ts_dyn_data1,
+    name     TYPE string,
+    value    TYPE string,
+  END OF ts_dyn_data1,
+  BEGIN OF ts_dyn_data2,
+    key      TYPE string,
+    value    TYPE string,
+  END OF ts_dyn_data2,
+  BEGIN OF ts_data,
+    str     TYPE string,
+    data    TYPE REF TO data,
+  END OF ts_data.
+
+DATA:
+  ls_data  TYPE ts_data,
+  lv_json  TYPE /ui2/cl_json=>json.
+
+lv_json = `{"str":"Test","data":{"name":"name1","value":"value1"}}`.
+
+" deserialize data and use generic generation for field "data",
+" the same as with method GENERATE (using temporary data type)
+/ui2/cl_json=>deserialize( EXPORTING json = lv_json CHANGING data = ls_data ).
+
+" deserialize data and use type TS_DYN_DATA1 for the field "data"
+CREATE DATA ls_data-data TYPE ts_dyn_data1.
+/ui2/cl_json=>deserialize( EXPORTING json = lv_json CHANGING data = ls_data ).
+
+" deserialize data and use alternative type TS_DYN_DATA2 for the field "data"
+CREATE DATA ls_data-data TYPE ts_dyn_data2.
+/ui2/cl_json=>deserialize( EXPORTING json = lv_json CHANGING data = ls_data ).
+```
+
+# JSON/ABAP serialization/deserialization with runtime type information
+Automatic deserialization of the JSON into the appropriate ABAP structure is not supported. The default implementation assumes that you need to know the target data structure (or at least partial structure, it will also work) to deserialize JSON in ABAP and then work with typed data. 
+
+But if for some reason one needs the ability to deserialize JSON in source ABAP structure in a generic way, he can extend both serialize/deserialize methods and wrap outputs/inputs of /UI2/CL_JSON data by technical metadata describing source ABAP structure and use this information during deserialization (or use GENERATE method). Of course, you need to ensure that the source ABAP data type is known in the deserialization scope (global and local types are "visible").
+
+See the example below:
+```abap
+TYPES: BEGIN OF ts_json_meta,
+         abap_type LIKE cl_abap_typedescr=>absolute_name,
+         data      TYPE string,
+       END OF ts_json_meta.
+
+DATA: lt_flight TYPE STANDARD TABLE OF sflight,
+      lv_json   TYPE string,
+      lo_data   TYPE REF TO data,
+      ls_json   TYPE ts_json_meta.
+
+FIELD-SYMBOLS: <data> TYPE any.
+
+SELECT * FROM sflight INTO TABLE lt_flight.
+
+* serialize table lt_flight into JSON, skipping initial fields and converting ABAP field names into camelCase
+ls_json-data      = /ui2/cl_json=>serialize( data = lt_flight compress = abap_true pretty_name = /ui2/cl_json=>pretty_mode-camel_case ).
+ls_json-abap_type = cl_abap_typedescr=>describe_by_data( lt_flight )->absolute_name.
+lv_json           = /ui2/cl_json=>serialize( data = ls_json compress = abap_true pretty_name = /ui2/cl_json=>pretty_mode-camel_case ).
+WRITE / lv_json.
+
+CLEAR: ls_json, lt_flight.
+
+* deserialize JSON string json into internal table lt_flight doing camelCase to ABAP like field name mapping
+/ui2/cl_json=>deserialize( EXPORTING json = lv_json pretty_name = /ui2/cl_json=>pretty_mode-camel_case CHANGING data = ls_json ).
+CREATE DATA lo_data TYPE (ls_json-abap_type).
+ASSIGN lo_data->* TO <data>.
+/ui2/cl_json=>deserialize( EXPORTING json = ls_json-data pretty_name = /ui2/cl_json=>pretty_mode-camel_case CHANGING data = <data> ).
+
+IF lo_data IS NOT INITIAL.  
+  BREAK-POINT. " check here lo_data
+ENDIF.
+```
+
+# Exception Handling in /UI2/CL_JSON
+By default, /UI2/CL_JSON tries to hide from consumer thrown exceptions (that may happen during deserialization) catching them at all levels. In some cases, it will result in missing attributes, in other cases, when an error was critical and the parser can not restore, you will get an empty object back. The main TRY/CATCH block, not letting exceptions out is in DESERIALIZE method.
+
+If you want to get a reporting in case of error, you shall use instance method DESERIALIZE_INT which may fire CX_SY_MOVE_CAST_ERROR. The reporting is rather limited - all errors translated into CX_SY_MOVE_CAST_ERROR and no additional information is available.
+
+# JSON to ABAP transformation with the use of CALL TRANSFORMATION
+Below is a small example of CALL TRANSFORMATION usage to produce JSON from ABAP structures. Do not ask me for details - I do not know them. (smile) Was just a small test of me.
+```abap
+DATA: lt_flight          TYPE STANDARD TABLE OF sflight,
+      lo_writer          TYPE REF TO cl_sxml_string_writer,
+      lv_output_length   TYPE i,
+      lt_binary_tab      TYPE STANDARD TABLE OF sdokcntbin,
+      lv_jsonx           TYPE xstring,
+      lv_json            TYPE string.
+
+SELECT * FROM sflight INTO TABLE lt_flight.
+
+* ABAP to JSON
+lo_writer = cl_sxml_string_writer=>create( type = if_sxml=>co_xt_json ).
+CALL TRANSFORMATION id SOURCE text = lt_flight RESULT XML lo_writer.
+lv_jsonx = lo_writer->get_output( ).
+
+CALL FUNCTION 'SCMS_XSTRING_TO_BINARY'
+  EXPORTING
+    buffer                = lv_jsonx
+  IMPORTING
+    output_length         = lv_output_length
+  TABLES
+    binary_tab            = lt_binary_tab.
+
+CALL FUNCTION 'SCMS_BINARY_TO_STRING'
+  EXPORTING
+    input_length          = lv_output_length
+  IMPORTING
+    text_buffer           = lv_json
+    output_length         = lv_output_length
+  TABLES
+    binary_tab            = lt_binary_tab.
+
+ * JSON to ABAP
+ CALL TRANSFORMATION id SOURCE XML lv_jsonx RESULT text = lt_flight.
+```
