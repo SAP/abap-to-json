@@ -11,9 +11,16 @@ There are a lot of other implementations of the **ABAP to JSON Serializer and De
 
 So, I have written my **ABAP JSON serializer and ABAP JSON deserializer** which has some key differences from other implementations.
 
-Below you can find a snippet of the ABAP JSON class I wrote, that you can use as a local class or as a global after renaming.
+Here you can find an Open Source version of the standard /UI2/CL_JSON class in form of Z* class that you can use as a local class or as a global.
 
-An original and actual version of the source can be found in class /UI2/CL_JSON delivered with UI2 Add-on (can be applied to SAP_BASIS 700 – 76X). So, you can use this ABAP JSON parser in your standard code mostly on any system.
+An original and actual version of the source can be found in class /UI2/CL_JSON delivered with UI2 Add-on (can be applied to SAP_BASIS 740 – 76X). So, you can use this ABAP JSON parser in your standard code mostly on any system.
+
+## Documentation
+* [Base Usage](docs/basic.md)
+* [Advanced Usage](docs/advanced.md)
+* [Class Extension](docs/class-extension.md)
+* [FAQ](docs/faq.md)
+* [Version History](docs/history.md)
 
 ## Requirements and Setup
 
@@ -21,7 +28,7 @@ Install via [abapGit Eclipse plugin](https://github.com/abapGit/ADT_Frontend) on
 
 ## Support, Feedback, Contributing
 
-This project is open to feature requests/suggestions, bug reports etc. via [GitHub issues](https://github.com/SAP/abap-to-json/issues). Contribution and feedback are encouraged and always welcome. For more information about how to contribute, the project structure, as well as additional contribution information, see our [Contribution Guidelines](CONTRIBUTING.md).
+This project is open to feature requests/suggestions, bug reports etc. via [GitHub issues](https://github.com/SAP/abap-to-json/issues). Contribution and feedback are encouraged and always welcome. For more information about how to contribute, the project structure, as well as additional contribution information, see our [Contribution Guidelines](CONTRIBUTING.md). The contribution in Open Source version will be then integrated into standard SAP delivered version (/UI2/CL_JSON). 
 
 ## Code of Conduct
 
