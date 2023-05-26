@@ -1,13 +1,4 @@
-# ui2-json (One more ABAP to JSON Serializer and Deserializer)
-
-# Why
-There are a lot of other implementations of the **ABAP to JSON Serializer and Deserializer** in SDN, but for different reasons, all implementations I have found were not suitable for my needs. From SAP_BASIS 7.40 there is also **a simple transformation** available for converting **ABAP to JSON** and **JSON to ABAP**. It is the best choice if you need maximal performance and do not care about **serialization format**, but for proper handling of ABAP types and name **pretty-printing**, it fits badly. 
-
-So, I have written my **ABAP JSON serializer and ABAP JSON deserializer** which has some key differences from other implementations.
-
-Below you can find a snippet of the ABAP JSON class I wrote, that you can use as a local class or as a global after renaming.
-
-An original and actual version of the source can be found in class /UI2/CL_JSON delivered with UI2 Add-on (can be applied to SAP_BASIS 700 – 76X). So, you can use this ABAP JSON parser in your standard code mostly on any system. 
+# Basic Usage
 
 # What it can
 ## ABAP to JSON
@@ -253,20 +244,13 @@ The code was tested from SAP_BASIS 7.00 and higher, but I do not see the reasons
 Due to optimization reasons, some methods were converted to macros, to reduce overhead for calling methods for data type serialization. If performance in your case is not critical, and you prefer clean/debuggable code you can replace macro calls with corresponding methods. 
 
 # Continue reading
-* [Advanced Use cases](docs/advanced.md)
-* [Extension (inheriting) of the /UI2/CL_JSON](docs/class-extension.md)
-* [FAQ](docs/faq.md)
-* [Version History](docs/history.md)
+* [Advanced Use cases](advanced.md)
+* [Extension (inheriting) of the /UI2/CL_JSON](class-extension.md)
+* [FAQ](faq.md)
+* [Version History](history.md)
 
 # Related pages
 * [Does /UI2/CL_JSON work in ABAP Cloud?](https://answers.sap.com/questions/12699592/does-ui2cl-json-work-in-abap-cloud.html)
 * [Return generic result via SAP RFC (performance)](https://stackoverflow.com/questions/54037544/abap-return-generic-result-via-sap-rfc-json)
 * [RFC7159 - The JavaScript Object Notation (JSON) Data Interchange Format](https://tools.ietf.org/html/rfc7159)
 * [OData JSON Deserialize](https://answers.sap.com/questions/12998367/odata-simple-json-deserialize.html?childToView=13007205)
-
-# The /UI2/CL_JSON code
-Below you can find the code itself, which you can use (corresponds to the state of **PL16** - see the value of version attribute of the class).
-
-If you want to use the class globally, I suggest creating a proxy class, in your namespace, with a reduced interface (serialize/deserialize only) and calling local copy (local class of it) of /UI2/CL_JSON. Then you can easily update to the new version of /UI2/CL_JSON from SDN or call UI Addon implementation if it is installed.
-
-ZCL_JSON code
