@@ -22,6 +22,9 @@ An original and actual version of the source can be found in class /UI2/CL_JSON 
 * [FAQ](docs/faq.md)
 * [Version History](docs/history.md)
 
+## The Code
+* [Code in abapGit format](src)
+
 ## Requirements and Setup
 
 Install via [abapGit Eclipse plugin](https://github.com/abapGit/ADT_Frontend) on ABAP cloud systems and [abapGit for SAPGUI](https://docs.abapgit.org/guide-online-install.html) on systems with SAP_BASIS 7.57 or higher.
