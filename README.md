@@ -1,4 +1,4 @@
-# ABAP 2 JSON
+# ABAP to JSON serializer and deserializer
 <!-- markdown-link-check-disable-next-line -->
 [![REUSE status](https://api.reuse.software/badge/github.com/SAP/abap-to-json)](https://api.reuse.software/info/github.com/SAP/abap-to-json)
 
