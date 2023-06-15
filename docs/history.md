@@ -1,5 +1,19 @@
 # Version History
 
+## Note [3106267](https://launchpad.support.sap.com/#/notes/3106267) - PL17
+### /UI2/CL_JSON
+* Fixed: added support for XSDBOOLEAN Boolean type, to be consistent with CALL TRANSFORMATION id rules.
+* Fixed: added support for UTCLONG. This new built-in ABAP data type comes with SAP_BASIS 7.54 and adds native support for timestamps to ABAP. The type is always represented in ISO8601 and does not depend on the TS_AS_ISO8601 parameter.
+* Fixed: serialization of the timestamp fields into ISO8601 does not add any more sub-second sections into JSON, while it is always initial for timestamps.
+* Fixed: deserialization of the JSON strings with non-breakable spaces (nbsp)
+* Fixed: processing of the JSON attribute names with escaped double quotes ("abc efg \" etc" : "value")
+* Fixed: deserialization (generation without typed output structure) does not consider exponential numeric values and tries to transform them into an integer and fails, resulting in 0.
+
+### New language features used:
+* escape function => min requirement SAP_BASIS 7.31
+* find_any_not_of function => min requirement SAP_BASIS 7.02
+* FIND/REPLACE PCRE => min requirement SAP_BASIS 7.55 (CE 2008/OP 2020) - delayed
+
 ## Note [3038042](https://launchpad.support.sap.com/#/notes/3038042) - PL16
 ### /UI2/CL_JSON
 * Fixed: Serializing of hash tables with empty values and the parameters assoc_arrays_opt and compress produces invalid JSON. 
