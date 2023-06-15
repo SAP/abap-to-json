@@ -6,7 +6,7 @@
 * Fixed: added support for UTCLONG. This new built-in ABAP data type comes with SAP_BASIS 7.54 and adds native support for timestamps to ABAP. The type is always represented in ISO8601 and does not depend on the TS_AS_ISO8601 parameter.
 * Fixed: serialization of the timestamp fields into ISO8601 does not add any more sub-second sections into JSON, while it is always initial for timestamps.
 * Fixed: deserialization of the JSON strings with non-breakable spaces (nbsp)
-* Fixed: processing of the JSON attribute names with escaped double quotes ("abc efg \" etc" : "value")
+* Fixed: processing of the JSON attribute names with escaped double quotes ("abc efg \\\" etc" : "value")
 * Fixed: deserialization (generation without typed output structure) does not consider exponential numeric values and tries to transform them into an integer and fails, resulting in 0.
 
 ### New language features used:
