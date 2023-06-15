@@ -245,7 +245,7 @@ Due to optimization reasons, some methods were converted to macros, to reduce ov
 
 # Continue reading
 * [Advanced Use cases](advanced.md)
-* [Extension (inheriting) of the /UI2/CL_JSON](class-extension.md)
+* [Extension (inheriting) of the class](class-extension.md)
 * [FAQ](faq.md)
 * [Version History](history.md)
 
