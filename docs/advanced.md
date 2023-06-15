@@ -1,7 +1,7 @@
 # Custom ABAP to JSON, JSON to ABAP name mapping
-By default, you control the way JSON names are formatted/mapped to ABAP names by selecting proper pretty_mode as a parameter for SERIALIZE/DESERIALIZE/GENERATE method. But in some cases, the standard, hard-coded formatting, is not enough. For example, if you need special rules for name formatting (for using special characters) or because JSON attribute name is too long and you can not map it to ABAP name (which has 30 characters length limit). 
+By default, you control the way JSON names are formatted/mapped to ABAP names by selecting proper pretty_mode as a parameter for SERIALIZE/DESERIALIZE/GENERATE method. But in some cases, the standard, hard-coded formatting, is not enough. For example, if you need special rules for name formatting (for using special characters) or because the JSON attribute name is too long and you can not map it to ABAP name (which has 30 characters length limit). 
 
-The recommended way for custom mapping was an extension of the /UI2/CL_JSON class and redefining methods PRETTY_NAME or PRETTY_NAME_EX, but since note 2526405 there is an easier way, without the need in own class. If you have a static list of field mappings from ABAP to JSON you can pass the name mapping table as a parameter for the constructor/serialize/deserialize and control the way JSON names are formatted/mapped to ABAP names. 
+The recommended way for custom mapping was an extension of the /UI2/CL_JSON class and redefining methods PRETTY_NAME or PRETTY_NAME_EX, but since note 2526405 there is an easier way, without the need for its own class. If you have a static list of field mappings from ABAP to JSON you can pass the name mapping table as a parameter for the constructor/serialize/deserialize and control the way JSON names are formatted/mapped to ABAP names. 
 
 ## ABAP to JSON name mapping example
 ```abap
@@ -25,10 +25,10 @@ lv_json = /ui2/cl_json=>serialize( data = ls_exp name_mappings = lt_mapping ).
 ```
 
 # Custom formatting of values for serialization of ABAP into JSON
-In some cases, you need to have custom formatting for your ABAP data, when serializing it into JSON. Or another use case, you have some custom, DDIC defined data types, that are not automatically recognized by standard code, and therefore no appropriate formatting is applied (for example custom boolean or timestamp type). 
+In some cases, you need to have custom formatting for your ABAP data, when serializing it into JSON. Or another use case, you have some custom, DDIC-defined data types, that are not automatically recognized by standard code, and therefore no appropriate formatting is applied (for example custom boolean or timestamp type). 
 
 In this case, you have the following options:
-1. Extend the class and overwrite the method DUMP_TYPE. See an example in section "/UI2/CL_JSON extension".
+1. Extend the class and overwrite the method DUMP_TYPE. See an example in the section regarding the [class extension](class-extension.md).
 2. Add conversion exits for your custom type and apply formatting as part of the conversion exit.
 3. Create an alternative structure, with your custom types replaced by supported types, only for serialization, and do the move of data before the serialization.
 
@@ -54,13 +54,13 @@ CREATE DATA lr_data.
 lr_data->id = 2.
 APPEND lr_data TO ls_data-children.
 ```
-Such a way is more or less straightforward and will work, but leads to losing type information for data persisted in children table. That will mean that you will need to cast data when you access it. In addition to that, it blocks you from being able to deserialize such data from JSON, while the parser will not be able to deduce the type of data that needs to be created in the children's table. But serialization will work fine:
+Such a way is more or less straightforward and will work, but leads to losing type information for data persisted in the children's table. That will mean that you will need to cast data when you access it. In addition to that, it blocks you from being able to deserialize such data from JSON, while the parser will not be able to deduce the type of data that needs to be created in the children's table. But serialization will work fine:
 ```abap
 lv_exp = '{"ID":1,"CHILDREN":[{"ID":2,"CHILDREN":[]}]}'.
 lv_act = /ui2/cl_json=>serialize( data = ls_data ).
 cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of recursive data structure fails' ).
 ```
-The better way to model hierarchical data in ABAP is with help of objects, while objects are always processed as references and ABAP allow you to create nested data structures, referring to objects of the same type:
+The better way to model hierarchical data in ABAP is with the help of objects, while objects are always processed as references and ABAP allows you to create nested data structures, referring to objects of the same type:
 ```abap
 CLASS lcl_test DEFINITION FINAL.
   PUBLIC SECTION.
@@ -97,13 +97,13 @@ If you do not own a class you want to serialize, you probably can inherit it fro
 
 # Partial serialization/deserialization
 When it is needed:
-* You deserialize JSON to ABAP but would like some known parts to be deserialized as JSON string, while you do not know nesting JSON structure.
+* You deserialize JSON to ABAP but would like some known parts to be deserialized as JSON string, while you do not know the nesting JSON structure.
 * You deserialize a collection (array/associative array) that has objects with heterogeneous structures (for example the same field has a different type depending on object type). Using partial deserialization, you can restore such a type as JSON string in ABAP and apply later additional deserialization based on the object type.  
-* You serialize ABAP to JSON and have some ready JSON pieces (strings) which you would like to mix in. 
+* You serialize ABAP to JSON and have some ready JSON pieces (strings) that you would like to mix in. 
 
 The solution /UI2/CL_JSON has for this type /UI2/CL_JSON=>JSON (alias for built-in type string). ABAP fields using declared with this type will be serialized/deserialized as JSON pieces. Be aware that during serialization from ABAP to JSON, the content of such JSON piece is not validated for correctness, so if you pass an invalid JSON block, it may destroy the whole resulting JSON string at the end.
 
-Below you can find examples for partial serialization/deserialization.
+Below you can find examples of partial serialization/deserialization.
 
 Serialization:
 ```abap
@@ -172,10 +172,10 @@ CONCATENATE
 '"O000001ZZ_TRANSIENT_TEST_A":{"columns":{"ABTNR":{"bVisible":false},"CITY1":{"bVisible":false},"IC_COMPANY_KEY":{"bVisible":true}}}}'
 INTO lv_json.
 
-" if you know first level of underlying structure ("columns" field) -> Output Var 1
+" If you know the first level of the underlying structure ("columns" field) -> Output Var 1
 /ui2/cl_json=>deserialize( EXPORTING json = lv_json assoc_arrays = abap_true CHANGING data = lt_act ).
  
-" if you do not know underlying structure of first level (naming of second filed e.g columns in example does not matter )
+" if you do not know the underlying structure of the first level (naming of the second field e.g columns in the example does not matter )
 " => result is a little bit different -> Output Var 2
 /ui2/cl_json=>deserialize( EXPORTING json = lv_json assoc_arrays = abap_true assoc_arrays_opt = abap_true CHANGING data = lt_act ).
 ```
@@ -194,9 +194,9 @@ O000001ZZ_TRANSIENT_TEST_A  {"columns":{"ABTNR":{"bVisible":false},"CITY1":{"bVi
 ```
 
 # Deserialization of an untyped (unknown) JSON object
-If you need to deserialize a JSON object with an unknown structure, or you do not have a passing data type on the ABAP side, or the data type of the resulting object may vary, you can generate an ABAP object on the fly, using the corresponding GENERATE method. The method has some limitations compared to standard deserialization like:
+If you need to deserialize a JSON object with an unknown structure, or you do not have a passing data type on the ABAP side, or the data type of the resulting object may vary, you can generate an ABAP object on the fly, using the corresponding GENERATE method. The method has some limitations compared to standard deserialization:
 
-* all fields are generated as a reference (even elementary types)
+* All fields are generated as a reference (even elementary types)
 * you can not control how deserialized arrays or timestamps
 * you can not access components of generated structure statically (while the structure is unknown at compile time) and need to use dynamic access
 The simplest example, with straightforward access:
@@ -212,7 +212,7 @@ FIELD-SYMBOLS:
 lv_json = `{"name":"Key1","properties":{"field1":"Value1","field2":"Value2"}}`.
 lr_data = /ui2/cl_json=>generate( json = lv_json ).
 
-" OK, generated, now let us access somete field :(
+" OK, generated, now let us access some field :(
 IF lr_data IS BOUND.
   ASSIGN lr_data->* TO <data>.
   ASSIGN COMPONENT `PROPERTIES` OF STRUCTURE <data> TO <field>.
@@ -242,7 +242,7 @@ WRITE: lv_val.
 ```
 
 # Implicit generation of ABAP objects on deserialization
-In addition to the explicit generation of the ABAP data objects from JSON string, the deserializer supports an implicit way of generation, during DESERIALIZE(INT) call. To trigger generation, your output data structure shall contain a field with the type REF TO DATA, and the name of the field shall match the JSON attribute (pretty name rules are considered). Depending on the value of the field, the behavior may differ:
+In addition to the explicit generation of the ABAP data objects from the JSON string, the deserializer supports an implicit way of generation, during DESERIALIZE(INT) call. To trigger generation, your output data structure shall contain a field with the type REF TO DATA, and the name of the field shall match the JSON attribute (pretty name rules are considered). Depending on the value of the field, the behavior may differ:
 * The value is not bound (initial): deserialize will use generation rules when creating corresponding data types of the referenced value
 * The value is bound (but may be empty): the deserializer will create a new referenced value based on the referenced type.
 
@@ -322,9 +322,9 @@ ENDIF.
 ```
 
 # Exception Handling in /UI2/CL_JSON
-By default, /UI2/CL_JSON tries to hide from consumer thrown exceptions (that may happen during deserialization) catching them at all levels. In some cases, it will result in missing attributes, in other cases, when an error was critical and the parser can not restore, you will get an empty object back. The main TRY/CATCH block, not letting exceptions out is in DESERIALIZE method.
+By default, /UI2/CL_JSON tries to hide from consumer-thrown exceptions (that may happen during deserialization) catching them at all levels. In some cases, it will result in missing attributes, in other cases, when an error was critical and the parser can not restore, you will get an empty object back. The main TRY/CATCH block, not letting exceptions out is in DESERIALIZE method.
 
-If you want to get a reporting in case of error, you shall use instance method DESERIALIZE_INT which may fire CX_SY_MOVE_CAST_ERROR. The reporting is rather limited - all errors translated into CX_SY_MOVE_CAST_ERROR and no additional information is available.
+If you want to get a reporting in case of error, you shall use the instance method DESERIALIZE_INT which may fire CX_SY_MOVE_CAST_ERROR. The reporting is rather limited - all errors are translated into CX_SY_MOVE_CAST_ERROR and no additional information is available.
 
 # JSON to ABAP transformation with the use of CALL TRANSFORMATION
 Below is a small example of CALL TRANSFORMATION usage to produce JSON from ABAP structures. Do not ask me for details - I do not know them. (smile) Was just a small test of me.
