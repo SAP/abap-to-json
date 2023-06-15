@@ -7,7 +7,7 @@ If standard class functionality does not fit your requirements there are two way
 
 The advantage of the first approach is that you are completely free in what you may change and have full control of the class lifecycle. The disadvantage, you will probably need to merge your changes with /UI2/CL_JSON updates. 
 
-For the second approach you can use /UI2/CL_JSON directly (prerequisite is the latest version of note 2330592), do not need to care about the merge, but can override only some methods. The methods are:
+For the second approach you can use /UI2/CL_JSON directly (the prerequisite is the latest version of note 2330592), do not need to care about the merge but can override only some methods. The methods are:
 
 ## IS_COMPRESSIBLE 
 IS_COMPRESSIBLE is called to check, if the given type output may be suppressed during ABAP to JSON serialization when a value is initial. 
@@ -21,7 +21,7 @@ PRETTY_NAME – called to format ABAP field name written to **JSON** or deserial
 
 * \> **IN** (CSEQUENCE) – Field name to pretty print.
 * \< **OUT** (STRING) – Pretty printed field name
-The default implementation applies camelCase formatting, based on usage of the “_” symbol. To output, the “_” symbol, use the double “__” symbol in the field name.
+The default implementation applies camelCase formatting, based on the usage of the “_” symbol. To output, the “_” symbol, use the double “__” symbol in the field name.
 
 ## PRETTY_NAME_EX
 PRETTY_NAME_EX – called to format ABAP field name written to JSON or deserialized from JSON to ABAP field, when the pretty_name parameter of *SERIALIZE/DESERIALIZE*  method equal to *PRETTY_MODE-EXTENDED*.
@@ -54,7 +54,7 @@ RESTORE - called for deserializing JSON objects into ABAP structures
 * \<\> **OFFSET** (I) – parsing start point in JSON string
 
 ## RESTORE_TYPE
-RESTORE_TYPE - called to deserializing simple JSON attributes and JSON arrays
+RESTORE_TYPE - called to deserialize simple JSON attributes and JSON arrays
 
 * \> **JSON** (JSON) – JSON string to deserialize
 * \>  **LENGTH** (I) – Length of the JSON string
@@ -67,7 +67,7 @@ RESTORE_TYPE - called to deserializing simple JSON attributes and JSON arrays
 CLASS_CONSTRUCTOR - used to initialize static variables. You can not overwrite it, but you can implement your class constructor that adapts default globals. For example, adds the additional boolean types to be recognized during serialization/deserialization. 
 
 ## SERIALIZE/DESERIALIZE
-SERIALIZE/DESERIALIZE - these methods are static therefore cannot be redefined. Methods are helpers for a consumption code, hiding the construction of the class instance and further \*\_INT calls. So, if you would like to use something similar, in your custom class, you need to copy mentioned methods to new ones e,g \*\_EX and overwrite there /UI2/CL_JSON type to your custom class name. And use these methods instead of standard.
+SERIALIZE/DESERIALIZE - these methods are static and therefore cannot be redefined. Methods are helpers for a consumption code, hiding the construction of the class instance and further \*\_INT calls. So, if you would like to use something similar, in your custom class, you need to copy mentioned methods to new ones e,g \*\_EX and overwrite there /UI2/CL_JSON type to your custom class name. And use these methods instead of standard.
 
 Extension using inheritance:
 ```abap
@@ -81,7 +81,7 @@ CLASS lc_json_custom DEFINITION FINAL INHERITING FROM /ui2/cl_json.
       serialize_ex IMPORTING data TYPE data
                          compress TYPE bool DEFAULT c_bool-false
                       pretty_name TYPE pretty_name_mode DEFAULT pretty_mode-none
-          RETURNING value(r_json) TYPE json .
+          RETURNING value(r_json) TYPE json.
 
   PROTECTED SECTION.
     METHODS:
