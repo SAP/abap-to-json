@@ -1,7 +1,7 @@
 # Custom ABAP to JSON, JSON to ABAP name mapping
 By default, you control the way JSON names are formatted/mapped to ABAP names by selecting proper pretty_mode as a parameter for SERIALIZE/DESERIALIZE/GENERATE method. But in some cases, the standard, hard-coded formatting, is not enough. For example, if you need special rules for name formatting (for using special characters) or because the JSON attribute name is too long and you can not map it to ABAP name (which has 30 characters length limit). 
 
-The recommended way for custom mapping was an extension of the /UI2/CL_JSON class and redefining methods PRETTY_NAME or PRETTY_NAME_EX, but since note 2526405 there is an easier way, without the need for its own class. If you have a static list of field mappings from ABAP to JSON you can pass the name mapping table as a parameter for the constructor/serialize/deserialize and control the way JSON names are formatted/mapped to ABAP names. 
+The recommended way for custom mapping was an extension of the class and redefining methods PRETTY_NAME or PRETTY_NAME_EX, but since note 2526405 there is an easier way, without the need for its own class. If you have a static list of field mappings from ABAP to JSON you can pass the name mapping table as a parameter for the constructor/serialize/deserialize and control the way JSON names are formatted/mapped to ABAP names. 
 
 ## ABAP to JSON name mapping example
 ```abap
@@ -91,7 +91,7 @@ Remark: There are some constraints for data design that exist regarding the dese
 * References to interfaces will be not deserialized
 
 ## Serializing of protected and private attributes
-If you do the serialization from outside of your class, you can access only the public attributes of that class. To serialize all types of attributes (private+protected) you need to allow /ui2/cl_json access to them. This can be done by defining /ui2/cl_json as a friend of your class. In this way, you do not disrupt your encapsulation for other classes but enable /ui2/cl_json to access all data of your class.
+If you do the serialization from outside of your class, you can access only the public attributes of that class. To serialize all types of attributes (private+protected) you need to allow JSON serializer class access to them. This can be done by defining the serializer class as a friend of your class. In this way, you do not disrupt your encapsulation for other classes but enable the serializer class to access all data of your class.
 
 If you do not own a class you want to serialize, you probably can inherit it from your class and add friends there. In this case, you can access at least protected attributes.
 
