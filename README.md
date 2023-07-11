@@ -32,6 +32,7 @@ Install via [abapGit Eclipse plugin](https://github.com/abapGit/ADT_Frontend) on
 ## Support, Feedback, Contributing
 
 This project is open to feature requests/suggestions, bug reports, etc. via [GitHub issues](https://github.com/SAP/abap-to-json/issues). Contribution and feedback are encouraged and always welcome. For more information about how to contribute, the project structure, as well as additional contribution information, see our [Contribution Guidelines](CONTRIBUTING.md). The contribution in the Open Source version will be then integrated into the standard SAP-delivered version (/UI2/CL_JSON). 
+You can also use [Github Discussion](https://github.com/SAP/abap-to-json/discussions) to comment, request features or discuss the behavior.
 
 ## Code of Conduct
 
