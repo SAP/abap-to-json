@@ -15,9 +15,9 @@ Here you can find an Open Source version of the standard /UI2/CL_JSON class in t
 
 An original and actual version of the source can be found in class /UI2/CL_JSON delivered with UI2 Add-on (can be applied to SAP_BASIS 740 – 76X). So, you can use this ABAP JSON parser in your standard code mostly on any system.
 
-### Alternatives
+## Alternatives
 If for some reason the solution does not fit your purposes, there are other alternatives you may try:
-* [zJSON from Uwe Fetzer](https://github.com/se38/zJSON)
+* [zJSON from Uwe Fetzer (aka se38)](https://github.com/se38/zJSON)
 * [aJSON from Alexander Tsybulsky (aka sbcgua)](https://github.com/sbcgua/ajson)
 
 ## Documentation
