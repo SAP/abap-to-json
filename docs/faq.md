@@ -42,4 +42,4 @@ My recommendation for you:
 ## Is there a way to deserialize objects that have references to Interface?
 **Q**: I am using /ui2/cl_json to serialize an object that contains some reference attributes. These reference attributes are TYPE REF TO <Interface>. Upon deserialization, the references are not getting deserialized. Is there a way to deserialize objects that have references to Interface?
 
-**A**: Unfortunately - not. To deserialize an object, it shall be created. And how to create an instance of the interface without knowing the class? It can not be done automatically.
+**A**: Unfortunately - not. To deserialize an object, it shall be created. And how to create an instance of the interface without knowing the class? It can not be done automatically. But you may try to [implement the deserialization logic by yourself](docs/advanced.md#jsonabap-serializationdeserialization-with-runtime-type-information).
