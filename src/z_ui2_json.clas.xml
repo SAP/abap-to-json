@@ -54,6 +54,11 @@
      <DESCRIPT>Deserializes ABAP object from JSON</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
+     <CMPNAME>DUMP</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>OBSOLETE: use SERIALIZE instead</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
      <CMPNAME>DUMP_INT</CMPNAME>
      <LANGU>E</LANGU>
      <DESCRIPT>Recursive conversion</DESCRIPT>
@@ -77,6 +82,11 @@
      <CMPNAME>EDM_DATETIME_TO_TS</CMPNAME>
      <LANGU>E</LANGU>
      <DESCRIPT>Converts EDM DateTime into ABAP timestamp</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>ESCAPE</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>OBSOLETE: Use ABAP built-in escape function instead</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
      <CMPNAME>GENERATE</CMPNAME>
@@ -179,6 +189,16 @@
      <DESCRIPT>Map of not-allowed symbols in field names</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
+     <CMPNAME>MC_TYPEKIND_INT8</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>TYPEKIND_INT8, only from 7.40</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>MC_TYPEKIND_UTCLONG</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>CL_ABAP_TYPEDESCR=&gt;TYPEKIND_UTCLONG, only from 7.54</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
      <CMPNAME>MT_NAME_MAPPINGS</CMPNAME>
      <LANGU>E</LANGU>
      <DESCRIPT>Fixed name pairs for JSON to ABAP attribute name mapping</DESCRIPT>
@@ -187,6 +207,16 @@
      <CMPNAME>MT_NAME_MAPPINGS_EX</CMPNAME>
      <LANGU>E</LANGU>
      <DESCRIPT>Cache for JSON to ABAP field renaming</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>MT_OBJ_DUMP_IDX</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Dump object index for resolving cycle references</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>MT_REF_DUMP_IDX</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Dump reference index for resolving cycle references</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
      <CMPNAME>MT_STRUCT_CACHE</CMPNAME>
@@ -672,6 +702,48 @@
      <DESCRIPT>JSON XString</DESCRIPT>
     </SEOSUBCOTX>
     <SEOSUBCOTX>
+     <CMPNAME>DUMP</CMPNAME>
+     <SCONAME>ASSOC_ARRAYS</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Serialize tables with unique keys as associative array</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>DUMP</CMPNAME>
+     <SCONAME>COMPRESS</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Skip empty elements</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>DUMP</CMPNAME>
+     <SCONAME>DATA</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Data reference</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>DUMP</CMPNAME>
+     <SCONAME>PRETTY_NAME</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Pretty Print property names</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>DUMP</CMPNAME>
+     <SCONAME>R_JSON</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>JSON string</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>DUMP</CMPNAME>
+     <SCONAME>TS_AS_ISO8601</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Dump timestamps as string in ISO8601 format</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>DUMP</CMPNAME>
+     <SCONAME>TYPE_DESCR</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Data descriptor</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
      <CMPNAME>DUMP_INT</CMPNAME>
      <SCONAME>CONVEXIT</SCONAME>
      <LANGU>E</LANGU>
@@ -790,6 +862,24 @@
      <SCONAME>TYPEKIND</SCONAME>
      <LANGU>E</LANGU>
      <DESCRIPT>Receiving data type</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>ESCAPE</CMPNAME>
+     <SCONAME>IN</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Text to escape</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>ESCAPE</CMPNAME>
+     <SCONAME>OUT</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Processed text</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>GENERATE</CMPNAME>
+     <SCONAME>JSON</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>JSON string</DESCRIPT>
     </SEOSUBCOTX>
     <SEOSUBCOTX>
      <CMPNAME>GENERATE</CMPNAME>
@@ -1300,6 +1390,12 @@
      <SCONAME>RV_BOOL</SCONAME>
      <LANGU>E</LANGU>
      <DESCRIPT>2 state boolean type (&apos;X&apos; - true, &apos;&apos; - false)</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>UNESCAPE</CMPNAME>
+     <SCONAME>OFFSET</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>String offset for starting unescape</DESCRIPT>
     </SEOSUBCOTX>
     <SEOSUBCOTX>
      <CMPNAME>XSTRING_TO_STRING</CMPNAME>

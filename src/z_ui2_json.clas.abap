@@ -29,28 +29,28 @@ public section.
   constants:
     BEGIN OF pretty_mode,
         none          TYPE char1  VALUE ``,
-        low_case      TYPE char1  VALUE `L`,
-        camel_case    TYPE char1  VALUE `X`,
-        extended      TYPE char1  VALUE `Y`,
-        user          TYPE char1  VALUE `U`,
-        user_low_case TYPE char1  VALUE `C`,
+        low_case      TYPE char1  VALUE 'L',
+        camel_case    TYPE char1  VALUE 'X',
+        extended      TYPE char1  VALUE 'Y',
+        user          TYPE char1  VALUE 'U',
+        user_low_case TYPE char1  VALUE 'C',
       END OF  pretty_mode .
   constants:
     BEGIN OF c_bool,
-        true  TYPE bool  VALUE `X`,
-        false TYPE bool  VALUE ``,
+        true  TYPE bool  VALUE 'X',
+        false TYPE bool  VALUE '',
       END OF  c_bool .
   constants:
     BEGIN OF c_tribool,
         true      TYPE tribool  VALUE c_bool-true,
-        false     TYPE tribool  VALUE `-`,
+        false     TYPE tribool  VALUE '-',
         undefined TYPE tribool  VALUE ``,
       END OF  c_tribool .
   class-data SV_WHITE_SPACE type STRING read-only .
-  constants MC_KEY_SEPARATOR type STRING value `-`. "#EC NOTEXT
-  class-data MC_BOOL_TYPES type STRING read-only value `\TYPE-POOL=ABAP\TYPE=ABAP_BOOL\TYPE=BOOLEAN\TYPE=BOOLE_D\TYPE=XFELD`. "#EC NOTEXT
-  class-data MC_BOOL_3STATE type STRING read-only value `\TYPE=BOOLEAN`. "#EC NOTEXT
-  constants VERSION type I value 16.
+  constants MC_KEY_SEPARATOR type STRING value `-` ##NO_TEXT.
+  class-data MC_BOOL_TYPES type STRING read-only value `\TYPE-POOL=ABAP\TYPE=ABAP_BOOL\TYPE=BOOLEAN\TYPE=BOOLE_D\TYPE=XFELD\TYPE=XSDBOOLEAN\TYPE=WDY_BOOLEAN` ##NO_TEXT.
+  class-data MC_BOOL_3STATE type STRING read-only value `\TYPE=BOOLEAN` ##NO_TEXT.
+  constants VERSION type I value 18 ##NO_TEXT.
   class-data MC_JSON_TYPE type STRING read-only .
 
   class-methods CLASS_CONSTRUCTOR .
@@ -126,9 +126,11 @@ public section.
       CX_SY_MOVE_CAST_ERROR .
   class-methods GENERATE
     importing
-      !JSON type JSON
+      !JSON type JSON optional
       !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
       !NAME_MAPPINGS type NAME_MAPPINGS optional
+      !JSONX type XSTRING optional
+    preferred parameter JSON
     returning
       value(RR_DATA) type ref to DATA .
   methods SERIALIZE_INT
@@ -231,11 +233,11 @@ protected section.
   types:
     t_t_struct_cache TYPE HASHED TABLE OF t_s_struct_cache WITH UNIQUE KEY type_descr include_aliases level .
 
-  data MV_BOOL_TYPES type STRING.
-  data MV_BOOL_3STATE type STRING.
-  data MV_INITIAL_TS type STRING value `""`. "#EC NOTEXT
-  data MV_INITIAL_DATE type STRING value `""`. "#EC NOTEXT
-  data MV_INITIAL_TIME type STRING value `""`. "#EC NOTEXT
+  data MV_BOOL_TYPES type STRING .
+  data MV_BOOL_3STATE type STRING .
+  data MV_INITIAL_TS type STRING value `""` ##NO_TEXT.
+  data MV_INITIAL_DATE type STRING value `""` ##NO_TEXT.
+  data MV_INITIAL_TIME type STRING value `""` ##NO_TEXT.
   data MV_COMPRESS type BOOL .
   data MV_PRETTY_NAME type PRETTY_NAME_MODE .
   data MV_ASSOC_ARRAYS type BOOL .
@@ -251,8 +253,14 @@ protected section.
   data MT_NAME_MAPPINGS_EX type NAME_MAPPINGS_EX .
   data MT_STRUCT_TYPE type T_T_STRUCT_TYPE .
   data MT_STRUCT_CACHE type T_T_STRUCT_CACHE .
-  class-data MC_NAME_SYMBOLS_MAP type STRING value ` _/_\_:_;_~_._,_-_+_=_>_<_|_(_)_[_]_{_}_@_+_*_?_!_&_$_#_%_^_'_`. "#EC NOTEXT
-  constants MC_DEFAULT_INDENT type STRING value `  `. "#EC NOTEXT
+  data:
+    mt_ref_dump_idx type sorted table of ref to data with UNIQUE DEFAULT KEY .
+  data:
+    mt_obj_dump_idx type sorted table of ref to object with UNIQUE DEFAULT KEY .
+  class-data MC_NAME_SYMBOLS_MAP type STRING value ` _/_\_:_;_~_._,_-_+_=_>_<_|_(_)_[_]_{_}_@_+_*_?_!_&_$_#_%_^_'_` ##NO_TEXT.
+  constants MC_DEFAULT_INDENT type STRING value `  ` ##NO_TEXT.
+  constants MC_TYPEKIND_UTCLONG type ABAP_TYPEKIND value 'p' ##NO_TEXT. " CL_ABAP_TYPEDESCR=>TYPEKIND_UTCLONG -> 'p' only from 7.54
+  constants MC_TYPEKIND_INT8 type ABAP_TYPEKIND value '8' ##NO_TEXT. " TYPEKIND_INT8 -> '8' only from 7.40
   class-data SO_TYPE_S type ref to CL_ABAP_ELEMDESCR .
   class-data SO_TYPE_F type ref to CL_ABAP_ELEMDESCR .
   class-data SO_TYPE_P type ref to CL_ABAP_ELEMDESCR .
@@ -263,6 +271,7 @@ protected section.
 
   class-methods UNESCAPE
     importing
+      !OFFSET type I default 0
       !ESCAPED type STRING
     returning
       value(UNESCAPED) type STRING .
@@ -381,11 +390,6 @@ protected section.
       !IN type CSEQUENCE
     returning
       value(OUT) type STRING .
-  class-methods ESCAPE   ##SHADOW[ESCAPE]
-    importing
-      !IN type ANY
-    returning
-      value(OUT) type STRING .
   class-methods EDM_DATETIME_TO_TS
     importing
       !TICKS type STRING
@@ -402,11 +406,16 @@ protected section.
     changing
       !FIELDS type T_T_NAME_VALUE
       !DATA type ref to DATA .
+  class-methods ESCAPE
+    importing
+      !IN type ANY
+    returning
+      value(OUT) type STRING .
 private section.
 
   data MV_EXTENDED type BOOL .
-  class-data MC_ME_TYPE type STRING .
   class-data MC_COV_ERROR type C .
+  class-data MC_ME_TYPE type STRING .
 *"* private components of class Z_UI2_JSON
 *"* do not include other source files here!!!
 ENDCLASS.
@@ -431,9 +440,10 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
     DATA: lo_bool_type_descr    TYPE REF TO cl_abap_typedescr,
           lo_tribool_type_descr TYPE REF TO cl_abap_typedescr,
-          lo_json_type_descr TYPE REF TO cl_abap_typedescr,
-          lv_pos             LIKE sy-fdpos,
-          lv_json_string     TYPE json.
+          lo_json_type_descr    TYPE REF TO cl_abap_typedescr,
+          lv_pos                LIKE sy-fdpos,
+          lv_nbsp               TYPE c LENGTH 1,
+          lv_json_string        TYPE json.
 
     lo_bool_type_descr    = cl_abap_typedescr=>describe_by_data( c_bool-true ).
     lo_tribool_type_descr = cl_abap_typedescr=>describe_by_data( c_tribool-true ).
@@ -443,18 +453,24 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     CONCATENATE mc_bool_3state lo_tribool_type_descr->absolute_name INTO mc_bool_3state.
     CONCATENATE mc_json_type lo_json_type_descr->absolute_name INTO mc_json_type.
 
-    FIND FIRST OCCURRENCE OF `\TYPE=` IN lo_json_type_descr->absolute_name MATCH OFFSET lv_pos.
+    FIND FIRST OCCURRENCE OF '\TYPE=' IN lo_json_type_descr->absolute_name MATCH OFFSET lv_pos.
     IF sy-subrc IS INITIAL.
       mc_me_type = lo_json_type_descr->absolute_name(lv_pos).
     ENDIF.
 
     sv_white_space = cl_abap_char_utilities=>get_simple_spaces_for_cur_cp( ).
+    lv_nbsp = cl_abap_conv_in_ce=>uccp( '00A0' ).
+    FIND FIRST OCCURRENCE OF lv_nbsp IN sv_white_space.
+    IF sy-subrc IS NOT INITIAL. " add non-breakable space
+      CONCATENATE sv_white_space lv_nbsp INTO sv_white_space.
+    ENDIF.
 
     mc_cov_error = cl_abap_conv_in_ce=>uccp( '0000' ).
 
     so_type_s = cl_abap_elemdescr=>get_string( ).
     so_type_f = cl_abap_elemdescr=>get_f( ).
-    so_type_p ?= cl_abap_typedescr=>describe_by_name( 'p' ).
+    " use the call below instead of cl_abap_elemdescr=>get_p( ) to get default length and decimals
+    so_type_p ?= cl_abap_typedescr=>describe_by_name( 'P' ).
     so_type_i = cl_abap_elemdescr=>get_i( ).
     so_type_b ?= cl_abap_typedescr=>describe_by_name( 'ABAP_BOOL' ).
     so_type_t_json ?= cl_abap_typedescr=>describe_by_name( 'T_T_JSON' ).
@@ -490,16 +506,18 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
       INSERT pair INTO TABLE mt_name_mappings.
     ENDLOOP.
 
-    " if it dumps here, you have passed ambiguous mapping to the API
-    " please check your code for duplicates, pairs ABAP - JSON shall be unique
-    INSERT LINES OF mt_name_mappings INTO TABLE mt_name_mappings_ex.
-
     IF mt_name_mappings IS NOT INITIAL.
+
+      " if it dumps here, you have passed ambiguous mapping to the API
+      " please check your code for duplicates, pairs ABAP - JSON shall be unique
+      INSERT LINES OF mt_name_mappings INTO TABLE mt_name_mappings_ex.
+
       IF mv_pretty_name EQ pretty_mode-none.
         mv_pretty_name = pretty_mode-user.
       ELSEIF pretty_name EQ pretty_mode-low_case.
         mv_pretty_name = pretty_mode-user_low_case.
       ENDIF.
+
     ENDIF.
 
     rtti ?= cl_abap_classdescr=>describe_by_object_ref( me ).
@@ -512,7 +530,9 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
   METHOD deserialize.
 
-    DATA: lo_json TYPE REF TO Z_UI2_JSON.
+    CONSTANTS: lc_method TYPE string VALUE `DESERIALIZE_INT`.
+
+    DATA: lo_json TYPE REF TO object.
 
     " **********************************************************************
     " Usage examples and documentation can be found on SCN:
@@ -521,7 +541,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
     IF json IS NOT INITIAL OR jsonx IS NOT INITIAL.
 
-      CREATE OBJECT lo_json
+      CREATE OBJECT lo_json TYPE (mc_me_type)
         EXPORTING
           pretty_name      = pretty_name
           name_mappings    = name_mappings
@@ -531,7 +551,12 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           assoc_arrays_opt = assoc_arrays_opt.
 
       TRY .
-          lo_json->deserialize_int( EXPORTING json = json jsonx = jsonx CHANGING data = data ).
+          CALL METHOD lo_json->(lc_method)
+          EXPORTING
+            json = json
+            jsonx = jsonx
+          CHANGING
+            data = data.
         CATCH cx_sy_move_cast_error.                    "#EC NO_HANDLER
       ENDTRY.
 
@@ -544,46 +569,51 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
     DATA: length    TYPE i,
           offset    TYPE i,
-          unescaped LIKE json.
+          lv_json   LIKE json.
 
     " **********************************************************************
     " Usage examples and documentation can be found on SCN:
     " http://wiki.scn.sap.com/wiki/display/Snippets/One+more+ABAP+to+JSON+Serializer+and+Deserializer
     " **********************************************************************  "
 
-    IF json IS NOT INITIAL OR jsonx IS NOT INITIAL.
+    CHECK  json IS NOT INITIAL OR jsonx IS NOT INITIAL.
 
-      IF jsonx IS NOT INITIAL.
-        unescaped = raw_to_string( jsonx ).
-      ELSE.
-        unescaped = json.
-      ENDIF.
-
-      " skip leading BOM signs
-      length = strlen( unescaped ).
-      while_offset_not_cs `"{[` unescaped.
-
-      restore_type( EXPORTING json = unescaped length = length CHANGING data = data offset = offset ).
-
+    IF jsonx IS NOT INITIAL.
+      lv_json =  cl_abap_codepage=>convert_from( jsonx ).
+    ELSE.
+      lv_json = json.
     ENDIF.
+
+    " skip leading BOM signs till string, array, object, boolean or number
+    length = strlen( lv_json ).
+    while_offset_not_cs '"{[aeflnrstu0123456789+-eE.' lv_json.
+
+    restore_type( EXPORTING json = lv_json length = length CHANGING data = data offset = offset ).
 
   ENDMETHOD.                    "deserialize
 
 
-  METHOD dump.
+METHOD dump.
 
-    DATA: lo_json TYPE REF TO Z_UI2_JSON.
+  CONSTANTS: lc_method TYPE string VALUE `DUMP_INT`.
 
-    CREATE OBJECT lo_json
-      EXPORTING
-        compress      = compress
-        pretty_name   = pretty_name
-        assoc_arrays  = assoc_arrays
-        ts_as_iso8601 = ts_as_iso8601.
+  DATA: lo_json TYPE REF TO object.
 
-    r_json = lo_json->dump_int( data = data type_descr = type_descr ).
+  CREATE OBJECT lo_json TYPE (mc_me_type)
+    EXPORTING
+      compress      = compress
+      pretty_name   = pretty_name
+      assoc_arrays  = assoc_arrays
+      ts_as_iso8601 = ts_as_iso8601.
 
-  ENDMETHOD.                    "dump
+  CALL METHOD lo_json->(lc_method)
+    EXPORTING
+      data       = data
+      type_descr = type_descr
+    RECEIVING
+      r_json     = r_json.
+
+ENDMETHOD.                    "dump
 
 
   METHOD dump_int.
@@ -607,7 +637,9 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           lv_lb         TYPE string,
           lv_prop_name  TYPE string,
           lv_keyval     TYPE string,
-          lv_itemval    TYPE string.
+          lv_helper     TYPE string,
+          lv_itemval    TYPE string,
+          lv_property   TYPE string.
 
     FIELD-SYMBOLS: <line>   TYPE any,
                    <value>  TYPE any,
@@ -629,14 +661,28 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           r_json = `null`.                                  "#EC NOTEXT
         ELSEIF type_descr->type_kind EQ cl_abap_typedescr=>typekind_dref.
           lo_data_ref ?= data.
-          lo_typedesc = cl_abap_typedescr=>describe_by_data_ref( lo_data_ref ).
-          ASSIGN lo_data_ref->* TO <data>.
-          r_json = dump_int( data = <data> type_descr = lo_typedesc level = level ).
+          INSERT lo_data_ref INTO TABLE mt_ref_dump_idx.
+          IF sy-subrc IS INITIAL. "not dumped yet
+            lo_typedesc = cl_abap_typedescr=>describe_by_data_ref( lo_data_ref ).
+            ASSIGN lo_data_ref->* TO <data>.
+            r_json = dump_int( data = <data> type_descr = lo_typedesc level = level ).
+            DELETE TABLE mt_ref_dump_idx WITH TABLE KEY table_line = lo_data_ref.
+          ELSE.
+            " it is a cycle reference, we can not proceed, so terminate and write empty object instead
+            r_json = `{}`.                                  "#EC NOTEXT
+          ENDIF.
         ELSE.
           lo_obj_ref ?= data.
-          lo_classdesc ?= cl_abap_typedescr=>describe_by_object_ref( lo_obj_ref ).
-          lt_symbols = get_symbols_class( type_descr = lo_classdesc object = lo_obj_ref ).
-          r_json = dump_symbols( it_symbols = lt_symbols level = level ).
+          INSERT lo_obj_ref INTO TABLE mt_obj_dump_idx.
+          IF sy-subrc IS INITIAL. "not dumped yet
+            lo_classdesc ?= cl_abap_typedescr=>describe_by_object_ref( lo_obj_ref ).
+            lt_symbols = get_symbols_class( type_descr = lo_classdesc object = lo_obj_ref ).
+            r_json = dump_symbols( it_symbols = lt_symbols level = level ).
+            DELETE TABLE mt_obj_dump_idx WITH TABLE KEY table_line = lo_obj_ref.
+          ELSE.
+            " it is a cycle reference, we can not proceed, so terminate and write empty object instead
+            r_json = `{}`.                                  "#EC NOTEXT
+          ENDIF.
         ENDIF.
 
       WHEN cl_abap_typedescr=>kind_elem.
@@ -722,22 +768,22 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
               lv_itemval = dump_symbols( it_symbols = ls_struct_sym-symbols opt_array = lv_array_opt format_scope = abap_false level = lv_level ).
               IF lv_array_opt EQ abap_true.
                 IF mv_format_output EQ abap_true AND lv_itemval IS NOT INITIAL.
-                  CONCATENATE `"` lv_prop_name `": ` lv_itemval INTO lv_itemval.
+                  CONCATENATE '"' lv_prop_name '": ' lv_itemval INTO lv_property RESPECTING BLANKS.
                 ELSE.
-                  CONCATENATE `"` lv_prop_name `":` lv_itemval INTO lv_itemval.
+                  CONCATENATE '"' lv_prop_name '":' lv_itemval INTO lv_property.
                 ENDIF.
               ELSE.
                 IF mv_format_output EQ abap_true AND lv_itemval IS NOT INITIAL.
-                  CONCATENATE `"` lv_prop_name `": {` lv_itemval lv_indent `}` INTO lv_itemval.
+                  CONCATENATE '"' lv_prop_name '": {' lv_itemval lv_indent '}' INTO lv_property.
                 ELSE.
-                  CONCATENATE `"` lv_prop_name `":{` lv_itemval `}` INTO lv_itemval.
+                  CONCATENATE '"' lv_prop_name '":{' lv_itemval '}' INTO lv_property.
                 ENDIF.
               ENDIF.
-              APPEND lv_itemval TO lt_properties.
+              APPEND lv_property TO lt_properties.
 
             ENDLOOP.
 
-            format_list_output `{` lt_properties `}` r_json.
+            format_list_output '{' lt_properties '}' r_json.
 
           ELSE.
             LOOP AT <table> INTO <line>.
@@ -745,7 +791,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
               APPEND lv_itemval TO lt_properties.
             ENDLOOP.
 
-            format_list_output `[` lt_properties `]` r_json.
+            format_list_output '[' lt_properties ']' r_json.
 
           ENDIF.
         ELSE.
@@ -754,7 +800,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
             APPEND lv_itemval TO lt_properties.
           ENDLOOP.
 
-          format_list_output `[` lt_properties `]` r_json.
+          format_list_output '[' lt_properties ']' r_json.
 
         ENDIF.
 
@@ -768,7 +814,9 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     DATA: lt_fields  TYPE STANDARD TABLE OF string,
           lv_indent  TYPE string,
           lv_level   LIKE level,
-          lv_itemval TYPE string.
+          lv_helper  TYPE string,
+          lv_itemval TYPE string,
+          lv_field   TYPE string.
 
     FIELD-SYMBOLS: <value>  TYPE any,
                    <symbol> LIKE LINE OF it_symbols.
@@ -790,24 +838,26 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
       ENDIF.
       IF opt_array EQ abap_false.
         IF mv_format_output EQ abap_true.
-          CONCATENATE lv_indent <symbol>-header lv_itemval INTO lv_itemval.
+          CONCATENATE lv_indent <symbol>-header lv_itemval INTO lv_field.
         ELSE.
-          CONCATENATE <symbol>-header lv_itemval INTO lv_itemval.
+          CONCATENATE <symbol>-header lv_itemval INTO lv_field.
         ENDIF.
+      ELSE.
+        lv_field = lv_itemval.
       ENDIF.
-      APPEND lv_itemval TO lt_fields.
+      APPEND lv_field TO lt_fields.
     ENDLOOP.
 
-    CONCATENATE LINES OF lt_fields INTO r_json SEPARATED BY `,`.
+    CONCATENATE LINES OF lt_fields INTO r_json SEPARATED BY ','.
 
     IF format_scope EQ abap_true.
       IF r_json IS INITIAL.
         r_json = `{}`.
       ELSEIF mv_format_output EQ abap_true.
         lv_indent = get_indent( level ).
-        CONCATENATE `{` r_json lv_indent `}` INTO r_json.
+        CONCATENATE '{' r_json lv_indent '}' INTO r_json.
       ELSE.
-        CONCATENATE `{` r_json `}` INTO r_json.
+        CONCATENATE '{' r_json '}' INTO r_json.
       ENDIF.
     ENDIF.
 
@@ -816,8 +866,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
   METHOD dump_type.
 
-    CONSTANTS: lc_typekind_utclong TYPE abap_typekind VALUE 'p', " CL_ABAP_TYPEDESCR=>TYPEKIND_UTCLONG -> 'p' only from 7.60
-               lc_typekind_int8    TYPE abap_typekind VALUE '8'.  " TYPEKIND_INT8 -> '8' only from 7.40
+    DATA: lv_helper TYPE string.
 
     IF convexit IS NOT INITIAL AND data IS NOT INITIAL.
       TRY.
@@ -829,26 +878,31 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
             EXCEPTIONS
               OTHERS = 1.
           IF sy-subrc IS INITIAL.
-            CONCATENATE `"` r_json `"` INTO r_json.
+            CONCATENATE '"' r_json '"' INTO r_json.
           ENDIF.
-        CATCH cx_root.                                  "#EC NO_HANDLER
+        CATCH cx_root ##CATCH_ALL ##NO_HANDLER.
       ENDTRY.
     ELSE.
       CASE type_descr->type_kind.
+        WHEN mc_typekind_utclong.
+          IF data IS INITIAL.
+            r_json = mv_initial_ts.
+          ELSE.
+            lv_helper = data.
+            CONCATENATE '"' lv_helper(10) 'T' lv_helper+11(16) 'Z"'  INTO r_json.
+          ENDIF.
         WHEN cl_abap_typedescr=>typekind_float OR cl_abap_typedescr=>typekind_int OR cl_abap_typedescr=>typekind_int1 OR
-             cl_abap_typedescr=>typekind_int2 OR cl_abap_typedescr=>typekind_packed OR lc_typekind_utclong OR lc_typekind_int8.
-
-          IF mv_ts_as_iso8601 EQ c_bool-true AND
-            ( type_descr->type_kind EQ lc_typekind_utclong OR
-            ( type_descr->type_kind EQ cl_abap_typedescr=>typekind_packed AND type_descr->absolute_name CP `\TYPE=TIMESTAMP*` ) ).
+             cl_abap_typedescr=>typekind_int2 OR cl_abap_typedescr=>typekind_packed OR mc_typekind_int8.
+          IF type_descr->type_kind EQ cl_abap_typedescr=>typekind_packed AND mv_ts_as_iso8601 EQ c_bool-true AND
+            ( type_descr->absolute_name EQ '\TYPE=TIMESTAMP' OR type_descr->absolute_name EQ '\TYPE=TIMESTAMPL' ).
             IF data IS INITIAL.
               r_json = mv_initial_ts.
             ELSE.
-              r_json = data.
-              IF type_descr->absolute_name EQ `\TYPE=TIMESTAMP`.
-                CONCATENATE `"` r_json(4) `-` r_json+4(2) `-` r_json+6(2) `T` r_json+8(2) `:` r_json+10(2) `:` r_json+12(2) `.0000000Z"`  INTO r_json.
-              ELSEIF type_descr->absolute_name EQ `\TYPE=TIMESTAMPL`.
-                CONCATENATE `"` r_json(4) `-` r_json+4(2) `-` r_json+6(2) `T` r_json+8(2) `:` r_json+10(2) `:` r_json+12(2) `.` r_json+15(7) `Z"`  INTO r_json.
+              lv_helper = data.
+              IF type_descr->absolute_name EQ '\TYPE=TIMESTAMP'.
+                CONCATENATE '"' lv_helper(4) '-' lv_helper+4(2) '-' lv_helper+6(2) 'T' lv_helper+8(2) ':' lv_helper+10(2) ':' lv_helper+12(2) 'Z"'  INTO r_json.
+              ELSE. "IF type_descr->absolute_name EQ '\TYPE=TIMESTAMPL'.
+                CONCATENATE '"' lv_helper(4) '-' lv_helper+4(2) '-' lv_helper+6(2) 'T' lv_helper+8(2) ':' lv_helper+10(2) ':' lv_helper+12(2) '.' lv_helper+15(7) 'Z"'  INTO r_json.
               ENDIF.
             ENDIF.
           ELSEIF data IS INITIAL.
@@ -868,11 +922,11 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
             IF data IS INITIAL.
               r_json = `""`.
             ELSE.
-              CONCATENATE `"` data `"` INTO r_json.
+              CONCATENATE '"' data '"' INTO r_json.
             ENDIF.
           ELSE.
             r_json = data.
-            SHIFT r_json LEFT DELETING LEADING ` 0`.
+            SHIFT r_json LEFT DELETING LEADING ' 0'.
             IF r_json IS INITIAL.
               r_json = `0`.
             ENDIF.
@@ -883,15 +937,15 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           ELSEIF type_descr->absolute_name EQ mc_json_type.
             r_json = data.
           ELSE.
-            r_json = escape( data ).
-            CONCATENATE `"` r_json `"` INTO r_json.
+            escape_json data r_json.
+            CONCATENATE '"' r_json '"' INTO r_json.
           ENDIF.
         WHEN cl_abap_typedescr=>typekind_xstring OR cl_abap_typedescr=>typekind_hex.
           IF data IS INITIAL.
             r_json = `""`.
           ELSE.
             xstring_to_string_int data r_json.
-            CONCATENATE `"` r_json `"` INTO r_json.
+            CONCATENATE '"' r_json '"' INTO r_json.
           ENDIF.
         WHEN cl_abap_typedescr=>typekind_char.
           IF type_descr->output_length EQ 1 AND mv_bool_types CS type_descr->absolute_name.
@@ -902,25 +956,27 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
             ELSE.
               r_json = `false`.                             "#EC NOTEXT
             ENDIF.
+          ELSEIF data IS INITIAL.
+            r_json = `""`.
           ELSE.
-            r_json = escape( data ).
-            CONCATENATE `"` r_json `"` INTO r_json.
+            escape_json data r_json.
+            CONCATENATE '"' r_json '"' INTO r_json.
           ENDIF.
         WHEN cl_abap_typedescr=>typekind_date.
           IF data IS INITIAL.
             r_json = mv_initial_date.
           ELSE.
-            CONCATENATE `"` data(4) `-` data+4(2) `-` data+6(2) `"` INTO r_json.
+            CONCATENATE '"' data(4) '-' data+4(2) '-' data+6(2) '"' INTO r_json.
           ENDIF.
         WHEN cl_abap_typedescr=>typekind_time.
           IF data IS INITIAL.
             r_json = mv_initial_time.
           ELSE.
-            CONCATENATE `"` data(2) `:` data+2(2) `:` data+4(2) `"` INTO r_json.
+            CONCATENATE '"' data(2) ':' data+2(2) ':' data+4(2) '"' INTO r_json.
           ENDIF.
         WHEN 'k'. " cl_abap_typedescr=>typekind_enum
           r_json = data.
-          CONCATENATE `"` r_json `"` INTO r_json.
+          CONCATENATE '"' r_json '"' INTO r_json.
         WHEN OTHERS.
           IF data IS INITIAL.
             r_json = `null`.                                "#EC NOTEXT
@@ -964,7 +1020,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     lv_subsec    = lv_ticks MOD 1000. " in subsec
     IF lv_subsec GT 0.
       lv_timestamps = lv_subsec.
-      CONCATENATE lc_epochs `.` lv_timestamps INTO lv_timestamps.
+      CONCATENATE lc_epochs '.' lv_timestamps INTO lv_timestamps.
       lv_timestamp = lv_timestamps.
     ENDIF.
     lv_timestamp = cl_abap_tstmp=>add( tstmp = lv_timestamp secs = lv_seconds ).
@@ -994,33 +1050,13 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
 
   METHOD escape.
-
     escape_json in out.
-
-  ENDMETHOD.                    "escape
+  ENDMETHOD.
 
 
   METHOD generate.
 
-    DATA: lo_json TYPE REF TO Z_UI2_JSON,
-          offset  TYPE i,
-          length  TYPE i.
-
-    " skip leading BOM signs
-    length = strlen( json ).
-    while_offset_not_cs `"{[` json.
-
-    CREATE OBJECT lo_json
-      EXPORTING
-        pretty_name      = pretty_name
-        name_mappings    = name_mappings
-        assoc_arrays     = c_bool-true
-        assoc_arrays_opt = c_bool-true.
-
-    TRY .
-        lo_json->generate_int( EXPORTING json = json length = length CHANGING offset = offset data = rr_data ).
-      CATCH cx_sy_move_cast_error.                      "#EC NO_HANDLER
-    ENDTRY.
+    deserialize( EXPORTING json = json jsonx = jsonx pretty_name = pretty_name name_mappings = name_mappings CHANGING data = rr_data ).
 
   ENDMETHOD.
 
@@ -1043,7 +1079,7 @@ METHOD generate_int.
   eat_white.
 
   CASE json+offset(1).
-    WHEN `{`."result must be a structure
+    WHEN '{'."result must be a structure
       restore_type( EXPORTING json = json length = length type_descr = so_type_t_name_value CHANGING offset = offset data = lt_fields ).
       generate_struct( CHANGING fields = lt_fields data = data ).
       IF data IS BOUND.
@@ -1053,7 +1089,7 @@ METHOD generate_int.
           generate_int( EXPORTING json = <field>-value CHANGING data = <data> ).
         ENDLOOP.
       ENDIF.
-    WHEN `[`."result must be a table of ref
+    WHEN '['."result must be a table of ref
       restore_type( EXPORTING json = json length = length type_descr = so_type_t_json CHANGING offset = offset data = lt_json ).
       CREATE DATA data TYPE ref_tab.
       ASSIGN data->* TO <table>.
@@ -1061,10 +1097,10 @@ METHOD generate_int.
         APPEND INITIAL LINE TO <table> ASSIGNING <data>.
         generate_int( EXPORTING json = <json> CHANGING data = <data> ).
       ENDLOOP.
-    WHEN `"`."string
+    WHEN '"'."string
       restore_reference so_type_s.
-    WHEN `-` OR `0` OR `1` OR `2` OR `3` OR `4` OR `5` OR `6` OR `7` OR `8` OR `9`. " number
-      IF json+offset CS '.'.
+    WHEN '-' OR '0' OR '1' OR '2' OR '3' OR '4' OR '5' OR '6' OR '7' OR '8' OR '9'. " number
+      IF json+offset CA '.Ee'.
         restore_reference so_type_f.
       ELSEIF length GT 9.
         restore_reference so_type_p.
@@ -1072,7 +1108,7 @@ METHOD generate_int.
         restore_reference so_type_i.
       ENDIF.
     WHEN OTHERS.
-      IF json+offset EQ `true` OR json+offset EQ `false`. "#EC NOTEXT
+      IF json+offset EQ 'true' OR json+offset EQ 'false'. "#EC NOTEXT
         restore_reference so_type_b.
       ENDIF.
   ENDCASE.
@@ -1121,6 +1157,7 @@ ENDMETHOD.
     ENDLOOP.
 
     CONCATENATE LINES OF lt_keys INTO ls_type-keys.
+    ls_type-keys = lcl_util=>to_md5( ls_type-keys ).
 
     READ TABLE mt_struct_type WITH TABLE KEY keys = ls_type-keys INTO ls_type.
     IF sy-subrc IS NOT INITIAL.
@@ -1132,10 +1169,10 @@ ENDMETHOD.
           ls_comp-name = <cache>-abap.
         ELSE.
           cache-json = ls_comp-name = <field>-name.
-          " remove characters not allowed in component names
-          TRANSLATE ls_comp-name USING mc_name_symbols_map.
+          " remove characters not allowed in component names and condense
+          REPLACE ALL OCCURRENCES OF REGEX '[^0-9a-zA-Z_]{1,}' IN ls_comp-name WITH '_' ##REGEX_POSIX ##NO_TEXT.
           IF mv_pretty_name EQ pretty_mode-camel_case OR mv_pretty_name EQ pretty_mode-extended.
-            REPLACE ALL OCCURRENCES OF REGEX `([a-z])([A-Z])` IN ls_comp-name WITH `$1_$2`. "#EC NOTEXT
+            REPLACE ALL OCCURRENCES OF REGEX '([a-z])([A-Z])' IN ls_comp-name WITH '$1_$2' ##REGEX_POSIX ##NO_TEXT.
           ENDIF.
           TRANSLATE ls_comp-name TO UPPER CASE.
           cache-abap = ls_comp-name = lv_comp_name = ls_comp-name. " truncate by allowed field name length
@@ -1282,28 +1319,30 @@ ENDMETHOD.
                    <cache> LIKE LINE OF mt_name_mappings,
                    <field> TYPE any.
 
-    LOOP AT type_descr->attributes ASSIGNING <attr> WHERE is_constant IS INITIAL AND alias_for IS INITIAL AND
-      ( is_interface IS INITIAL OR type_kind NE cl_abap_typedescr=>typekind_oref ).
+    LOOP AT type_descr->attributes ASSIGNING <attr>
+      WHERE is_constant IS INITIAL AND alias_for IS INITIAL
+      AND ( is_interface IS INITIAL OR type_kind NE cl_abap_typedescr=>typekind_intf ).
       ASSIGN object->(<attr>-name) TO <field>.
-      CHECK sy-subrc IS INITIAL. " we can only assign to public attributes
+      " we can assign to public attributes or to protected and private for friend classes
+      CHECK sy-subrc IS INITIAL.
       symb-name = <attr>-name.
       symb-read_only = <attr>-is_read_only.
       symb-type = type_descr->get_attribute_type( <attr>-name ).
       IF symb-type->kind EQ cl_abap_typedescr=>kind_elem.
         symb-elem_type ?= symb-type.
+        IF mv_conversion_exits EQ abap_true.
+          symb-convexit_in = get_convexit_func( elem_descr = symb-elem_type input = abap_true ).
+          symb-convexit_out = get_convexit_func( elem_descr = symb-elem_type input = abap_false ).
+        ENDIF.
       ELSE.
         CLEAR symb-elem_type.
-      ENDIF.
-      IF mv_conversion_exits EQ abap_true AND symb-elem_type IS NOT INITIAL.
-        symb-convexit_in = get_convexit_func( elem_descr = symb-elem_type input = abap_true ).
-        symb-convexit_out = get_convexit_func( elem_descr = symb-elem_type input = abap_false ).
       ENDIF.
       is_compressable symb-type symb-name symb-compressable.
       GET REFERENCE OF <field> INTO symb-value.
       format_name symb-name mv_pretty_name symb-header.
-      CONCATENATE `"` symb-header `":` INTO symb-header.
+      CONCATENATE '"' symb-header '":' INTO symb-header.
       IF mv_format_output EQ abap_true.
-        CONCATENATE symb-header ` ` INTO symb-header.
+        CONCATENATE symb-header ' ' INTO symb-header RESPECTING BLANKS.
       ENDIF.
       APPEND symb TO result.
     ENDLOOP.
@@ -1346,20 +1385,20 @@ ENDMETHOD.
           symbol-type = <comp>-type.
           IF symbol-type->kind EQ cl_abap_typedescr=>kind_elem.
             symbol-elem_type ?= symbol-type.
+            IF mv_conversion_exits EQ abap_true.
+              symbol-convexit_in = get_convexit_func( elem_descr = symbol-elem_type input = abap_true ).
+              symbol-convexit_out = get_convexit_func( elem_descr = symbol-elem_type input = abap_false ).
+            ENDIF.
           ELSE.
             CLEAR symbol-elem_type.
-          ENDIF.
-          IF mv_conversion_exits EQ abap_true AND symbol-elem_type IS NOT INITIAL.
-            symbol-convexit_in = get_convexit_func( elem_descr = symbol-elem_type input = abap_true ).
-            symbol-convexit_out = get_convexit_func( elem_descr = symbol-elem_type input = abap_false ).
           ENDIF.
           is_compressable symbol-type symbol-name symbol-compressable.
           ASSIGN COMPONENT symbol-name OF STRUCTURE <data> TO <field>.
           GET REFERENCE OF <field> INTO symbol-value.
           format_name symbol-name mv_pretty_name symbol-header.
-          CONCATENATE `"` symbol-header `":` INTO symbol-header.
+          CONCATENATE '"' symbol-header '":' INTO symbol-header.
           IF mv_format_output EQ abap_true.
-            CONCATENATE symbol-header ` ` INTO symbol-header.
+            CONCATENATE symbol-header ' ' INTO symbol-header RESPECTING BLANKS.
           ENDIF.
           APPEND symbol TO <struct>-result-symbols.
         ENDIF.
@@ -1370,20 +1409,20 @@ ENDMETHOD.
             CONCATENATE symbol-name <comp>-suffix INTO symbol-name.
             IF symbol-type->kind EQ cl_abap_typedescr=>kind_elem.
               symbol-elem_type ?= symbol-type.
+              IF mv_conversion_exits EQ abap_true.
+                symbol-convexit_in = get_convexit_func( elem_descr = symbol-elem_type input = abap_true ).
+                symbol-convexit_out = get_convexit_func( elem_descr = symbol-elem_type input = abap_false ).
+              ENDIF.
             ELSE.
               CLEAR symbol-elem_type.
-            ENDIF.
-            IF mv_conversion_exits EQ abap_true AND symbol-elem_type IS NOT INITIAL.
-              symbol-convexit_in = get_convexit_func( elem_descr = symbol-elem_type input = abap_true ).
-              symbol-convexit_out = get_convexit_func( elem_descr = symbol-elem_type input = abap_false ).
             ENDIF.
             is_compressable symbol-type symbol-name symbol-compressable.
             ASSIGN COMPONENT symbol-name OF STRUCTURE <data> TO <field>.
             GET REFERENCE OF <field> INTO symbol-value.
             format_name symbol-name mv_pretty_name symbol-header.
-            CONCATENATE `"` symbol-header `":` INTO symbol-header.
+            CONCATENATE '"' symbol-header '":' INTO symbol-header.
             IF mv_format_output EQ abap_true.
-              CONCATENATE symbol-header ` ` INTO symbol-header.
+              CONCATENATE symbol-header ' ' INTO symbol-header RESPECTING BLANKS.
             ENDIF.
             APPEND symbol TO <struct>-result-symbols.
           ENDLOOP.
@@ -1424,17 +1463,17 @@ ENDMETHOD.
     ELSE.
       out = in.
 
-      REPLACE ALL OCCURRENCES OF `__` IN out WITH `*`.
+      REPLACE ALL OCCURRENCES OF '__' IN out WITH '*'.
 
       TRANSLATE out TO LOWER CASE.
-      TRANSLATE out USING `/_:_~_`.
-      SPLIT out AT `_` INTO TABLE tokens.
+      TRANSLATE out USING '/_:_~_'.
+      SPLIT out AT '_' INTO TABLE tokens.
       LOOP AT tokens ASSIGNING <token> FROM 2.
         TRANSLATE <token>(1) TO UPPER CASE.
       ENDLOOP.
 
       CONCATENATE LINES OF tokens INTO out.
-      REPLACE ALL OCCURRENCES OF `*` IN out WITH `_`.
+      REPLACE ALL OCCURRENCES OF '*' IN out WITH '_'.
 
       cache-abap  = in.
       cache-json = out.
@@ -1461,32 +1500,32 @@ ENDMETHOD.
 
 
       TRANSLATE out TO LOWER CASE.
-      TRANSLATE out USING `/_:_~_`.
+      TRANSLATE out USING '/_:_~_'.
 
-      REPLACE ALL OCCURRENCES OF `__e__` IN out WITH `!`.
-      REPLACE ALL OCCURRENCES OF `__n__` IN out WITH `#`.
-      REPLACE ALL OCCURRENCES OF `__d__` IN out WITH `$`.
-      REPLACE ALL OCCURRENCES OF `__p__` IN out WITH `%`.
-      REPLACE ALL OCCURRENCES OF `__m__` IN out WITH `&`.
-      REPLACE ALL OCCURRENCES OF `__s__` IN out WITH `*`.
-      REPLACE ALL OCCURRENCES OF `__h__` IN out WITH `-`.
-      REPLACE ALL OCCURRENCES OF `__t__` IN out WITH `~`.
-      REPLACE ALL OCCURRENCES OF `__l__` IN out WITH `/`.
-      REPLACE ALL OCCURRENCES OF `__c__` IN out WITH `:`.
-      REPLACE ALL OCCURRENCES OF `__v__` IN out WITH `|`.
-      REPLACE ALL OCCURRENCES OF `__a__` IN out WITH `@`.
-      REPLACE ALL OCCURRENCES OF `__o__` IN out WITH `.`.
-      REPLACE ALL OCCURRENCES OF `___`   IN out WITH `.`.
+      REPLACE ALL OCCURRENCES OF '__e__' IN out WITH '!'.
+      REPLACE ALL OCCURRENCES OF '__n__' IN out WITH '#'.
+      REPLACE ALL OCCURRENCES OF '__d__' IN out WITH '$'.
+      REPLACE ALL OCCURRENCES OF '__p__' IN out WITH '%'.
+      REPLACE ALL OCCURRENCES OF '__m__' IN out WITH '&'.
+      REPLACE ALL OCCURRENCES OF '__s__' IN out WITH '*'.
+      REPLACE ALL OCCURRENCES OF '__h__' IN out WITH '-'.
+      REPLACE ALL OCCURRENCES OF '__t__' IN out WITH '~'.
+      REPLACE ALL OCCURRENCES OF '__l__' IN out WITH '/'.
+      REPLACE ALL OCCURRENCES OF '__c__' IN out WITH ':'.
+      REPLACE ALL OCCURRENCES OF '__v__' IN out WITH '|'.
+      REPLACE ALL OCCURRENCES OF '__a__' IN out WITH '@'.
+      REPLACE ALL OCCURRENCES OF '__o__' IN out WITH '.'.
+      REPLACE ALL OCCURRENCES OF '___'   IN out WITH '.'.
 
-      REPLACE ALL OCCURRENCES OF `__` IN out WITH `"`.
+      REPLACE ALL OCCURRENCES OF '__' IN out WITH '"'.
 
-      SPLIT out AT `_` INTO TABLE tokens.
+      SPLIT out AT '_' INTO TABLE tokens.
       LOOP AT tokens ASSIGNING <token> FROM 2.
         TRANSLATE <token>(1) TO UPPER CASE.
       ENDLOOP.
 
       CONCATENATE LINES OF tokens INTO out.
-      REPLACE ALL OCCURRENCES OF `"` IN out WITH `_`.
+      REPLACE ALL OCCURRENCES OF '"' IN out WITH '_'.
 
       cache-abap  = in.
       cache-json = out.
@@ -1527,6 +1566,7 @@ ENDMETHOD.
 
     DATA: mark       LIKE offset,
           match      LIKE offset,
+          pos        LIKE offset,
           ref_descr  TYPE REF TO cl_abap_refdescr,
           data_descr TYPE REF TO cl_abap_datadescr,
           data_ref   TYPE REF TO data,
@@ -1573,14 +1613,14 @@ ENDMETHOD.
     ENDIF.
 
     eat_white.
-    eat_char `{`.
+    eat_char '{'.
     eat_white.
 
-    WHILE offset < length AND json+offset(1) NE `}`.
+    WHILE offset < length AND json+offset(1) NE '}'.
 
       eat_name name_json.
       eat_white.
-      eat_char `:`.
+      eat_char ':'.
       eat_white.
 
       READ TABLE fields WITH TABLE KEY name = name_json ASSIGNING <field_cache>.
@@ -1598,8 +1638,8 @@ ENDMETHOD.
 
       eat_white.
 
-      IF offset < length AND json+offset(1) NE `}`.
-        eat_char `,`.
+      IF offset < length AND json+offset(1) NE '}'.
+        eat_char ','.
         eat_white.
       ELSE.
         EXIT.
@@ -1607,12 +1647,23 @@ ENDMETHOD.
 
     ENDWHILE.
 
-    eat_char `}`.
+    eat_char '}'.
 
   ENDMETHOD.                    "restore
 
 
   METHOD restore_type.
+
+    CONSTANTS:
+      " support for ISO8601 => https://en.wikipedia.org/wiki/ISO_8601
+      lc_iso8601_regexp       TYPE string VALUE `^(?:(\d{4})-?(\d{2})-?(\d{2}))?(?:T(\d{2}):?(\d{2})(?::?(\d{2}))?(?:[\.,](\d{0,7}))?(?:Z|(?:[+-]?\d{2}(?::?\d{2})?))?)?\s*$`, "#EC NOTEXT
+      " support for Edm.Guid
+      lc_edm_guid_regexp      TYPE string VALUE `^([0-9A-F]{8})-([0-9A-F]{4})-([0-9A-F]{4})-([0-9A-F]{4})-([0-9A-F]{12})\s*$`, "#EC NOTEXT
+      " support for Edm.DateTime => http://www.odata.org/documentation/odata-version-2-0/json-format/
+      lc_edm_date_time_regexp TYPE string VALUE `^\/Date\((-?\d+)([+-]\d{1,4})?\)\/\s*$`, "#EC NOTEXT
+      " support for Edm.Time => https://www.w3.org/TR/xmlschema11-2/#nt-durationRep
+      lc_edm_time_regexp      TYPE string VALUE `^-?P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)(?:\.(\d+))?S)?)?\s*$`. "#EC NOTEXT
+
 
     DATA: mark         LIKE offset,
           match        LIKE offset,
@@ -1663,15 +1714,15 @@ ENDMETHOD.
           data = json+mark(match).
         ELSE.
           CASE json+offset(1).
-            WHEN `{`. " object
+            WHEN '{'. " object
               IF data IS SUPPLIED.
                 IF mv_assoc_arrays EQ c_bool-true AND type_descr->kind EQ cl_abap_typedescr=>kind_table.
                   table_descr ?= type_descr.
                   data_descr = table_descr->get_table_line_type( ).
                   IF table_descr->has_unique_key IS NOT INITIAL.
-                    eat_char `{`.
+                    eat_char '{'.
                     eat_white.
-                    IF json+offset(1) NE `}`.
+                    IF json+offset(1) NE '}'.
                       ASSIGN data TO <table>.
                       CLEAR <table>.
                       CREATE DATA line LIKE LINE OF <table>.
@@ -1691,11 +1742,11 @@ ENDMETHOD.
                         ENDIF.
                       ENDIF.
                       eat_white.
-                      WHILE offset < length AND json+offset(1) NE `}`.
+                      WHILE offset < length AND json+offset(1) NE '}'.
                         CLEAR <line>.
                         eat_name key_value.
                         eat_white.
-                        eat_char `:`.
+                        eat_char ':'.
                         eat_white.
                         IF <value_sym> IS ASSIGNED.
                           ASSIGN <value_sym>-value->* TO <value>.
@@ -1718,8 +1769,8 @@ ENDMETHOD.
 
                         INSERT <line> INTO TABLE <table>.
                         eat_white.
-                        IF offset < length AND json+offset(1) NE `}`.
-                          eat_char `,`.
+                        IF offset < length AND json+offset(1) NE '}'.
+                          eat_char ','.
                           eat_white.
                         ELSE.
                           EXIT.
@@ -1728,7 +1779,7 @@ ENDMETHOD.
                     ELSE.
                       CLEAR data.
                     ENDIF.
-                    eat_char `}`.
+                    eat_char '}'.
                   ELSE.
                     restore( EXPORTING json = json length = length CHANGING  offset = offset ).
                   ENDIF.
@@ -1748,7 +1799,7 @@ ENDMETHOD.
               ELSE.
                 restore( EXPORTING json = json length = length CHANGING  offset = offset ).
               ENDIF.
-            WHEN `[`. " array
+            WHEN '['. " array
               IF data IS SUPPLIED AND type_descr->type_kind EQ cl_abap_typedescr=>typekind_dref.
                 IF data IS INITIAL.
                   generate_int_ex( EXPORTING json = json length = length CHANGING offset = offset data = data ).
@@ -1759,9 +1810,9 @@ ENDMETHOD.
                   restore_type( EXPORTING json = json length = length type_descr = type_descr CHANGING data = <data> offset = offset ).
                 ENDIF.
               ELSE.
-                eat_char `[`.
+                eat_char '['.
                 eat_white.
-                IF json+offset(1) NE `]`.
+                IF json+offset(1) NE ']'.
                   IF data IS SUPPLIED AND type_descr->kind EQ cl_abap_typedescr=>kind_table.
                     table_descr ?= type_descr.
                     data_descr = table_descr->get_table_line_type( ).
@@ -1770,14 +1821,14 @@ ENDMETHOD.
                     CREATE DATA line LIKE LINE OF <table>.
                     ASSIGN line->* TO <line>.
                     lt_fields = get_fields( type_descr = data_descr data = line ).
-                    WHILE offset < length AND json+offset(1) NE `]`.
+                    WHILE offset < length AND json+offset(1) NE ']'.
                       CLEAR <line>.
                       restore_type( EXPORTING json = json length = length type_descr = data_descr field_cache = lt_fields
                                     CHANGING data = <line> offset = offset ).
                       INSERT <line> INTO TABLE <table>.
                       eat_white.
-                      IF offset < length AND json+offset(1) NE `]`.
-                        eat_char `,`.
+                      IF offset < length AND json+offset(1) NE ']'.
+                        eat_char ','.
                         eat_white.
                       ELSE.
                         EXIT.
@@ -1786,33 +1837,36 @@ ENDMETHOD.
                   ELSE.
                     " skip array
                     eat_white.
-                    WHILE offset < length AND json+offset(1) NE `]`.
+                    WHILE offset < length AND json+offset(1) NE ']'.
                       restore_type( EXPORTING json = json length = length CHANGING offset = offset ).
                       eat_white.
-                      IF offset < length AND json+offset(1) NE `]`.
-                        eat_char `,`.
+                      IF offset < length AND json+offset(1) NE ']'.
+                        eat_char ','.
                         eat_white.
                       ELSE.
                         EXIT.
                       ENDIF.
                     ENDWHILE.
                     IF data IS SUPPLIED. " JSON to ABAP type match error
-                      eat_char `]`.
+                      eat_char ']'.
                       throw_error.
                     ENDIF.
                   ENDIF.
                 ELSEIF data IS SUPPLIED.
                   CLEAR data.
                 ENDIF.
-                eat_char `]`.
+                eat_char ']'.
               ENDIF.
-            WHEN `"`. " string
-              eat_string sdummy.
+            WHEN '"'. " string
+              eat_name sdummy.
               IF data IS SUPPLIED.
-                " unescape string
                 IF sdummy IS NOT INITIAL.
+                  " unescaped singe characters, e.g \\, \", \/ etc,
+                  FIND FIRST OCCURRENCE OF '\' IN sdummy MATCH OFFSET mark.
+                  IF sy-subrc IS INITIAL.
+                    sdummy = unescape( EXPORTING escaped = sdummy offset = mark ).
+                  ENDIF.
                   IF type_descr->kind EQ cl_abap_typedescr=>kind_elem.
-                    elem_descr ?= type_descr.
 
                     IF lv_convexit IS NOT INITIAL.
                       TRY .
@@ -1827,14 +1881,15 @@ ENDMETHOD.
                           IF sy-subrc IS INITIAL.
                             RETURN.
                           ENDIF.
-                        CATCH cx_root.                  "#EC NO_HANDLER
+                        CATCH cx_root ##CATCH_ALL ##NO_HANDLER.
                       ENDTRY.
                     ENDIF.
 
-                    CASE elem_descr->type_kind.
+                    CASE type_descr->type_kind.
                       WHEN cl_abap_typedescr=>typekind_char.
-                        IF elem_descr->output_length EQ 1 AND mv_bool_types CS elem_descr->absolute_name.
-                          IF sdummy(1) CA `XxTt1`.
+                        elem_descr ?= type_descr.
+                        IF elem_descr->output_length EQ 1 AND mv_bool_types CS type_descr->absolute_name.
+                          IF sdummy(1) CA 'XxTt1'.
                             data = c_bool-true.
                           ELSE.
                             data = c_bool-false.
@@ -1846,8 +1901,8 @@ ENDMETHOD.
                         RETURN.
                       WHEN cl_abap_typedescr=>typekind_hex.
                         " support for Edm.Guid
-                        REPLACE FIRST OCCURRENCE OF REGEX `^([0-9A-F]{8})-([0-9A-F]{4})-([0-9A-F]{4})-([0-9A-F]{4})-([0-9A-F]{12})$` IN sdummy
-                        WITH `$1$2$3$4$5` REPLACEMENT LENGTH match IGNORING CASE. "#EC NOTEXT
+                        REPLACE FIRST OCCURRENCE OF REGEX lc_edm_guid_regexp IN sdummy ##REGEX_POSIX
+                        WITH '$1$2$3$4$5' REPLACEMENT LENGTH match IGNORING CASE.
                         IF sy-subrc EQ 0.
                           sdummy = sdummy(match).
                           TRANSLATE sdummy TO UPPER CASE.
@@ -1857,64 +1912,70 @@ ENDMETHOD.
                         ENDIF.
                         RETURN.
                       WHEN cl_abap_typedescr=>typekind_date.
-                        " support for ISO8601 => https://en.wikipedia.org/wiki/ISO_8601
-                        REPLACE FIRST OCCURRENCE OF REGEX `^(\d{4})-(\d{2})-(\d{2})` IN sdummy WITH `$1$2$3`
-                        REPLACEMENT LENGTH match.           "#EC NOTEXT
-                        IF sy-subrc EQ 0.
+                        REPLACE FIRST OCCURRENCE OF REGEX '^(\d{4})-(\d{2})-(\d{2})' IN sdummy WITH '$1$2$3' ##REGEX_POSIX
+                        REPLACEMENT LENGTH match.
+                        IF sy-subrc EQ 0. " => ABAP standard
                           sdummy = sdummy(match).
                         ELSE.
-                          " support for Edm.DateTime => http://www.odata.org/documentation/odata-version-2-0/json-format/
-                          FIND FIRST OCCURRENCE OF REGEX `^\/Date\((-?\d+)([+-]\d{1,4})?\)\/` IN sdummy SUBMATCHES lv_ticks lv_offset IGNORING CASE. "#EC NOTEXT
-                          IF sy-subrc EQ 0.
-                            sdummy = edm_datetime_to_ts( ticks = lv_ticks offset = lv_offset typekind = elem_descr->type_kind ).
+                          REPLACE FIRST OCCURRENCE OF REGEX lc_iso8601_regexp IN sdummy WITH '$1$2$3' REPLACEMENT LENGTH match ##REGEX_POSIX.
+                          IF sy-subrc EQ 0. " => ISO8601
+                            sdummy = sdummy(match).
                           ELSE.
-                            " support for Edm.Time => https://www.w3.org/TR/xmlschema11-2/#nt-durationRep
-                            REPLACE FIRST OCCURRENCE OF REGEX `^-?P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)(?:\.(\d+))?S)?)?` IN sdummy WITH `$1$2$3`
-                            REPLACEMENT LENGTH match.       "#EC NOTEXT
-                            IF sy-subrc EQ 0.
-                              sdummy = sdummy(match).
+                            FIND FIRST OCCURRENCE OF REGEX lc_edm_date_time_regexp IN sdummy SUBMATCHES lv_ticks lv_offset IGNORING CASE ##REGEX_POSIX.
+                            IF sy-subrc EQ 0. " => Edm.DateTime
+                              sdummy = edm_datetime_to_ts( ticks = lv_ticks offset = lv_offset typekind = type_descr->type_kind ).
+                            ELSE.
+                              REPLACE FIRST OCCURRENCE OF REGEX lc_edm_time_regexp IN sdummy WITH '$1$2$3' REPLACEMENT LENGTH match ##REGEX_POSIX.
+                              IF sy-subrc EQ 0. " => Edm.Time
+                                sdummy = sdummy(match).
+                              ENDIF.
                             ENDIF.
                           ENDIF.
                         ENDIF.
                       WHEN cl_abap_typedescr=>typekind_time.
-                        " support for ISO8601 => https://en.wikipedia.org/wiki/ISO_8601
-                        REPLACE FIRST OCCURRENCE OF REGEX `^(\d{2}):(\d{2}):(\d{2})` IN sdummy WITH `$1$2$3`
+                        REPLACE FIRST OCCURRENCE OF REGEX '^(\d{2}):(\d{2}):(\d{2})' IN sdummy WITH '$1$2$3' ##REGEX_POSIX
                         REPLACEMENT LENGTH match.           "#EC NOTEXT
+                        IF sy-subrc EQ 0. " => ABAP standard
+                          sdummy = sdummy(match).
+                        ELSE.
+                          REPLACE FIRST OCCURRENCE OF REGEX lc_iso8601_regexp IN sdummy WITH '$4$5$6' REPLACEMENT LENGTH match ##REGEX_POSIX.
+                          IF sy-subrc EQ 0. " => ISO8601
+                            sdummy = sdummy(match).
+                          ELSE.
+                            FIND FIRST OCCURRENCE OF REGEX lc_edm_date_time_regexp IN sdummy SUBMATCHES lv_ticks lv_offset IGNORING CASE ##REGEX_POSIX.
+                            IF sy-subrc EQ 0. " => Edm.DateTime
+                              sdummy = edm_datetime_to_ts( ticks = lv_ticks offset = lv_offset typekind = type_descr->type_kind ).
+                            ELSE.
+                              REPLACE FIRST OCCURRENCE OF REGEX lc_edm_time_regexp IN sdummy WITH '$4$5$6' REPLACEMENT LENGTH match ##REGEX_POSIX.
+                              IF sy-subrc EQ 0. " => Edm.Time
+                                sdummy = sdummy(match).
+                              ENDIF.
+                            ENDIF.
+                          ENDIF.
+                        ENDIF.
+                      WHEN mc_typekind_utclong.
+                        REPLACE FIRST OCCURRENCE OF REGEX lc_iso8601_regexp IN sdummy WITH '$1-$2-$3 $4:$5:$6.$7' REPLACEMENT LENGTH match ##REGEX_POSIX.
                         IF sy-subrc EQ 0.
                           sdummy = sdummy(match).
                         ELSE.
-                          " support for Edm.DateTime => http://www.odata.org/documentation/odata-version-2-0/json-format/
-                          FIND FIRST OCCURRENCE OF REGEX '^\/Date\((-?\d+)([+-]\d{1,4})?\)\/' IN sdummy SUBMATCHES lv_ticks lv_offset IGNORING CASE. "#EC NOTEXT
-                          IF sy-subrc EQ 0.
-                            sdummy = edm_datetime_to_ts( ticks = lv_ticks offset = lv_offset typekind = elem_descr->type_kind ).
-                          ELSE.
-                            " support for Edm.Time => https://www.w3.org/TR/xmlschema11-2/#nt-durationRep
-                            REPLACE FIRST OCCURRENCE OF REGEX `^-?P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)(?:\.(\d+))?S)?)?` IN sdummy WITH `$4$5$6`
-                            REPLACEMENT LENGTH match.       "#EC NOTEXT
-                            IF sy-subrc EQ 0.
-                              sdummy = sdummy(match).
-                            ENDIF.
-                          ENDIF.
+                          throw_error. " Wrong ISO8601 format
                         ENDIF.
                       WHEN cl_abap_typedescr=>typekind_packed.
-                        REPLACE FIRST OCCURRENCE OF REGEX `^(\d{4})-?(\d{2})-?(\d{2})T(\d{2}):?(\d{2}):?(\d{2})(?:[\.,](\d{0,7}))?Z?` IN sdummy WITH `$1$2$3$4$5$6.$7`
-                        REPLACEMENT LENGTH match.           "#EC NOTEXT
+                        REPLACE FIRST OCCURRENCE OF REGEX lc_iso8601_regexp IN sdummy WITH '$1$2$3$4$5$6.$7' REPLACEMENT LENGTH match ##REGEX_POSIX.
                         IF sy-subrc EQ 0.
                           sdummy = sdummy(match).
                         ELSE.
-                          FIND FIRST OCCURRENCE OF REGEX '^\/Date\((-?\d+)([+-]\d{1,4})?\)\/' IN sdummy SUBMATCHES lv_ticks lv_offset IGNORING CASE. "#EC NOTEXT
-                          IF sy-subrc EQ 0.
-                            sdummy = edm_datetime_to_ts( ticks = lv_ticks offset = lv_offset typekind = elem_descr->type_kind ).
+                          FIND FIRST OCCURRENCE OF REGEX lc_edm_date_time_regexp IN sdummy SUBMATCHES lv_ticks lv_offset IGNORING CASE ##REGEX_POSIX.
+                          IF sy-subrc EQ 0. " => Edm.DateTime
+                            sdummy = edm_datetime_to_ts( ticks = lv_ticks offset = lv_offset typekind = type_descr->type_kind ).
                           ELSE.
-                            " support for Edm.Time => https://www.w3.org/TR/xmlschema11-2/#nt-durationRep
-                            REPLACE FIRST OCCURRENCE OF REGEX `^-?P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)(?:\.(\d+))?S)?)?` IN sdummy WITH `$1$2$3$4$5$6.$7`
-                            REPLACEMENT LENGTH match.       "#EC NOTEXT
-                            IF sy-subrc EQ 0.
+                            REPLACE FIRST OCCURRENCE OF REGEX lc_edm_time_regexp IN sdummy WITH '$1$2$3$4$5$6.$7' REPLACEMENT LENGTH match ##REGEX_POSIX.
+                            IF sy-subrc EQ 0. " => Edm.Time
                               sdummy = sdummy(match).
                             ENDIF.
                           ENDIF.
                         ENDIF.
-                      WHEN `k`. "cl_abap_typedescr=>typekind_enum
+                      WHEN 'k'. "cl_abap_typedescr=>typekind_enum
                         TRY.
                             CALL METHOD ('CL_ABAP_XSD')=>('TO_VALUE')
                               EXPORTING
@@ -1942,12 +2003,12 @@ ENDMETHOD.
                   throw_error. " Other wise dumps with OBJECTS_MOVE_NOT_SUPPORTED
                 ENDIF.
               ENDIF.
-            WHEN `-` OR `0` OR `1` OR `2` OR `3` OR `4` OR `5` OR `6` OR `7` OR `8` OR `9`. " number
+            WHEN '-' OR '0' OR '1' OR '2' OR '3' OR '4' OR '5' OR '6' OR '7' OR '8' OR '9'. " number
               IF data IS SUPPLIED.
                 IF type_descr->kind EQ type_descr->kind_ref AND type_descr->type_kind EQ cl_abap_typedescr=>typekind_dref.
                   eat_number sdummy.                        "#EC NOTEXT
                   match = strlen( sdummy ).
-                  IF sdummy CS '.'. " float.
+                  IF sdummy CA '.Ee'. " float.
                     CREATE DATA rdummy TYPE f.
                   ELSEIF match GT 9. " packed
                     CREATE DATA rdummy TYPE p.
@@ -1960,7 +2021,7 @@ ENDMETHOD.
                 ELSEIF type_descr->kind EQ type_descr->kind_elem.
                   IF lv_convexit IS NOT INITIAL.
                     TRY .
-                        eat_number sdummy.                  "#EC NOTEXT
+                        eat_number sdummy.
                         CALL FUNCTION lv_convexit
                           EXPORTING
                             input         = sdummy
@@ -1972,36 +2033,37 @@ ENDMETHOD.
                         IF sy-subrc IS INITIAL.
                           RETURN.
                         ENDIF.
-                      CATCH cx_root.                    "#EC NO_HANDLER
+                      CATCH cx_root ##CATCH_ALL ##NO_HANDLER.
                     ENDTRY.
                   ENDIF.
-                  eat_number data.                          "#EC NOTEXT
+                  eat_number data.
                 ELSE.
-                  eat_number sdummy.                        "#EC NOTEXT
+                  eat_number sdummy.
                   throw_error.
                 ENDIF.
               ELSE.
-                eat_number sdummy.                          "#EC NOTEXT
+                eat_number sdummy.
               ENDIF.
             WHEN OTHERS. " boolean, e.g true/false/null
               IF data IS SUPPLIED.
                 IF type_descr->kind EQ type_descr->kind_ref AND type_descr->type_kind EQ cl_abap_typedescr=>typekind_dref.
                   CREATE DATA rdummy TYPE bool.
                   ASSIGN rdummy->* TO <data>.
-                  eat_bool <data>.                          "#EC NOTEXT
+                  eat_bool <data>.
                   data ?= rdummy.
                 ELSEIF type_descr->kind EQ type_descr->kind_elem.
-                  eat_bool data.                            "#EC NOTEXT
+                  eat_bool data.
                 ELSE.
-                  eat_bool sdummy.                          "#EC NOTEXT
+                  eat_bool sdummy.
                   throw_error.
                 ENDIF.
               ELSE.
-                eat_bool sdummy.                            "#EC NOTEXT
+                eat_bool sdummy.
               ENDIF.
           ENDCASE.
         ENDIF.
       CATCH cx_sy_move_cast_error cx_sy_conversion_no_number cx_sy_conversion_overflow INTO lo_exp.
+        " + CX_SY_CONVERSION_NOT_SUPPORTED > 7.54
         CLEAR data.
         IF mv_strict_mode EQ abap_true.
           RAISE EXCEPTION TYPE cx_sy_move_cast_error EXPORTING previous = lo_exp.
@@ -2018,9 +2080,11 @@ ENDMETHOD.
     " http://wiki.scn.sap.com/wiki/display/Snippets/One+more+ABAP+to+JSON+Serializer+and+Deserializer
     " **********************************************************************  "
 
-    DATA: lo_json  TYPE REF TO Z_UI2_JSON.
+    CONSTANTS: lc_method TYPE string VALUE `SERIALIZE_INT`.
 
-    CREATE OBJECT lo_json
+    DATA: lo_json  TYPE REF TO object.
+
+    CREATE OBJECT lo_json TYPE (mc_me_type)
       EXPORTING
         compress         = compress
         pretty_name      = pretty_name
@@ -2034,7 +2098,13 @@ ENDMETHOD.
         hex_as_base64    = hex_as_base64
         ts_as_iso8601    = ts_as_iso8601.
 
-    r_json = lo_json->serialize_int( name = name data = data type_descr = type_descr ).
+    CALL METHOD lo_json->(lc_method)
+      EXPORTING
+        name = name
+        data = data
+        type_descr = type_descr
+      RECEIVING
+        r_json = r_json.
 
   ENDMETHOD.                    "serialize
 
@@ -2064,7 +2134,7 @@ ENDMETHOD.
     r_json = dump_int( data = data type_descr = lo_descr convexit = lv_convexit ).
 
     IF name IS NOT INITIAL AND ( mv_compress IS INITIAL OR r_json IS NOT INITIAL ).
-      CONCATENATE `"` name `":` r_json INTO r_json.
+      CONCATENATE '"' name '":' r_json INTO r_json.
     ENDIF.
 
   ENDMETHOD.                    "serialize
@@ -2118,72 +2188,72 @@ ENDMETHOD.
   ENDMETHOD.                    "TRIBOOL_TO_BOOL
 
 
-  METHOD unescape.
+METHOD unescape.
 
-    DATA: lv_offset          TYPE i,
-          lv_match           TYPE i,
-          lv_delta           TYPE i,
-          lv_length          TYPE i,
-          lv_offset_e        TYPE i,
-          lv_length_e        TYPE i,
-          lv_unicode_symb    TYPE c,
-          lv_unicode_escaped TYPE string,
-          lt_matches         TYPE match_result_tab.
+  DATA: lv_offset          TYPE i,
+        lv_match           TYPE i,
+        lv_delta           TYPE i,
+        lv_length          TYPE i,
+        lv_offset_e        TYPE i,
+        lv_length_e        TYPE i,
+        lv_unicode_symb    TYPE c,
+        lv_unicode_escaped TYPE string,
+        lt_matches         TYPE match_result_tab.
 
-    FIELD-SYMBOLS: <match> LIKE LINE OF lt_matches.
+  FIELD-SYMBOLS: <match> LIKE LINE OF lt_matches.
 
-    " see reference for escaping rules in JSON RFC
-    " https://www.ietf.org/rfc/rfc4627.txt
+  " see reference for escaping rules in JSON RFC
+  " https://www.ietf.org/rfc/rfc4627.txt
 
-    unescaped = escaped.
+  unescaped = escaped.
+  lv_offset = offset.
 
+  FIND FIRST OCCURRENCE OF REGEX '\\[rntfbu]' IN SECTION OFFSET lv_offset OF unescaped ##REGEX_POSIX.
+  IF sy-subrc IS INITIAL.
+    FIND ALL OCCURRENCES OF REGEX '\\.' IN unescaped RESULTS lt_matches ##REGEX_POSIX.
     lv_length = strlen( unescaped ).
-
-    FIND FIRST OCCURRENCE OF REGEX `\\[rntfbu]` IN unescaped RESPECTING CASE.
-    IF sy-subrc IS INITIAL.
-      FIND ALL OCCURRENCES OF REGEX `\\.` IN unescaped RESULTS lt_matches RESPECTING CASE.
-      LOOP AT lt_matches ASSIGNING <match>.
-        lv_match  = <match>-offset - lv_delta.
-        lv_offset = lv_match + 1.
-        CASE unescaped+lv_offset(1).
-          WHEN `r`.
-            REPLACE SECTION OFFSET lv_match LENGTH 2 OF unescaped WITH cl_abap_char_utilities=>cr_lf(1).
-            lv_delta = lv_delta + 1.
-          WHEN `n`.
-            REPLACE SECTION OFFSET lv_match LENGTH 2 OF unescaped WITH cl_abap_char_utilities=>newline.
-            lv_delta = lv_delta + 1.
-          WHEN `t`.
-            REPLACE SECTION OFFSET lv_match LENGTH 2 OF unescaped WITH cl_abap_char_utilities=>horizontal_tab.
-            lv_delta = lv_delta + 1.
-          WHEN `f`.
-            REPLACE SECTION OFFSET lv_match LENGTH 2 OF unescaped WITH cl_abap_char_utilities=>form_feed.
-            lv_delta = lv_delta + 1.
-          WHEN `b`.
-            REPLACE SECTION OFFSET lv_match LENGTH 2 OF unescaped WITH cl_abap_char_utilities=>backspace.
-            lv_delta = lv_delta + 1.
-          WHEN `u`.
-            lv_offset   = lv_offset + 1.
-            lv_offset_e = lv_offset + 4.
-            lv_length_e = lv_length + lv_delta.
-            IF lv_offset_e LE lv_length_e.
-              lv_unicode_escaped = unescaped+lv_offset(4).
-              TRANSLATE lv_unicode_escaped TO UPPER CASE.
-              lv_unicode_symb = cl_abap_conv_in_ce=>uccp( lv_unicode_escaped ).
-              IF lv_unicode_symb NE mc_cov_error.
-                REPLACE SECTION OFFSET lv_match LENGTH 6 OF unescaped WITH lv_unicode_symb.
-                lv_delta = lv_delta + 5.
-              ENDIF.
+    LOOP AT lt_matches ASSIGNING <match>.
+      lv_match  = <match>-offset - lv_delta.
+      lv_offset = lv_match + 1.
+      CASE unescaped+lv_offset(1).
+        WHEN 'r'.
+          REPLACE SECTION OFFSET lv_match LENGTH 2 OF unescaped WITH cl_abap_char_utilities=>cr_lf(1).
+          lv_delta = lv_delta + 1.
+        WHEN 'n'.
+          REPLACE SECTION OFFSET lv_match LENGTH 2 OF unescaped WITH cl_abap_char_utilities=>newline.
+          lv_delta = lv_delta + 1.
+        WHEN 't'.
+          REPLACE SECTION OFFSET lv_match LENGTH 2 OF unescaped WITH cl_abap_char_utilities=>horizontal_tab.
+          lv_delta = lv_delta + 1.
+        WHEN 'f'.
+          REPLACE SECTION OFFSET lv_match LENGTH 2 OF unescaped WITH cl_abap_char_utilities=>form_feed.
+          lv_delta = lv_delta + 1.
+        WHEN 'b'.
+          REPLACE SECTION OFFSET lv_match LENGTH 2 OF unescaped WITH cl_abap_char_utilities=>backspace.
+          lv_delta = lv_delta + 1.
+        WHEN 'u'.
+          lv_offset   = lv_offset + 1.
+          lv_offset_e = lv_offset + 4.
+          lv_length_e = lv_length + lv_delta.
+          IF lv_offset_e LE lv_length_e.
+            lv_unicode_escaped = unescaped+lv_offset(4).
+            TRANSLATE lv_unicode_escaped TO UPPER CASE.
+            lv_unicode_symb = cl_abap_conv_in_ce=>uccp( lv_unicode_escaped ).
+            IF lv_unicode_symb NE mc_cov_error OR lv_unicode_escaped EQ '0000'.
+              REPLACE SECTION OFFSET lv_match LENGTH 6 OF unescaped WITH lv_unicode_symb.
+              lv_delta = lv_delta + 5.
             ENDIF.
-        ENDCASE.
-      ENDLOOP.
-    ENDIF.
+          ENDIF.
+      ENDCASE.
+    ENDLOOP.
+  ENDIF.
 
-    " based on RFC mentioned above, _any_ character can be escaped, and so shall be enscaped
-    " the only exception is Unicode symbols, that shall be kept untouched, while serializer does not handle them
-    " unescaped singe characters, e.g \\, \", \/ etc
-    REPLACE ALL OCCURRENCES OF REGEX `\\(.)` IN unescaped WITH `$1` RESPECTING CASE.
+  " based on RFC mentioned above, _any_ character can be escaped, and so shall be unenscaped
+  " the only exception is Unicode symbols, that shall be kept untouched, while serializer does not handle them
+  " unescaped singe characters, e.g \\, \", \/ etc
+  REPLACE ALL OCCURRENCES OF REGEX '\\(.)' IN unescaped WITH '$1' ##REGEX_POSIX.
 
-  ENDMETHOD.
+ENDMETHOD.
 
 
   METHOD xstring_to_string.

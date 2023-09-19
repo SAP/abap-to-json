@@ -1,4 +1,77 @@
 *----------------------------------------------------------------------*
+*       CLASS lcl_util DEFINITION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
+
+CLASS lcl_util DEFINITION FINAL FRIENDS z_ui2_json.
+
+  PRIVATE SECTION.
+    CLASS-METHODS:
+      _escape IMPORTING in TYPE data EXPORTING out TYPE string,
+      to_md5  IMPORTING iv_value TYPE string RETURNING VALUE(rv_result) TYPE string,
+      read_string IMPORTING json TYPE string mark TYPE i CHANGING offset TYPE i DEFAULT 0 text TYPE string.
+
+ENDCLASS.                    "lcl_util DEFINITION
+
+CLASS lcl_util IMPLEMENTATION.
+
+  METHOD read_string.
+
+    DATA: match LIKE offset,
+          pos   LIKE offset.
+
+    " ASSERT json+offset(1) EQ `"`.
+
+    DO.
+      FIND FIRST OCCURRENCE OF `"` IN SECTION OFFSET offset OF json MATCH OFFSET pos.
+      " ASSERT sy-subrc IS INITIAL.
+
+      offset = pos.
+      pos = pos - 1.
+      " if escaped search further
+      WHILE json+pos(1) EQ `\`.
+        pos = pos - 1.
+      ENDWHILE.
+      match = ( offset - pos ) MOD 2.
+      IF match NE 0.
+        EXIT.
+      ENDIF.
+      offset = offset + 1.
+    ENDDO.
+
+    match = offset - mark.
+    text = json+mark(match).
+
+  ENDMETHOD.
+
+  " Creates MD5 hash from string
+  METHOD to_md5.
+    DATA: lv_md5_key TYPE hash160.
+
+    IF iv_value IS NOT INITIAL.
+      CALL FUNCTION 'CALCULATE_HASH_FOR_CHAR'
+        EXPORTING
+          alg    = 'MD5'
+          data   = iv_value
+        IMPORTING
+          hash   = lv_md5_key
+        EXCEPTIONS
+          OTHERS = 4.
+
+      IF sy-subrc EQ 0.
+        rv_result = lv_md5_key.
+      ENDIF.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD _escape.
+    out = escape( val = in format = cl_abap_format=>e_json_string ).
+  ENDMETHOD.
+
+ENDCLASS.
+
+*----------------------------------------------------------------------*
 *       CLASS lcl_test DEFINITION
 *----------------------------------------------------------------------*
 *
@@ -11,7 +84,7 @@ CLASS lcl_test DEFINITION FINAL FRIENDS z_ui2_json.
 
     METHODS: constructor.
 
-  PROTECTED SECTION.
+  PROTECTED SECTION.                                    "#EC SEC_PROTEC
     DATA: prot TYPE i.                                      "#EC NEEDED
 
   PRIVATE SECTION.
@@ -130,8 +203,10 @@ ENDCLASS.                    "lc_json_custom IMPLEMENTATION
 * ----------------------------------------------------------------------
 CLASS abap_unit_testclass DEFINITION FOR TESTING FINAL "#AU Duration Medium
   "#AU Risk_Level Harmless
-.
+INHERITING FROM z_ui2_json.
   PRIVATE SECTION.
+
+    TYPES t_json TYPE REF TO z_ui2_json.
 
     CONSTANTS crlf TYPE string VALUE cl_abap_char_utilities=>cr_lf. "#EC NOTEXT
 
@@ -157,6 +232,7 @@ CLASS abap_unit_testclass DEFINITION FOR TESTING FINAL "#AU Duration Medium
     METHODS: serialize_included_types FOR TESTING.
     METHODS: deserialize_ref FOR TESTING.
     METHODS: deserialize_types FOR TESTING.
+    METHODS: deserialize_white_space FOR TESTING.
     METHODS: deserialize_news FOR TESTING.
     METHODS: deserialize_dynamic_tile FOR TESTING.
     METHODS: deserialize_associative_array FOR TESTING.
@@ -176,7 +252,7 @@ CLASS abap_unit_testclass DEFINITION FOR TESTING FINAL "#AU Duration Medium
     METHODS: name_value_map FOR TESTING.
     METHODS: dynamic_types FOR TESTING.
     METHODS: deserialze_to_read_only FOR TESTING.
-    METHODS: generate FOR TESTING.
+    METHODS: generate_simple FOR TESTING.
     METHODS: generate_for_odata FOR TESTING.
     METHODS: deserialize_odata FOR TESTING.
     METHODS: initialize_on_deserialize FOR TESTING.
@@ -185,6 +261,7 @@ CLASS abap_unit_testclass DEFINITION FOR TESTING FINAL "#AU Duration Medium
     METHODS: generate_special_attr_names FOR TESTING.
     METHODS: escape_and_unescape FOR TESTING.
     METHODS: serialize_formatted FOR TESTING.
+    METHODS: serialize_cycle_reference FOR TESTING.
 
 ENDCLASS.       "abap_unit_testclass
 * ----------------------------------------------------------------------
@@ -211,27 +288,27 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     ls_data-negative_i = -1.
     ls_data-positive_i = 10000.
     ls_data-positive_n = 1.
-    ls_data-negative_f = '-1.7976931348623158E+30'.
+    ls_data-negative_f = '-1.7976931348623158E+30' ##LITERAL.
     ls_data-positive_b = 255.
     ls_data-negative_s = -32768.
-    ls_data-negative_p = '-2343.342454332245'.
+    ls_data-negative_p = '-2343.342454332245' ##LITERAL.
     ls_data-quan       = 10000000.
 
     lv_exp = '{"NEGATIVE_I":-1,"POSITIVE_I":10000,"POSITIVE_N":1,"NEGATIVE_F":-1.7976931348623158E+30,"POSITIVE_B":255,"NEGATIVE_S":-32768,"NEGATIVE_P":-2343.342454332245,"QUAN":10000000.000}'.
-    lv_act = z_ui2_json=>serialize( data = ls_data ).
+    lv_act = serialize( data = ls_data ).
 
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of numeric types fails' ).
 
-    z_ui2_json=>deserialize( EXPORTING json = lv_act CHANGING data = ls_data2 ).
+    deserialize( EXPORTING json = lv_act CHANGING data = ls_data2 ).
     cl_aunit_assert=>assert_equals( act = ls_data2 exp = ls_data msg = 'Deserialization of numeric types fails' ).
 
     lv_exp = '{"NEGATIVE_I":-1,"POSITIVE_I":10000,"POSITIVE_N":"000001","NEGATIVE_F":-1.7976931348623158E+30,"POSITIVE_B":255,"NEGATIVE_S":-32768,"NEGATIVE_P":-2343.342454332245,"QUAN":10000000.000}'.
-    lv_act = z_ui2_json=>serialize( data = ls_data numc_as_string = abap_true ).
+    lv_act = serialize( data = ls_data numc_as_string = abap_true ).
 
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of numeric types fails' ).
 
     lv_exp = '{"negative_i":-1,"positive_i":10000,"positive_n":1,"negative_f":-1.7976931348623158E+30,"positive_b":255,"negative_s":-32768,"negative_p":-2343.342454332245,"quan":10000000.000}'.
-    lv_act = z_ui2_json=>serialize( data = ls_data pretty_name = z_ui2_json=>pretty_mode-low_case ).
+    lv_act = serialize( data = ls_data pretty_name = pretty_mode-low_case ).
 
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Low case name prety printing fails' ).
 
@@ -243,48 +320,54 @@ CLASS abap_unit_testclass IMPLEMENTATION.
       BEGIN OF t_data,
         bool_true           TYPE abap_bool,
         bool_false          TYPE abap_bool,
+        xsdb                TYPE xsdboolean,
         tribool_true        TYPE boolean,
         tribool_false       TYPE boolean,
         tribool_undefined   TYPE boolean,
-        x_bool_true         TYPE z_ui2_json=>bool,
-        x_bool_false        TYPE z_ui2_json=>bool,
-        x_tribool_true      TYPE z_ui2_json=>tribool,
-        x_tribool_false     TYPE z_ui2_json=>tribool,
-        x_tribool_undefined TYPE z_ui2_json=>tribool,
+        x_bool_true         TYPE bool,
+        x_bool_false        TYPE bool,
+        x_tribool_true      TYPE tribool,
+        x_tribool_false     TYPE tribool,
+        x_tribool_undefined TYPE tribool,
       END OF t_data.
 
-    DATA: ls_data TYPE t_data,
-          lv_act  TYPE string,
-          ls_act  TYPE t_data,
-          lv_exp  LIKE lv_act.
+    DATA: ls_data    TYPE t_data,
+          lv_json_st TYPE string,                           "#EC NEEDED
+          lv_act     TYPE string,
+          ls_act     TYPE t_data,
+          lv_exp     LIKE lv_act.
 
     ls_data-bool_true           = abap_true.
     ls_data-bool_false          = abap_false.
-    ls_data-tribool_true        = z_ui2_json=>c_tribool-true.
-    ls_data-tribool_false       = z_ui2_json=>c_tribool-false.
-    ls_data-tribool_undefined   = z_ui2_json=>c_tribool-undefined.
-    ls_data-x_bool_true         = z_ui2_json=>c_bool-true.
-    ls_data-x_bool_false        = z_ui2_json=>c_bool-false.
-    ls_data-x_tribool_true      = z_ui2_json=>c_tribool-true.
-    ls_data-x_tribool_false     = z_ui2_json=>c_tribool-false.
-    ls_data-x_tribool_undefined = z_ui2_json=>c_tribool-undefined.
+    ls_data-xsdb                = abap_true.
+    ls_data-tribool_true        = c_tribool-true.
+    ls_data-tribool_false       = c_tribool-false.
+    ls_data-tribool_undefined   = c_tribool-undefined.
+    ls_data-x_bool_true         = c_bool-true.
+    ls_data-x_bool_false        = c_bool-false.
+    ls_data-x_tribool_true      = c_tribool-true.
+    ls_data-x_tribool_false     = c_tribool-false.
+    ls_data-x_tribool_undefined = c_tribool-undefined.
 
-    lv_exp = '{"BOOL_TRUE":true,"BOOL_FALSE":false,"TRIBOOL_TRUE":true,"TRIBOOL_FALSE":false,"TRIBOOL_UNDEFINED":null,"X_BOOL_TRUE":true,"X_BOOL_FALSE":false,"X_TRIBOOL_TRUE":true,"X_TRIBOOL_FALSE":false,"X_TRIBOOL_UNDEFINED":null}'.
-    lv_act = z_ui2_json=>serialize( data = ls_data ).
+    " for reference, let us check how simple transformation works
+    lv_json_st = abap_to_json_simple_transform( ls_data ).
+
+    lv_exp = '{"BOOL_TRUE":true,"BOOL_FALSE":false,"XSDB":true,"TRIBOOL_TRUE":true,"TRIBOOL_FALSE":false,"TRIBOOL_UNDEFINED":null,"X_BOOL_TRUE":true,"X_BOOL_FALSE":false,"X_TRIBOOL_TRUE":true,"X_TRIBOOL_FALSE":false,"X_TRIBOOL_UNDEFINED":null}'.
+    lv_act = serialize( data = ls_data ).
 
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of boolean types fails' ).
 
-    z_ui2_json=>deserialize( EXPORTING json = lv_act CHANGING data = ls_act ).
+    deserialize( EXPORTING json = lv_act CHANGING data = ls_act ).
 
     cl_aunit_assert=>assert_equals( act = ls_act exp = ls_data msg = 'Deserialization of boolean types fails' ).
 
-    lv_exp = '{"BOOL_TRUE":true,"TRIBOOL_TRUE":true,"TRIBOOL_FALSE":false,"X_BOOL_TRUE":true,"X_TRIBOOL_TRUE":true,"X_TRIBOOL_FALSE":false}'.
-    lv_act = z_ui2_json=>serialize( data = ls_data compress = abap_true ).
+    lv_exp = '{"BOOL_TRUE":true,"XSDB":true,"TRIBOOL_TRUE":true,"TRIBOOL_FALSE":false,"X_BOOL_TRUE":true,"X_TRIBOOL_TRUE":true,"X_TRIBOOL_FALSE":false}'.
+    lv_act = serialize( data = ls_data compress = abap_true ).
 
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Compressed serialization of boolean types fails' ).
 
     CLEAR ls_act.
-    z_ui2_json=>deserialize( EXPORTING json = lv_act CHANGING data = ls_act ).
+    deserialize( EXPORTING json = lv_act CHANGING data = ls_act ).
 
     cl_aunit_assert=>assert_equals( act = ls_act exp = ls_data msg = 'Deserialization of compressed boolean types fails' ).
 
@@ -350,6 +433,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
         guid    TYPE guid_16,
         tsl     TYPE timestampl,
         tsl2    TYPE timestampl,
+        tsl3    TYPE timestampl,
         ts      TYPE timestamp,
         date    TYPE d,
         time    TYPE t,
@@ -376,9 +460,29 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     ls_data-float   = pi.
     ls_data-packed  = pi.
     ls_data-hex     = 987654321.
-    ls_data-tsl     = '20151002134450.5545900'.
-    ls_data-tsl2    = '20191227160050.4540000'.
-    ls_data-ts      = '20160708123456'.
+    ls_data-tsl     = '20151002134450.5545900' ##LITERAL.
+    ls_data-tsl2    = '20191227160050.4540000' ##LITERAL.
+    ls_data-tsl3    = '20191227160050.4540000' ##LITERAL.
+    ls_data-ts      = '20160708123456' ##LITERAL.
+
+    " ISO8601 regexp test (+ positive - negative)
+    " ===========================================
+
+    "+"2015-10-02T13:44:50.5545900Z
+    "+"2019-12-27T16:00:50.4540000Z
+    "+"2016-07-08T12:34:56Z
+    "+"2016-07-08T12:34:56+02:30
+    "+"2016-07-08
+    "+"T12:34:56Z
+    "+"T09:30Z
+                                                            "+"T0930Z
+    "+"T14:45:15Z
+    "+"2023-03-08T00:00:00
+    "-"20151002134450.5545900
+    "-"50
+    "-"-10
+    "-"+05
+    "-"-10.00
 
     CALL FUNCTION 'GUID_CREATE'
       IMPORTING
@@ -395,52 +499,76 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     CLEAR ls_data-guid.
 
     CONCATENATE `{"FLAG":true,"CHAR":"\"TEST\\\"/C:\\temp","NUMC":12345678,"STRING":"ABCDEFG","XSTRING":"q83v","INTEGER":42,"FLOAT":3.1415926535897900E+00,`
-                `"PACKED":3.141593,"HEX":"AAAAAAAAOt5osQ==","GUID":"","TSL":20151002134450.5545900,"TSL2":20191227160050.4540000,"TS":20160708123456,"DATE":"2016-07-08","TIME":"12:34:56","DATE_I":"","TIME_I":""}` INTO lv_exp.
-    lv_act    = z_ui2_json=>serialize( data = ls_data ).
+                `"PACKED":3.141593,"HEX":"AAAAAAAAOt5osQ==","GUID":"","TSL":20151002134450.5545900,"TSL2":20191227160050.4540000,"TSL3":20191227160050.4540000,"TS":20160708123456,"DATE":"2016-07-08","TIME":"12:34:56","DATE_I":"","TIME_I":""}`
+                INTO lv_exp.
+    lv_act    = serialize( data = ls_data ).
 
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of data types fails' ).
 
-    z_ui2_json=>deserialize( EXPORTING json = lv_act CHANGING data = ls_data2 ).
+    deserialize( EXPORTING json = lv_act CHANGING data = ls_data2 ).
     cl_aunit_assert=>assert_equals( act = ls_data2 exp = ls_data msg = 'Deserialization of data types fails' ).
 
     CONCATENATE `{"FLAG":true,"CHAR":"\"TEST\\\"/C:\\temp","NUMC":12345678,"STRING":"ABCDEFG","XSTRING":"ABCDEF","INTEGER":42,"FLOAT":3.1415926535897900E+00,`
-                `"PACKED":3.141593,"HEX":"0000000000003ADE68B1","GUID":"","TSL":20151002134450.5545900,"TSL2":20191227160050.4540000,"TS":20160708123456,"DATE":"2016-07-08","TIME":"12:34:56","DATE_I":"","TIME_I":""}` INTO lv_exp.
-    lv_act    = z_ui2_json=>serialize( data = ls_data hex_as_base64 = abap_false ).
+                `"PACKED":3.141593,"HEX":"0000000000003ADE68B1","GUID":"","TSL":20151002134450.5545900,"TSL2":20191227160050.4540000,"TSL3":20191227160050.4540000,"TS":20160708123456,"DATE":"2016-07-08","TIME":"12:34:56","DATE_I":"","TIME_I":""}`
+                INTO lv_exp.
+    lv_act    = serialize( data = ls_data hex_as_base64 = abap_false ).
 
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of hex without base64 fails' ).
 
-    z_ui2_json=>deserialize( EXPORTING json = lv_act hex_as_base64 = abap_false CHANGING data = ls_data2 ).
+    deserialize( EXPORTING json = lv_act hex_as_base64 = abap_false CHANGING data = ls_data2 ).
     cl_aunit_assert=>assert_equals( act = ls_data2 exp = ls_data msg = 'Deserialization of hex without base64 fails' ).
 
     CONCATENATE `{"FLAG":true,"CHAR":"\"TEST\\\"/C:\\temp","NUMC":12345678,"STRING":"ABCDEFG","XSTRING":"q83v","INTEGER":42,"FLOAT":3.1415926535897900E+00,`
-                `"PACKED":3.141593,"HEX":"AAAAAAAAOt5osQ==","GUID":"","TSL":"2015-10-02T13:44:50.5545900Z","TSL2":"2019-12-27T16:00:50.4540000Z","TS":"2016-07-08T12:34:56.0000000Z","DATE":"2016-07-08","TIME":"12:34:56","DATE_I":"","TIME_I":""}`
+                `"PACKED":3.141593,"HEX":"AAAAAAAAOt5osQ==","GUID":"","TSL":"2015-10-02T13:44:50.5545900Z","TSL2":"2019-12-27T16:00:50.4540000Z","TSL3":"2019-12-27T16:00:50.4540000Z","TS":"2016-07-08T12:34:56Z","DATE":"2016-07-08","TIME":"12:34:56",`
+                `"DATE_I":"","TIME_I":""}`
                 INTO lv_exp.
-    lv_act    = z_ui2_json=>serialize( ts_as_iso8601 = abap_true data = ls_data ).
+    lv_act    = serialize( ts_as_iso8601 = abap_true data = ls_data ).
 
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of timestamp into ISO8601 fails' ).
 
-    z_ui2_json=>deserialize( EXPORTING json = lv_act CHANGING data = ls_data2 ).
+    deserialize( EXPORTING json = lv_act CHANGING data = ls_data2 ).
     cl_aunit_assert=>assert_equals( act = ls_data2 exp = ls_data msg = 'Deserialization of timestamp in ISO8601 fails' ).
 
     CONCATENATE `{"FLAG":true,"CHAR":"\"TEST\\\"\/C:\\temp","NUMC":12345678,"STRING":"ABCDEFG","XSTRING":"q83v","INTEGER":42,"FLOAT":3.1415926535897900E+00,`
-            `"PACKED":3.141593,"HEX":"AAAAAAAAOt5osQ==","GUID":"","TSL":"2015-10-02T13:44:50.5545900Z","TSL2":"2019-12-27T16:00:50.4540000Z","TS":"2016-07-08T12:34:56.0000000Z","DATE":"2016-07-08","TIME":"12:34:56","DATE_I":"","TIME_I":""}` INTO lv_act.
+            `"PACKED":3.141593,"HEX":"AAAAAAAAOt5osQ==","GUID":"","TSL":"2015-10-02T13:44:50.5545900Z","TSL2":"2019-12-27T16:00:50.4540000Z","TSL3":"20191227160050.4540000","TS":"2016-07-08T12:34:56Z","DATE":"2016-07-08","TIME":"12:34:56",`
+            `"DATE_I":"","TIME_I":""}` INTO lv_act.
 
-    z_ui2_json=>deserialize( EXPORTING json = lv_act CHANGING data = ls_data2 ).
+    deserialize( EXPORTING json = lv_act CHANGING data = ls_data2 ).
     cl_aunit_assert=>assert_equals( act = ls_data2 exp = ls_data msg = 'Deserialization of redunant escapment fails' ).
 
     " https://blogs.sap.com/2017/01/05/date-and-time-in-sap-gateway-foundation/
     CONCATENATE `{"FLAG":true,"CHAR":"\"TEST\\\"/C:\\temp","NUMC":12345678,"STRING":"ABCDEFG","XSTRING":"q83v","INTEGER":42,"FLOAT":3.1415926535897900E+00,`
-            `"PACKED":3.141593,"HEX":"AAAAAAAAOt5osQ==","GUID":"","TSL":"2015-10-02T13:44:50.5545900Z","TSL2":"\/Date(1577462450454)\/","TS":"\/Date(1467981296000)\/","DATE":"2016-07-08","TIME":"12:34:56","DATE_I":"","TIME_I":""}` INTO lv_act.
+            `"PACKED":3.141593,"HEX":"AAAAAAAAOt5osQ==","GUID":"","TSL":"2015-10-02T13:44:50.5545900Z","TSL2":"\/Date(1577462450454)\/","TSL3":"\/Date(1577462450454)\/","TS":"\/Date(1467981296000)\/","DATE":"2016-07-08","TIME":"12:34:56",`
+            `"DATE_I":"","TIME_I":""}` INTO lv_act.
 
-    z_ui2_json=>deserialize( EXPORTING json = lv_act CHANGING data = ls_data2 ).
+    deserialize( EXPORTING json = lv_act CHANGING data = ls_data2 ).
     cl_aunit_assert=>assert_equals( act = ls_data2 exp = ls_data msg = 'Deserialization of timestamp in Edm.DateTime fails' ).
 
     " https://blogs.sap.com/2017/01/05/date-and-time-in-sap-gateway-foundation/
     CONCATENATE `{"FLAG":true,"CHAR":"\"TEST\\\"/C:\\temp","NUMC":12345678,"STRING":"ABCDEFG","XSTRING":"q83v","INTEGER":42,"FLOAT":3.1415926535897900E+00,`
-            `"PACKED":3.141593,"HEX":"AAAAAAAAOt5osQ==","GUID":"","TSL":"2015-10-02T13:44:50.5545900Z","TSL2":"\/Date(1577462450454)\/","TS":"\/Date(1467981296000)\/","DATE":"2016-07-08","TIME":"PT12H34M56S","DATE_I":"","TIME_I":""}` INTO lv_act.
+            `"PACKED":3.141593,"HEX":"AAAAAAAAOt5osQ==","GUID":"","TSL":"2015-10-02T13:44:50.5545900Z","TSL2":"\/Date(1577462450454)\/","TSL3":"\/Date(1577462450454)\/","TS":"\/Date(1467981296000)\/","DATE":"2016-07-08","TIME":"PT12H34M56S",`
+            `"DATE_I":"","TIME_I":""}` INTO lv_act.
 
-    z_ui2_json=>deserialize( EXPORTING json = lv_act CHANGING data = ls_data2 ).
+    deserialize( EXPORTING json = lv_act CHANGING data = ls_data2 ).
     cl_aunit_assert=>assert_equals( act = ls_data2 exp = ls_data msg = 'Deserialization of timestamp in Edm.Time fails' ).
+
+    DATA:
+      BEGIN OF ls_test,
+        date  TYPE d VALUE '20230308',
+        date2 TYPE d VALUE '20160926',
+        ts    TYPE timestampl VALUE '20151002134450.5545900',
+        p1    TYPE p LENGTH 10 DECIMALS 6 VALUE 50,
+        p2    TYPE p LENGTH 10 DECIMALS 6 VALUE -10,
+        p3    TYPE p LENGTH 10 DECIMALS 6 VALUE 5,
+        p4    TYPE p LENGTH 10 DECIMALS 6 VALUE -10,
+      END OF ls_test.
+
+    DATA: ls_test_act LIKE ls_test.
+
+    lv_act = `{ "Date":"2023-03-08T00:00:00", "date2":"2016-09-26 00:00", "ts":"20151002134450.5545900", "p1":"50", "p2":"-10", "p3":"+05", "p4":"-10.00" }`.
+    deserialize( EXPORTING json = lv_act CHANGING  data = ls_test_act ).
+
+    cl_aunit_assert=>assert_equals( act = ls_test_act exp = ls_test msg = 'Negative test for deserialization of ISO8601 fails' ).
 
   ENDMETHOD.                    "serialize_types
 
@@ -475,27 +603,27 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     lt_table6 = lt_table5 = lt_table4 = lt_table3 = lt_table2 = lt_table1.
 
     lv_exp = '[{"key1":"k100","key2":0,"value1":"v100"},{"key1":"k101","key2":1,"value1":"v101"},{"key1":"k102","key2":2,"value1":"v102"}]'.
-    lv_act = z_ui2_json=>serialize( data = lt_table1 pretty_name = z_ui2_json=>pretty_mode-camel_case assoc_arrays = abap_true ).
+    lv_act = serialize( data = lt_table1 pretty_name = pretty_mode-camel_case assoc_arrays = abap_true ).
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of standard fails' ).
 
     lv_exp = '[{"key1":"k100","key2":0,"value1":"v100"},{"key1":"k101","key2":1,"value1":"v101"},{"key1":"k102","key2":2,"value1":"v102"}]'.
-    lv_act = z_ui2_json=>serialize( data = lt_table2 pretty_name = z_ui2_json=>pretty_mode-camel_case assoc_arrays = abap_true ).
+    lv_act = serialize( data = lt_table2 pretty_name = pretty_mode-camel_case assoc_arrays = abap_true ).
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of sorted table with non-unique fails' ).
 
     lv_exp = '{"k100":{"key2":0,"value1":"v100"},"k101":{"key2":1,"value1":"v101"},"k102":{"key2":2,"value1":"v102"}}'.
-    lv_act = z_ui2_json=>serialize( data = lt_table3 pretty_name = z_ui2_json=>pretty_mode-camel_case assoc_arrays = abap_true ).
+    lv_act = serialize( data = lt_table3 pretty_name = pretty_mode-camel_case assoc_arrays = abap_true ).
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of sorted table with unique fails' ).
 
     lv_exp = '{"k100":{"key2":0,"value1":"v100"},"k101":{"key2":1,"value1":"v101"},"k102":{"key2":2,"value1":"v102"}}'.
-    lv_act = z_ui2_json=>serialize( data = lt_table4 pretty_name = z_ui2_json=>pretty_mode-camel_case assoc_arrays = abap_true ).
+    lv_act = serialize( data = lt_table4 pretty_name = pretty_mode-camel_case assoc_arrays = abap_true ).
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of hashed table with single unique key fails' ).
 
     lv_exp = '{"k100-0":{"key1":"k100","key2":0,"value1":"v100"},"k101-1":{"key1":"k101","key2":1,"value1":"v101"},"k102-2":{"key1":"k102","key2":2,"value1":"v102"}}'.
-    lv_act = z_ui2_json=>serialize( data = lt_table5 pretty_name = z_ui2_json=>pretty_mode-camel_case assoc_arrays = abap_true ).
+    lv_act = serialize( data = lt_table5 pretty_name = pretty_mode-camel_case assoc_arrays = abap_true ).
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of hashed table with multi unique keys fails' ).
 
     lv_exp = '{"k100-0-v100":{"key1":"k100","key2":0,"value1":"v100"},"k101-1-v101":{"key1":"k101","key2":1,"value1":"v101"},"k102-2-v102":{"key1":"k102","key2":2,"value1":"v102"}}'.
-    lv_act = z_ui2_json=>serialize( data = lt_table6 pretty_name = z_ui2_json=>pretty_mode-camel_case assoc_arrays = abap_true ).
+    lv_act = serialize( data = lt_table6 pretty_name = pretty_mode-camel_case assoc_arrays = abap_true ).
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of hashed table with unique key as table line fails' ).
 
     CONCATENATE '{' crlf
@@ -516,7 +644,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
                  '  }' crlf
                  '}'
                  INTO lv_exp.
-    lv_act = z_ui2_json=>serialize( data = lt_table6 pretty_name = z_ui2_json=>pretty_mode-camel_case assoc_arrays = abap_true format_output = abap_true ).
+    lv_act = serialize( data = lt_table6 pretty_name = pretty_mode-camel_case assoc_arrays = abap_true format_output = abap_true ).
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of hashed table with unique key and formatting fails' ).
 
     " Serializing of hash maps with empty values and the parameters assoc_arrays_opt and compress produces invalid json.
@@ -559,7 +687,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     INSERT ls_f3 INTO TABLE ls_data-f3.
 
     lv_exp = `{"F2":{"key1":1,"key2":0},"F3":{"key1":"1","key2":""}}`.
-    lv_act = z_ui2_json=>serialize( data = ls_data compress = abap_true assoc_arrays = abap_true assoc_arrays_opt = abap_true ).
+    lv_act = serialize( data = ls_data compress = abap_true assoc_arrays = abap_true assoc_arrays_opt = abap_true ).
     cl_aunit_assert=>assert_equals( exp = lv_exp act = lv_act ).
 
     CONCATENATE '{' crlf
@@ -573,7 +701,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
                  '  }' crlf
                  '}'
                  INTO lv_exp.
-    lv_act = z_ui2_json=>serialize( data = ls_data compress = abap_true assoc_arrays = abap_true assoc_arrays_opt = abap_true format_output = abap_true ).
+    lv_act = serialize( data = ls_data compress = abap_true assoc_arrays = abap_true assoc_arrays_opt = abap_true format_output = abap_true ).
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of hashed table with array optimization and formatting fails' ).
 
   ENDMETHOD.                    "serialize_associative_array
@@ -603,17 +731,17 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     ls_data-form_factors-manual-phone   = abap_true.
 
     lv_exp = '{"formFactors":{"appDefault":true,"manual":{"desktop":false,"tablet":true,"phone":true}}}'.
-    lv_act = z_ui2_json=>serialize( data = ls_data pretty_name = z_ui2_json=>pretty_mode-camel_case ).
+    lv_act = serialize( data = ls_data pretty_name = pretty_mode-camel_case ).
 
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of form factor structure fails' ).
 
     lv_exp = '{"formFactors":{"appDefault":true,"manual":{"tablet":true,"phone":true}}}'.
-    lv_act = z_ui2_json=>serialize( data = ls_data pretty_name = z_ui2_json=>pretty_mode-camel_case compress = abap_true ).
+    lv_act = serialize( data = ls_data pretty_name = pretty_mode-camel_case compress = abap_true ).
 
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of form factor structure with compression fails' ).
 
     lv_exp = '{"FORM_FACTORS":{"APP_DEFAULT":true,"MANUAL":{"TABLET":true,"PHONE":true}}}'.
-    lv_act = z_ui2_json=>serialize( data = ls_data pretty_name = abap_false compress = abap_true ).
+    lv_act = serialize( data = ls_data pretty_name = abap_false compress = abap_true ).
 
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of form factor structure with NO PRETTY NAME fails' ).
 
@@ -634,7 +762,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
         ff      TYPE t_form_factor,
         strings TYPE string_table.
         INCLUDE   TYPE t_form_factor.
-      TYPES: END OF t_line .
+    TYPES: END OF t_line .
     TYPES: t_table TYPE HASHED TABLE OF t_line WITH UNIQUE KEY index.
 
     DATA: lt_data TYPE t_table,
@@ -646,10 +774,10 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     ls_data-user        = 'USER1'.
     ls_data-client      = '000'.
     ls_data-ff-desktop  = abap_false.
-    ls_data-ff-tablet   = z_ui2_json=>c_tribool-true.
+    ls_data-ff-tablet   = c_tribool-true.
     ls_data-ff-phone    = abap_false.
     ls_data-desktop     = abap_true.
-    ls_data-tablet      = z_ui2_json=>c_tribool-false.
+    ls_data-tablet      = c_tribool-false.
     ls_data-phone       = abap_true.
 
     APPEND 'ABC' TO ls_data-strings.
@@ -663,10 +791,10 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     ls_data-user        = 'USER2'.
     ls_data-client      = '111'.
     ls_data-ff-desktop  = abap_true.
-    ls_data-ff-tablet   = z_ui2_json=>c_tribool-true.
+    ls_data-ff-tablet   = c_tribool-true.
     ls_data-ff-phone    = abap_false.
     ls_data-desktop     = abap_false.
-    ls_data-tablet      = z_ui2_json=>c_tribool-false.
+    ls_data-tablet      = c_tribool-false.
     ls_data-phone       = abap_true.
 
     APPEND 'DEF' TO ls_data-strings.
@@ -677,7 +805,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
                 `{"index":2,"user":"USER2","client":"111","ff":{"desktop":true,"tablet":true,"phone":false},"strings":["DEF"],"desktop":false,"tablet":false,"phone":true}]`
                 INTO lv_exp.
 
-    lv_act = z_ui2_json=>serialize( data = lt_data pretty_name = z_ui2_json=>pretty_mode-camel_case ).
+    lv_act = serialize( data = lt_data pretty_name = pretty_mode-camel_case ).
 
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of the table in JSON fails' ).
 
@@ -698,7 +826,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     INSERT ls_data INTO TABLE lt_data.
 
     lv_exp = `[{"NAME":"INTERGER","KIND":"E","VALUE":3}]`.
-    lv_act = z_ui2_json=>serialize( data = lt_data ).
+    lv_act = serialize( data = lt_data ).
 
 *    DATA: xml  TYPE string.
 *    CALL TRANSFORMATION id OPTIONS data_refs = 'embedded'
@@ -738,7 +866,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 *      END OF t_data.
 *
 *    DATA:  ls_data TYPE t_data,
-*           lv_act  TYPE z_ui2_json=>json,
+*           lv_act  TYPE json,
 *           ls_act  LIKE ls_data,
 *           lv_exp  LIKE lv_act.
 *
@@ -752,11 +880,11 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 *    " => {"SIZE1":"SIZE1_M","SIZE2":"SIZE2_XL"}
 *
 *    " and with our serializer
-*    lv_act = z_ui2_json=>serialize( data = ls_data ).
+*    lv_act = serialize( data = ls_data ).
 *
 *    cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of enumerations fails' ).
 *
-*    z_ui2_json=>deserialize( EXPORTING json = lv_act CHANGING data = ls_act ).
+*    deserialize( EXPORTING json = lv_act CHANGING data = ls_act ).
 *
 *    cl_aunit_assert=>assert_equals( act = ls_act exp = ls_data msg = 'Deserialization of enumerations fails' ).
 
@@ -778,11 +906,11 @@ CLASS abap_unit_testclass IMPLEMENTATION.
           lv_exp LIKE lv_act.
 
     lv_exp = '{"_underscore":true,"under_score":true,"UpperCamelCase":true,"camelCase":true,"lowcase":true,"distanceAB":true}'.
-    lv_act = z_ui2_json=>serialize( data = ls_data pretty_name = z_ui2_json=>pretty_mode-camel_case ).
+    lv_act = serialize( data = ls_data pretty_name = pretty_mode-camel_case ).
 
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization in camel case fails' ).
 
-    z_ui2_json=>deserialize( EXPORTING json = lv_act pretty_name = z_ui2_json=>pretty_mode-camel_case CHANGING data = ls_act ).
+    deserialize( EXPORTING json = lv_act pretty_name = pretty_mode-camel_case CHANGING data = ls_act ).
 
     cl_aunit_assert=>assert_equals( act = ls_act exp = ls_data msg = 'Deserialization in camel case fails' ).
 
@@ -810,13 +938,13 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     CLEAR: ls_act.
     lv_json = '{"_underscore":true,"under_score":true,"UpperCamelCase":true,"camelCase":true,"lowcase":true}'.
-    z_ui2_json=>deserialize( EXPORTING json = lv_json pretty_name = z_ui2_json=>pretty_mode-camel_case CHANGING data = ls_act ).
+    deserialize( EXPORTING json = lv_json pretty_name = pretty_mode-camel_case CHANGING data = ls_act ).
 
     cl_aunit_assert=>assert_equals( act = ls_act exp = ls_exp msg = 'Deserialization in camel case fails' ).
 
     CLEAR: ls_act.
     lv_json = '{"_underscore":true,"under_score":true,"UpperCamelCase":true,"CamelCase":true,"lowcase":true}'.
-    z_ui2_json=>deserialize( EXPORTING json = lv_json pretty_name = z_ui2_json=>pretty_mode-camel_case CHANGING data = ls_act ).
+    deserialize( EXPORTING json = lv_json pretty_name = pretty_mode-camel_case CHANGING data = ls_act ).
 
     cl_aunit_assert=>assert_equals( act = ls_act exp = ls_exp msg = 'Deserialization of not well formed JSON names in camel case fails' ).
 
@@ -848,7 +976,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
              objname TYPE string,
              issues  TYPE lty_issues.
              INCLUDE TYPE lty_source_object AS source_object RENAMING WITH SUFFIX _inc.
-           TYPES: END OF lty_object .
+    TYPES: END OF lty_object .
     TYPES:
       lty_objects TYPE STANDARD TABLE OF lty_object  WITH DEFAULT KEY .
     TYPES:
@@ -865,7 +993,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     APPEND ls_object TO ls_data-objects.
 
     lv_exp = '{"objects":[{"objtype":"","objname":"","issues":[],"includesInc":[],"pathInc":"","sourceInc":"","sourceLengthInc":0}]}'.
-    lv_act = z_ui2_json=>serialize( data = ls_data pretty_name = z_ui2_json=>pretty_mode-camel_case ).
+    lv_act = serialize( data = ls_data pretty_name = pretty_mode-camel_case ).
 
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of included types with alias fails!' ).
 
@@ -902,7 +1030,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     INSERT ls_data INTO TABLE lt_exp.
 
     lv_data = `[{"NAME":"INTERGER","KIND":"E","VALUE":3},{"NAME":"STRING","KIND":"E","VALUE":"Test"},{"NAME":"BOOL","KIND":"E","VALUE":true}]`.
-    z_ui2_json=>deserialize( EXPORTING json = lv_data CHANGING data = lt_act ).
+    deserialize( EXPORTING json = lv_data CHANGING data = lt_act ).
 
     READ TABLE lt_act INTO ls_act WITH TABLE KEY name = 'INTERGER'.
     READ TABLE lt_exp INTO ls_exp WITH TABLE KEY name = 'INTERGER'.
@@ -964,7 +1092,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
                 '    }'                         cl_abap_char_utilities=>cr_lf
                 '}' INTO json.
 
-    z_ui2_json=>deserialize( EXPORTING json = json pretty_name = z_ui2_json=>pretty_mode-camel_case CHANGING data = lv_act ).
+    deserialize( EXPORTING json = json pretty_name = pretty_mode-camel_case CHANGING data = lv_act ).
 
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Deserialization of JSON fails' ).
 
@@ -985,7 +1113,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     TRY .
         json = `{"text": "x's feedback","ratings": [{"question_id":"Q1","value":3},{"question_id":"Q2","value":4},{"question_id":"Q3","value":6}`.
-        z_ui2_json=>deserialize( EXPORTING json = json CHANGING data = lv_act ).
+        deserialize( EXPORTING json = json CHANGING data = lv_act ).
       CATCH cx_sy_move_cast_error.
         CLEAR lv_act.
       CATCH cx_root.                                     "#EC CATCH_ALL
@@ -1000,17 +1128,17 @@ CLASS abap_unit_testclass IMPLEMENTATION.
             password TYPE int4,
           END OF user.
 
-    z_ui2_json=>deserialize( EXPORTING json = json CHANGING data = user ).
+    deserialize( EXPORTING json = json CHANGING data = user ).
 
     cl_aunit_assert=>assert_equals( act = user-username exp = 'sap'  msg = 'Deserialization of wrong JSON object fails' ).
     cl_aunit_assert=>assert_equals( act = user-password exp = 123456 msg = 'Deserialization of wrong JSON object fails' ).
 
     CLEAR: user.
-    z_ui2_json=>deserialize( EXPORTING json = `INVALID_JSON` CHANGING data = user ).
+    deserialize( EXPORTING json = `INVALID_JSON` CHANGING data = user ).
     cl_aunit_assert=>assert_initial( act = user msg = 'Deserialization of invalid JSON fails' ).
 
     DATA: lr_data TYPE REF TO data.
-    lr_data = z_ui2_json=>generate( json = `INVALID_JSON` ).
+    lr_data = generate( json = `INVALID_JSON` ).
     cl_aunit_assert=>assert_initial( act = lr_data msg = 'Generation of invalid JSON fails' ).
 
   ENDMETHOD.                    "deserialize_malformed
@@ -1036,7 +1164,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     json = `[{"ID":"2222","FIRST_NAME":"Latha","LNAME":"BH","AGE":"40","HOBBY":"Reading"}]`.
 
-    z_ui2_json=>deserialize( EXPORTING json = json CHANGING data = itab ).
+    deserialize( EXPORTING json = json CHANGING data = itab ).
 
     cl_aunit_assert=>assert_not_initial( act = itab msg = 'Deserialization of table with missing field' ).
     READ TABLE itab INDEX 1 ASSIGNING <line>.
@@ -1047,7 +1175,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     json = `[{"IDX":"2222","FNAMEX":"Latha","LNAMEX":"BH","AGEX":"40","HOBBYX":"Reading"}]`.
 
     CLEAR itab.
-    z_ui2_json=>deserialize( EXPORTING json = json CHANGING data = itab ).
+    deserialize( EXPORTING json = json CHANGING data = itab ).
 
     cl_aunit_assert=>assert_not_initial( act = itab msg = 'Deserialization of table with missing field' ).
     READ TABLE itab INDEX 1 ASSIGNING <line>.
@@ -1106,8 +1234,8 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     CONCATENATE '{"tileConfiguration":"{\"semantic_object\":\"SalesOrder\",\"semantic_action\":\"showFactsheet\",\"navigation_provider\":\"LPD\",\"navigation_provider_role\":\"UI3_SRVC\",\"navigation_provider_instance\":\"UI2_FIORI_CHECKS\",'
                 '\"target_application_alias\":\"FactsheetApp\",\"unknown\":100.00,\"display_info_text\":\"\"}"}' INTO json.
 
-    z_ui2_json=>deserialize( EXPORTING json = json pretty_name = z_ui2_json=>pretty_mode-camel_case CHANGING data = lv_temp ).
-    z_ui2_json=>deserialize( EXPORTING json = lv_temp-tile_configuration pretty_name = z_ui2_json=>pretty_mode-camel_case CHANGING data = lv_act ).
+    deserialize( EXPORTING json = json pretty_name = pretty_mode-camel_case CHANGING data = lv_temp ).
+    deserialize( EXPORTING json = lv_temp-tile_configuration pretty_name = pretty_mode-camel_case CHANGING data = lv_act ).
 
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Deserialization of JSON fails' ).
 
@@ -1140,8 +1268,8 @@ CLASS abap_unit_testclass IMPLEMENTATION.
                  '\"name\":\"par1\",\"value\":\"vallkl\",\"valEnabled\":true,\"defValEnabled\":false},{\"mandatory\":false,\"isRegularExpression\":false,\"value\":\"\",\"name\":\"par2\",\"defaultValue\":'
                  '\"Eyallk\",\"valEnabled\":false,\"defValEnabled\":true}]}"}' INTO json.
 
-    z_ui2_json=>deserialize( EXPORTING json = json pretty_name = z_ui2_json=>pretty_mode-camel_case CHANGING data = lv_temp ).
-    z_ui2_json=>deserialize( EXPORTING json = lv_temp-tile_configuration pretty_name = z_ui2_json=>pretty_mode-camel_case CHANGING data = lv_act ).
+    deserialize( EXPORTING json = json pretty_name = pretty_mode-camel_case CHANGING data = lv_temp ).
+    deserialize( EXPORTING json = lv_temp-tile_configuration pretty_name = pretty_mode-camel_case CHANGING data = lv_act ).
 
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Deserialization of JSON with array fails' ).
 
@@ -1175,8 +1303,8 @@ CLASS abap_unit_testclass IMPLEMENTATION.
                  '\"display_info_text\":\"\\\"Manage Products\\\" app on another server\",\"mapping_signature\":\"*=*\"}"}' INTO json.
 
     TRY.
-        z_ui2_json=>deserialize( EXPORTING json = json pretty_name = z_ui2_json=>pretty_mode-camel_case CHANGING data = lv_temp ).
-        z_ui2_json=>deserialize( EXPORTING json = lv_temp-tile_configuration pretty_name = z_ui2_json=>pretty_mode-camel_case CHANGING data = lv_act ).
+        deserialize( EXPORTING json = json pretty_name = pretty_mode-camel_case CHANGING data = lv_temp ).
+        deserialize( EXPORTING json = lv_temp-tile_configuration pretty_name = pretty_mode-camel_case CHANGING data = lv_act ).
       CATCH cx_sy_move_cast_error. " JSON structure is invalid
         CLEAR lv_act.
     ENDTRY.
@@ -1271,8 +1399,8 @@ CLASS abap_unit_testclass IMPLEMENTATION.
                  '\"Eyallk\",\"valEnabled\":false,\"defValEnabled\":true}],'
                  '\"target_application_alias\":\"FactsheetApp\",\"navigation_provider_role\":\"UI3_SRVC\",\"navigation_provider_instance\":\"UI2_FIORI_CHECKS\" }"}' INTO json.
 
-    z_ui2_json=>deserialize( EXPORTING json = json pretty_name = z_ui2_json=>pretty_mode-camel_case CHANGING data = lv_temp ).
-    z_ui2_json=>deserialize( EXPORTING json = lv_temp-tile_configuration pretty_name = z_ui2_json=>pretty_mode-camel_case CHANGING data = lv_act ).
+    deserialize( EXPORTING json = json pretty_name = pretty_mode-camel_case CHANGING data = lv_temp ).
+    deserialize( EXPORTING json = lv_temp-tile_configuration pretty_name = pretty_mode-camel_case CHANGING data = lv_act ).
 
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Deserialization of JSON with array fails' ).
 
@@ -1285,7 +1413,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     json = `["A", "B", "C"]`.
 
-    z_ui2_json=>deserialize( EXPORTING json = json CHANGING data = lt_act ).
+    deserialize( EXPORTING json = json CHANGING data = lt_act ).
     cl_aunit_assert=>assert_equals( act = lt_act exp = lt_exp msg = 'Deserialization of STRING_TABLE fails' ).
 
   ENDMETHOD.       "deserialize_target_mapping_array
@@ -1315,16 +1443,27 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     CONCATENATE `tena` cl_abap_char_utilities=>newline `t` INTO lv_exp-special2.
 
     lv_data = '{"negative_i":-1,"positive_i":10000,"positive_n":1,"boolean":true,"timestamp":1419279663821,"timestamp_not_mapped":1419279663821,"special1":"2016/05/11","special2":"tena\nt"}'.
-    z_ui2_json=>deserialize( EXPORTING json = lv_data pretty_name = z_ui2_json=>pretty_mode-low_case CHANGING data = lv_act ).
+    deserialize( EXPORTING json = lv_data pretty_name = pretty_mode-low_case CHANGING data = lv_act ).
 
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Deserialize of types with low case name pretty printing fails' ).
 
     lv_data = '{"negative_i": -1, "positive_i":10000, "positive_n" : "000001", "boolean" : true, "timestamp" : 1419279663821, "timestamp_not_mapped" : 1419279663821,"special1":"2016/05/11","special2":"tena\nt"}'.
-    z_ui2_json=>deserialize( EXPORTING json = lv_data pretty_name = z_ui2_json=>pretty_mode-low_case CHANGING data = lv_act ).
+    deserialize( EXPORTING json = lv_data pretty_name = pretty_mode-low_case CHANGING data = lv_act ).
 
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Deserialize of types with low case name pretty printing fails' ).
 
   ENDMETHOD.                    "deserialize_types
+
+  METHOD deserialize_white_space.
+
+    DATA: lv_json TYPE json.
+    DATA : lr_data  TYPE REF TO data.
+    lv_json = `{    "clientid": "*******sb-7893798237498723b540", "clientsecret": "f8hdhkgjhdf=", "serviceurls": {        "AI_API_URL": "https://api.xxxx.hana.ondemand.com"    }}`.
+
+    lr_data = generate( json = lv_json ).
+    cl_aunit_assert=>assert_not_initial( act = lr_data msg = 'Generation with custom spaces fails JSON fails!' ).
+
+  ENDMETHOD.
 
   METHOD deserialize_news.
     TYPES: BEGIN OF tp_s_tile_news_config,
@@ -1369,7 +1508,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     lv_exp-usedefaultimage  = abap_false.
 
     TRY.
-        z_ui2_json=>deserialize( EXPORTING json = lv_data pretty_name = z_ui2_json=>pretty_mode-low_case CHANGING data = lv_act ).
+        deserialize( EXPORTING json = lv_data pretty_name = pretty_mode-low_case CHANGING data = lv_act ).
       CATCH cx_sy_move_cast_error. " JSON structure is invalid
         CLEAR lv_act.
     ENDTRY.
@@ -1389,7 +1528,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     lv_exp-usedefaultimage  = abap_true.
 
     TRY.
-        z_ui2_json=>deserialize( EXPORTING json = lv_data pretty_name = z_ui2_json=>pretty_mode-low_case CHANGING data = lv_act ).
+        deserialize( EXPORTING json = lv_data pretty_name = pretty_mode-low_case CHANGING data = lv_act ).
       CATCH cx_sy_move_cast_error. " JSON structure is invalid
         CLEAR lv_act.
     ENDTRY.
@@ -1439,7 +1578,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     lv_exp-navigation_semantic_action = ',..,'.
     lv_exp-navigation_semantic_parameters = 'ghgh'.
 
-    z_ui2_json=>deserialize( EXPORTING json = lv_data CHANGING data = lv_act ).
+    deserialize( EXPORTING json = lv_data CHANGING data = lv_act ).
 
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Deserialize of dynamic tile fails!' ).
 
@@ -1482,7 +1621,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     ls_exp-value2 = 'test3'.
     INSERT ls_exp INTO TABLE lt_exp.
 
-    z_ui2_json=>deserialize( EXPORTING json = lv_data assoc_arrays = abap_true CHANGING data = lt_act ).
+    deserialize( EXPORTING json = lv_data assoc_arrays = abap_true CHANGING data = lt_act ).
     lv_lines = lines( lt_act ).
     cl_aunit_assert=>assert_equals( act = lv_lines exp = 3 msg = 'Deserialize of associated array fails!' ).
     cl_aunit_assert=>assert_equals( act = lt_act exp = lt_exp msg = 'Deserialize of associated array fails!' ).
@@ -1514,7 +1653,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     ls_exp = 'key3'.
     INSERT ls_exp INTO TABLE lt_exp.
 
-    z_ui2_json=>deserialize( EXPORTING json = lv_data assoc_arrays = abap_true CHANGING data = lt_act ).
+    deserialize( EXPORTING json = lv_data assoc_arrays = abap_true CHANGING data = lt_act ).
     lv_lines = lines( lt_act ).
     cl_aunit_assert=>assert_equals( act = lv_lines exp = 3 msg = 'Deserialize of associated array with key as table_line fails!' ).
     cl_aunit_assert=>assert_equals( act = lt_act exp = lt_exp msg = 'Deserialize of associated array with key as table_line fails!' ).
@@ -1578,7 +1717,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     ls_exp-offer_id               = 'b70f045ff2214edaab8904d6b427b52d'.
     ls_exp-offer_code             = 'lsFHQZHz'.
     ls_exp-offer_type             = 'COUPON'.
-    ls_exp-valid_to               = '20160127190214'.
+    ls_exp-valid_to               = '20160127190214' ##LITERAL.
     ls_exp-enable_geo_marketing   = abap_false.
     APPEND ls_beacon TO ls_exp-beacon.
     APPEND ls_exp TO lt_exp.
@@ -1588,7 +1727,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     ls_exp-offer_id               = 'a46e801e067e46098e93fcd1d9e34f01'.
     ls_exp-offer_code             = '575tpNAk'.
     ls_exp-offer_type             = 'COUPON'.
-    ls_exp-valid_to               = '20160131095124'.
+    ls_exp-valid_to               = '20160131095124' ##LITERAL.
     ls_exp-enable_geo_marketing   = abap_true.
 
     ls_beacon-id                  = 'B9407F30-F5F8-466E-AFF9-25556B57FE6D'.
@@ -1597,7 +1736,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     APPEND ls_beacon TO ls_exp-beacon.
     APPEND ls_exp TO lt_exp.
 
-    z_ui2_json=>deserialize( EXPORTING json = lv_data pretty_name = z_ui2_json=>pretty_mode-camel_case CHANGING data = lt_act ).
+    deserialize( EXPORTING json = lv_data pretty_name = pretty_mode-camel_case CHANGING data = lt_act ).
 
     cl_aunit_assert=>assert_equals( act = lt_act exp = lt_exp msg = 'Deserialize of table with empty objects fails!' ).
 
@@ -1623,7 +1762,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     lv_exp = '{"ID":1,"CHILDREN":[{"ID":2,"CHILDREN":[]}]}'.
 
-    lv_act = z_ui2_json=>serialize( data = ls_data ).
+    lv_act = serialize( data = ls_data ).
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of recursive data structure fails' ).
 
   ENDMETHOD.                    "serialize_recursive
@@ -1644,7 +1783,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     lv_exp = '{"CHILDREN":[{"CHILDREN":[],"ID":2,"PRIV":1,"PROT":2}],"ID":1,"PRIV":1,"PROT":2}'.
 
-    lv_act = z_ui2_json=>serialize( data = lo_data ).
+    lv_act = serialize( data = lo_data ).
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of simple recursive object fails' ).
 
     CONCATENATE '{' crlf
@@ -1661,7 +1800,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
              '  "PROT": 2' crlf
              '}'
              INTO lv_exp.
-    lv_act = z_ui2_json=>serialize( data = lo_data format_output = abap_true ).
+    lv_act = serialize( data = lo_data format_output = abap_true ).
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of simple recursive object with formatting fails' ).
 
   ENDMETHOD.                    "serialize_object
@@ -1674,7 +1813,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
           lv_data  TYPE string.
 
     lv_data = '{"id":1,"children":[{"id":2,"children":[]}]}'.
-    z_ui2_json=>deserialize( EXPORTING json = lv_data CHANGING data =  lo_data ).
+    deserialize( EXPORTING json = lv_data CHANGING data =  lo_data ).
 
     cl_aunit_assert=>assert_not_initial( act = lo_data msg = 'Deserialization of simple recursive object fails' ).
 
@@ -1694,7 +1833,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     TYPES: BEGIN OF ts_record,
              id        TYPE string,
-             m_columns TYPE z_ui2_json=>json,
+             m_columns TYPE json,
            END OF ts_record.
 
     DATA: lv_json TYPE string,
@@ -1706,7 +1845,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
                 '"O000001ZZ_TRANSIENT_TEST_A":{"mColumns":{"ABTNR":{"bVisible":false},"CITY1":{"bVisible":false},"IC_COMPANY_KEY":{"bVisible":true}}}}'
                 INTO lv_json.
 
-    z_ui2_json=>deserialize( EXPORTING json = lv_json assoc_arrays = abap_true pretty_name = z_ui2_json=>pretty_mode-camel_case CHANGING data = lt_act ).
+    deserialize( EXPORTING json = lv_json assoc_arrays = abap_true pretty_name = pretty_mode-camel_case CHANGING data = lt_act ).
 
     ls_exp-id = 'O000001ZZ_SO_GRES_CONTACTS'.
     ls_exp-m_columns = '{"AGE":{"bVisible":true,"iPosition":2},"BRSCH":{"bVisible":true}}'.
@@ -1724,11 +1863,11 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     TYPES: BEGIN OF ts_record,
              id        TYPE string,
-             m_columns TYPE z_ui2_json=>json,
+             m_columns TYPE json,
            END OF ts_record.
 
-    DATA: lv_exp TYPE z_ui2_json=>json,
-          lv_act TYPE z_ui2_json=>json,
+    DATA: lv_exp TYPE json,
+          lv_act TYPE json,
           lt_act TYPE SORTED TABLE OF ts_record WITH UNIQUE KEY id,
           ls_act LIKE LINE OF lt_act.
 
@@ -1744,7 +1883,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     ls_act-m_columns = '{"ABTNR":{"bVisible":false},"CITY1":{"bVisible":false},"IC_COMPANY_KEY":{"bVisible":true}}'.
     INSERT ls_act INTO TABLE lt_act.
 
-    lv_act = z_ui2_json=>serialize( data = lt_act assoc_arrays = abap_true pretty_name = z_ui2_json=>pretty_mode-camel_case ).
+    lv_act = serialize( data = lt_act assoc_arrays = abap_true pretty_name = pretty_mode-camel_case ).
 
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Partial serialization fails' ).
 
@@ -1762,7 +1901,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
       END OF tp_s_data.
 
     DATA: ls_data            TYPE tp_s_data,
-          lo_json            TYPE REF TO z_ui2_json,
+          lo_json            TYPE t_json,
           lo_json_custom     TYPE REF TO lc_json_custom,
           lv_json            TYPE lc_json_custom=>json,
           lv_json_custom_exp LIKE lv_json,
@@ -1772,7 +1911,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     ls_data-bool    = lc_json_custom=>c_bool-false.
     ls_data-str     = ''.
     ls_data-initial = 0.
-    ls_data-tmst    = '20160708123456'.
+    ls_data-tmst    = '20160708123456' ##LITERAL.
 
     CREATE OBJECT lo_json
       EXPORTING
@@ -1841,10 +1980,10 @@ CLASS abap_unit_testclass IMPLEMENTATION.
           ls_act     LIKE ls_exp,
           lr_data    TYPE REF TO data,
           lv_string  TYPE string,
-          lt_mapping TYPE z_ui2_json=>name_mappings,
+          lt_mapping TYPE name_mappings,
           ls_mapping LIKE LINE OF lt_mapping,
           lo_data    TYPE REF TO /ui2/cl_data_access,
-          lo_json    TYPE REF TO z_ui2_json,
+          lo_json    TYPE t_json,
           lv_json    TYPE lc_json_custom=>json.
 
     ls_exp-sschema              = `abc1`.
@@ -1873,7 +2012,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     CREATE OBJECT lo_json
       EXPORTING
-        pretty_name      = z_ui2_json=>pretty_mode-low_case
+        pretty_name      = pretty_mode-low_case
         name_mappings    = lt_mapping
         assoc_arrays     = abap_true
         assoc_arrays_opt = abap_true.
@@ -1886,7 +2025,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     " test generation with custom name mappings
     lo_json->generate_int( EXPORTING json = lv_json CHANGING data = lr_data ).
 
-    lo_data = /ui2/cl_data_access=>create( ir_data = lr_data iv_component = 'shortened_abap_name').
+    lo_data = /ui2/cl_data_access=>create( ir_data = lr_data iv_component = 'shortened_abap_name' ).
     lo_data->value( IMPORTING ev_data = lv_string ).
 
     cl_aunit_assert=>assert_equals( act = lv_string exp = `abc3` msg = 'Generation of OData structure with name mapping fails!' ).
@@ -1912,11 +2051,11 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     lv_exp = `{"$schema":"","@odata.context":"","!#%&":"","*-~/":"",":|.":"","AbapName":""}`.
 
-    lv_json = z_ui2_json=>serialize( data = ls_exp pretty_name = z_ui2_json=>pretty_mode-extended ).
+    lv_json = serialize( data = ls_exp pretty_name = pretty_mode-extended ).
 
     cl_aunit_assert=>assert_equals( act = lv_json exp = lv_exp msg = 'Extended pretty name fails!' ).
 
-    z_ui2_json=>deserialize( EXPORTING json = lv_json pretty_name = z_ui2_json=>pretty_mode-extended CHANGING data = ls_act ).
+    deserialize( EXPORTING json = lv_json pretty_name = pretty_mode-extended CHANGING data = ls_act ).
 
     cl_aunit_assert=>assert_equals( act = ls_act exp = ls_exp msg = 'Extended pretty name fails!' ).
 
@@ -1938,12 +2077,12 @@ CLASS abap_unit_testclass IMPLEMENTATION.
         id   TYPE string.
         INCLUDE TYPE lty_data.
         INCLUDE TYPE lty_source_object AS source_object.
-        TYPES: test TYPE abap_bool.
+    TYPES: test TYPE abap_bool.
     TYPES: END OF lty_object .
 
     DATA: ls_act  TYPE lty_object,
           ls_exp  LIKE ls_act,
-          lv_json TYPE z_ui2_json=>json.
+          lv_json TYPE json.
 
     ls_exp-id             = '21321546'.
     ls_exp-obj_type       = 'ABC'.
@@ -1955,7 +2094,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     lv_json = '{"id":"21321546","objType":"ABC","objName":"XXX","sourceObject":{"path":"/path/to/","source":"hell.js","sourceLength":256},"test":true}'.
 
-    z_ui2_json=>deserialize( EXPORTING json = lv_json pretty_name = z_ui2_json=>pretty_mode-camel_case
+    deserialize( EXPORTING json = lv_json pretty_name = pretty_mode-camel_case
                                CHANGING data = ls_act ).
 
     cl_aunit_assert=>assert_equals( act = ls_act exp = ls_exp msg = 'Deserialisation with alias fails!' ).
@@ -1973,8 +2112,8 @@ CLASS abap_unit_testclass IMPLEMENTATION.
              value TYPE ts_record,
            END OF ts_record2.
 
-    DATA: lv_exp  TYPE z_ui2_json=>json,
-          lv_act  TYPE z_ui2_json=>json,
+    DATA: lv_exp  TYPE json,
+          lv_act  TYPE json,
           lt_act  TYPE SORTED TABLE OF ts_record WITH UNIQUE KEY key,
           lt_act2 TYPE SORTED TABLE OF ts_record2 WITH UNIQUE KEY key,
           lt_exp  LIKE lt_act,
@@ -1994,18 +2133,18 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     INSERT ls_exp INTO TABLE lt_exp2.
 
     lv_exp = '{"KEY1":"VALUE1","KEY2":"VALUE2"}'.
-    lv_act = z_ui2_json=>serialize( data = lt_exp assoc_arrays = abap_true assoc_arrays_opt = abap_true ).
+    lv_act = serialize( data = lt_exp assoc_arrays = abap_true assoc_arrays_opt = abap_true ).
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Name/Value map serialization fails!' ).
 
-    z_ui2_json=>deserialize( EXPORTING json = lv_act assoc_arrays = abap_true assoc_arrays_opt = abap_true
+    deserialize( EXPORTING json = lv_act assoc_arrays = abap_true assoc_arrays_opt = abap_true
                                CHANGING  data = lt_act ).
     cl_aunit_assert=>assert_equals( act = lt_act exp = lt_exp msg = 'Name/Value map deserialization fails!' ).
 
     lv_exp = '{"KEY1":{"KEY":"KEY1","VALUE":"VALUE1"},"KEY2":{"KEY":"KEY2","VALUE":"VALUE2"}}'.
-    lv_act = z_ui2_json=>serialize( data = lt_exp2 assoc_arrays = abap_true assoc_arrays_opt = abap_true ).
+    lv_act = serialize( data = lt_exp2 assoc_arrays = abap_true assoc_arrays_opt = abap_true ).
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Name/Value map serialization fails!' ).
 
-    z_ui2_json=>deserialize( EXPORTING json = lv_act assoc_arrays = abap_true assoc_arrays_opt = abap_true
+    deserialize( EXPORTING json = lv_act assoc_arrays = abap_true assoc_arrays_opt = abap_true
                                CHANGING  data = lt_exp2 ).
     cl_aunit_assert=>assert_equals( act = lt_exp2 exp = lt_exp2 msg = 'Name/Value map deserialization fails!' ).
 
@@ -2016,11 +2155,11 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     TYPES:
       BEGIN OF ts_json_meta,
         abap_type LIKE cl_abap_typedescr=>absolute_name,
-        data      TYPE z_ui2_json=>json,
+        data      TYPE json,
       END OF ts_json_meta.
 
     DATA: lt_flight    TYPE STANDARD TABLE OF sflight WITH DEFAULT KEY,
-          lv_json      TYPE z_ui2_json=>json,
+          lv_json      TYPE json,
           lo_typedescr TYPE REF TO cl_abap_typedescr,
           lo_data      TYPE REF TO data,
           ls_exp       TYPE ts_json_meta,
@@ -2031,19 +2170,19 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     SELECT * FROM sflight INTO TABLE lt_flight UP TO 1000 ROWS ORDER BY PRIMARY KEY. "#EC CI_NOWHERE
 
     " serialize table lt_flight into JSON, skipping initial fields and converting ABAP field names into camelCase
-    ls_exp-data      = z_ui2_json=>serialize( data = lt_flight compress = abap_true pretty_name = z_ui2_json=>pretty_mode-camel_case ).
+    ls_exp-data      = serialize( data = lt_flight compress = abap_true pretty_name = pretty_mode-camel_case ).
     lo_typedescr     = cl_abap_typedescr=>describe_by_data( lt_flight ).
     ls_exp-abap_type = lo_typedescr->absolute_name.
-    lv_json          = z_ui2_json=>serialize( data = ls_exp compress = abap_true pretty_name = z_ui2_json=>pretty_mode-camel_case ).
+    lv_json          = serialize( data = ls_exp compress = abap_true pretty_name = pretty_mode-camel_case ).
 
     " deserialize JSON string json into internal table lt_flight doing camelCase to ABAP like field name mapping
-    z_ui2_json=>deserialize( EXPORTING json = lv_json pretty_name = z_ui2_json=>pretty_mode-camel_case CHANGING data = ls_act ).
+    deserialize( EXPORTING json = lv_json pretty_name = pretty_mode-camel_case CHANGING data = ls_act ).
 
     cl_aunit_assert=>assert_equals( act = ls_act exp = ls_exp msg = 'Dynamic serialization/deserialization fails!' ).
 
     CREATE DATA lo_data TYPE (ls_act-abap_type).
     ASSIGN lo_data->* TO <data>.
-    z_ui2_json=>deserialize( EXPORTING json = ls_act-data pretty_name = z_ui2_json=>pretty_mode-camel_case CHANGING data = <data> ).
+    deserialize( EXPORTING json = ls_act-data pretty_name = pretty_mode-camel_case CHANGING data = <data> ).
 
     cl_aunit_assert=>assert_equals( act = <data> exp = lt_flight msg = 'Dynamic serialization/deserialization fails!' ).
 
@@ -2061,7 +2200,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
         groupdescription      TYPE c LENGTH 60,
       END OF ts_record.
 
-    DATA: lv_json       TYPE z_ui2_json=>json,
+    DATA: lv_json       TYPE json,
           lt_attributes TYPE STANDARD TABLE OF ts_record,
           lv_lines      TYPE i.
 
@@ -2070,8 +2209,8 @@ CLASS abap_unit_testclass IMPLEMENTATION.
                 `"BO-CUAN_INTERACTION_CONTACT/IC_TEAM_MEMBER/SEARCH/QUAL","BO-CUAN_INTERACTION_CONTACT/IC_TEAM_MEMBER/SEARCH/SUPP"]`
     INTO lv_json.
 
-    z_ui2_json=>deserialize( EXPORTING json         = lv_json
-                                         pretty_name  = z_ui2_json=>pretty_mode-camel_case
+    deserialize( EXPORTING json         = lv_json
+                                         pretty_name  = pretty_mode-camel_case
                                CHANGING  data         = lt_attributes  ).
 
     lv_lines = lines( lt_attributes ).
@@ -2080,12 +2219,12 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     cl_aunit_assert=>assert_equals( act = lv_lines exp = 6 msg = 'Deserialization of malformed type table fails!' ).
 
     " repeat the same in strict mode
-    DATA: lo_json TYPE REF TO z_ui2_json.
+    DATA: lo_json TYPE t_json.
 
     CREATE OBJECT lo_json
       EXPORTING
         strict_mode = abap_true
-        pretty_name = z_ui2_json=>pretty_mode-camel_case
+        pretty_name = pretty_mode-camel_case
         compress    = abap_true.
 
     CLEAR: lt_attributes.
@@ -2123,8 +2262,8 @@ CLASS abap_unit_testclass IMPLEMENTATION.
       lr_table        TYPE REF TO data,
       lr_line         TYPE REF TO data,
       test_data       TYPE REF TO data,
-      lv_act          TYPE z_ui2_json=>json,
-      lv_exp          TYPE z_ui2_json=>json.
+      lv_act          TYPE json,
+      lv_exp          TYPE json.
 
     FIELD-SYMBOLS: <table> TYPE ANY TABLE,
                    <line>  TYPE any,
@@ -2172,7 +2311,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     INSERT <line> INTO TABLE <table>.
 
     lv_exp = '[{"field1":"Hello World!","field2":"Eat me!","field3":20,"field4":"I am BIG!"},{"field1":"Hello World!","field2":"Eat me!","field3":20,"field4":"I am BIG!"}]'.
-    lv_act = z_ui2_json=>serialize( data = lr_table pretty_name = z_ui2_json=>pretty_mode-camel_case ).
+    lv_act = serialize( data = lr_table pretty_name = pretty_mode-camel_case ).
 
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of dynamic type fails!' ).
 
@@ -2181,20 +2320,23 @@ CLASS abap_unit_testclass IMPLEMENTATION.
   METHOD deserialze_to_read_only.
 
     DATA: lt_flight TYPE STANDARD TABLE OF sflight WITH DEFAULT KEY,
-          lv_json   TYPE z_ui2_json=>json,
+          lv_json   TYPE json,
           lo_exp    TYPE REF TO cl_abap_typedescr.
 
     lo_exp = cl_abap_typedescr=>describe_by_data( lt_flight ).
-    lv_json = z_ui2_json=>serialize( lo_exp ).
-    z_ui2_json=>deserialize( EXPORTING json = lv_json CHANGING data = lo_exp ).
+    lv_json = serialize( lo_exp ).
+    deserialize( EXPORTING json = lv_json CHANGING data = lo_exp ).
 
   ENDMETHOD.                    "deserialze_to_read_only
 
-  METHOD generate.
+  METHOD generate_simple.
 
-    DATA: lv_json   TYPE z_ui2_json=>json,
+    DATA: lv_json   TYPE json,
           lv_bool   TYPE abap_bool,
           lv_string TYPE string,
+          lv_int    TYPE i,
+          lv_float  TYPE f,
+          lv_p      TYPE p,
           lo_data   TYPE REF TO /ui2/cl_data_access,
           lr_val    TYPE REF TO data,
           lr_act    TYPE REF TO data.
@@ -2222,20 +2364,20 @@ CLASS abap_unit_testclass IMPLEMENTATION.
       `erted": {"type": "boolean","enum": [true]}}}},},"details": []}`
     INTO lv_json.
 
-    lr_act = z_ui2_json=>generate( json = lv_json pretty_name = z_ui2_json=>pretty_mode-camel_case ).
+    lr_act = generate( json = lv_json pretty_name = pretty_mode-camel_case ).
     cl_aunit_assert=>assert_not_initial( act = lr_act msg = 'Generation of ABAP object fails!' ).
 
-    lo_data = /ui2/cl_data_access=>create( ir_data = lr_act iv_component = 'output-additional_properties').
+    lo_data = /ui2/cl_data_access=>create( ir_data = lr_act iv_component = 'output-additional_properties' ).
     lo_data->value( IMPORTING ev_data = lv_bool ).
 
     cl_aunit_assert=>assert_equals( act = lv_bool exp = abap_true msg = 'Generation of boolean for ABAP object fails!' ).
 
-    lo_data = /ui2/cl_data_access=>create( ir_data = lr_act iv_component = 'output-properties-conversion_flags_map-properties-is_value_list_converted').
+    lo_data = /ui2/cl_data_access=>create( ir_data = lr_act iv_component = 'output-properties-conversion_flags_map-properties-is_value_list_converted' ).
     lr_val = lo_data->ref( ).
 
     cl_aunit_assert=>assert_bound( act = lr_val msg = 'Generation of deep structure with different pretty name modes fails!' ).
 
-    lo_data = /ui2/cl_data_access=>create( ir_data = lr_act iv_component = 'output-required[1]').
+    lo_data = /ui2/cl_data_access=>create( ir_data = lr_act iv_component = 'output-required[1]' ).
     lo_data->value( IMPORTING ev_data = lv_string ).
 
     cl_aunit_assert=>assert_equals( act = lv_string exp = 'vocabulary' msg = 'Generation of table fails!' ).
@@ -2253,41 +2395,66 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     ls_comp_descr-type = cl_abap_elemdescr=>get_c( p_length = 30 ).
     INSERT ls_comp_descr INTO TABLE lt_comp_descr.
 
-    lo_data = /ui2/cl_data_access=>create( iv_data = lt_comp_descr iv_component = '[2]-name').
+    lo_data = /ui2/cl_data_access=>create( iv_data = lt_comp_descr iv_component = '[2]-name' ).
     lo_data->value( IMPORTING ev_data = lv_string ).
 
     cl_aunit_assert=>assert_equals( act = lv_string exp = 'FIELD2' msg = 'Dynamic access fails!' ).
 
-    lo_data = /ui2/cl_data_access=>create( iv_data = lt_comp_descr iv_component = '[name=FIELD1]-suffix').
+    lo_data = /ui2/cl_data_access=>create( iv_data = lt_comp_descr iv_component = '[name=FIELD1]-suffix' ).
     lo_data->value( IMPORTING ev_data = lv_string ).
 
     cl_aunit_assert=>assert_equals( act = lv_string exp = 'ABC' msg = 'Dynamic access fails!' ).
 
     lv_json = `{"CODE": "2000", "code": "3000"}`.
 
-    lr_act = z_ui2_json=>generate( json = lv_json ).
+    lr_act = generate( json = lv_json ).
     cl_aunit_assert=>assert_not_initial( act = lr_act msg = 'Generation of ABAP object from JSON with duplicate attributes fails!' ).
 
-    lo_data = /ui2/cl_data_access=>create( iv_data = lr_act iv_component = 'CODE').
+    lo_data = /ui2/cl_data_access=>create( iv_data = lr_act iv_component = 'CODE' ).
     lo_data->value( IMPORTING ev_data = lv_string ).
 
     cl_aunit_assert=>assert_equals( act = lv_string exp = '2000' msg = 'Generation of ABAP object from JSON with duplicate attributes fails!' ).
 
     lv_json = `{"OrderLinePriceOverrideHistory": "2000"}`.
 
-    lr_act = z_ui2_json=>generate( json = lv_json pretty_name = z_ui2_json=>pretty_mode-camel_case ).
+    lr_act = generate( json = lv_json pretty_name = pretty_mode-camel_case ).
     cl_aunit_assert=>assert_not_initial( act = lr_act msg = 'Generation of ABAP object from JSON with long attributes fails!' ).
 
-    lo_data = /ui2/cl_data_access=>create( iv_data = lr_act iv_component = 'ORDER_LINE_PRICE_OVERRIDE_HIST').
+    lo_data = /ui2/cl_data_access=>create( iv_data = lr_act iv_component = 'ORDER_LINE_PRICE_OVERRIDE_HIST' ).
     lo_data->value( IMPORTING ev_data = lv_string ).
 
     cl_aunit_assert=>assert_equals( act = lv_string exp = '2000' msg = 'Generation of ABAP object from JSON with long attributes fails!' ).
 
-  ENDMETHOD.                    "generate
+    lv_json = `{"exponential": 1E+3, "bool": true, "packed": 12345678910, "int": 123456789}`.
+
+    lr_act = generate( json = lv_json ).
+    cl_aunit_assert=>assert_not_initial( act = lr_act msg = 'Type conversion during generation object from JSON fails!' ).
+
+    lo_data = /ui2/cl_data_access=>create( iv_data = lr_act iv_component = 'EXPONENTIAL' ).
+    lo_data->value( IMPORTING ev_data = lv_float ).
+
+    cl_aunit_assert=>assert_equals( act = lv_float exp = '1000' msg = 'Generation of exponential value fails!' ).
+
+    lo_data = /ui2/cl_data_access=>create( iv_data = lr_act iv_component = 'BOOL' ).
+    lo_data->value( IMPORTING ev_data = lv_bool ).
+
+    cl_aunit_assert=>assert_equals( act = lv_bool exp = abap_true msg = 'Generation of boolean value fails!' ).
+
+    lo_data = /ui2/cl_data_access=>create( iv_data = lr_act iv_component = 'PACKED' ).
+    lo_data->value( IMPORTING ev_data = lv_p ).
+
+    cl_aunit_assert=>assert_equals( act = lv_p exp = 12345678910 msg = 'Generation of packed value fails!' ).
+
+    lo_data = /ui2/cl_data_access=>create( iv_data = lr_act iv_component = 'INT' ).
+    lo_data->value( IMPORTING ev_data = lv_int ).
+
+    cl_aunit_assert=>assert_equals( act = lv_int exp = 123456789 msg = 'Generation of integer value fails!' ).
+
+  ENDMETHOD.                    "generate_simple
 
   METHOD generate_for_odata.
 
-    DATA: lv_json TYPE z_ui2_json=>json,
+    DATA: lv_json TYPE json,
           lv_etag TYPE string,
           lv_date TYPE p,
           lo_data TYPE REF TO /ui2/cl_data_access,
@@ -2300,15 +2467,15 @@ CLASS abap_unit_testclass IMPLEMENTATION.
       `"to_Characteristics":{"__deferred":{"uri":"http://localhost/sap/opu/odata/SAP/API_RECIPE/A_Recipe(guid'42f2e9af-c4ef-1ed8-93db-a01697362280')/to_Characteristics"}}}}`
     INTO lv_json.
 
-    lr_act = z_ui2_json=>generate( json = lv_json pretty_name = z_ui2_json=>pretty_mode-camel_case ).
+    lr_act = generate( json = lv_json pretty_name = pretty_mode-camel_case ).
     cl_aunit_assert=>assert_not_initial( act = lr_act msg = 'Generation of OData ABAP object fails!' ).
 
-    lo_data = /ui2/cl_data_access=>create( ir_data = lr_act iv_component = 'd-__metadata-etag').
+    lo_data = /ui2/cl_data_access=>create( ir_data = lr_act iv_component = 'd-__metadata-etag' ).
     lo_data->value( IMPORTING ev_data = lv_etag ).
 
     cl_aunit_assert=>assert_equals( act = lv_etag exp = `W/"datetimeoffset'2018-05-03T14%3A19%3A49Z'"` msg = 'Generation of OData structure fails!' ).
 
-    lo_data = /ui2/cl_data_access=>create( ir_data = lr_act iv_component = 'd-begin_date').
+    lo_data = /ui2/cl_data_access=>create( ir_data = lr_act iv_component = 'd-begin_date' ).
     lo_data->value( IMPORTING ev_data = lv_date ).
 
     cl_aunit_assert=>assert_equals( act = lv_date exp = `1520781590000` msg = 'Generation of OData structure with long int fails!' ).
@@ -2317,7 +2484,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
   METHOD deserialize_odata.
 
-    DATA: lv_json TYPE z_ui2_json=>json.
+    DATA: lv_json TYPE json.
 
     DATA:
       BEGIN OF ls_odata_response,
@@ -2345,7 +2512,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     `"id":"sap.ushell.UserDefaultParameter","category":"P","validity":0,"clientExpirationTime":null,"component":"","appName":"","PersContainerItems":{"results":[]}}}`
     INTO lv_json.
 
-    z_ui2_json=>deserialize( EXPORTING json = lv_json pretty_name = z_ui2_json=>pretty_mode-camel_case CHANGING data = ls_odata_response ).
+    deserialize( EXPORTING json = lv_json pretty_name = pretty_mode-camel_case CHANGING data = ls_odata_response ).
     cl_aunit_assert=>assert_not_initial( act = ls_odata_response msg = 'Parsing of OData response fails!' ).
 
     TYPES:
@@ -2374,7 +2541,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     `"etag":"W/\"datetime'1999-12-14T10%3A18%3A46'\""},"CaseGuid":"0894ef45-77a9-1ed8-a495-bd69397619c0","ExternalKey":"1452","ContactPersonName":""}]}}`
     INTO lv_json.
 
-    z_ui2_json=>deserialize( EXPORTING json = lv_json pretty_name = z_ui2_json=>pretty_mode-camel_case CHANGING data = ls_odata_response2 ).
+    deserialize( EXPORTING json = lv_json pretty_name = pretty_mode-camel_case CHANGING data = ls_odata_response2 ).
     cl_aunit_assert=>assert_not_initial( act = ls_odata_response2 msg = 'Parsing of OData response fails!' ).
 
     " test deserialization of GUID
@@ -2406,7 +2573,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     DATA: lv_json TYPE string.
 
     lv_json = `{"int":0,"num":0,"timestamp":null,"boolean":false,"str":"","items":[]}`.
-    z_ui2_json=>deserialize( EXPORTING json = lv_json pretty_name = z_ui2_json=>pretty_mode-camel_case CHANGING data = ls_data ).
+    deserialize( EXPORTING json = lv_json pretty_name = pretty_mode-camel_case CHANGING data = ls_data ).
     cl_aunit_assert=>assert_initial( act = ls_data msg = 'Initialize of elements on deserialize fails!' ).
 
   ENDMETHOD.
@@ -2430,7 +2597,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
       lo_table_descr  TYPE REF TO cl_abap_tabledescr,
       lo_struct_descr TYPE REF TO cl_abap_structdescr,
       lo_data         TYPE REF TO /ui2/cl_data_access,
-      lv_json         TYPE z_ui2_json=>json,
+      lv_json         TYPE json,
       lv_value        TYPE string,
       lv_lines        TYPE i.
 
@@ -2450,7 +2617,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     CREATE DATA ls_data-table TYPE HANDLE lo_table_descr.
 
     lv_json = `{"str":"","table":[{"field1":"value1"},{"field1":"value2"}]}`.
-    z_ui2_json=>deserialize( EXPORTING json = lv_json pretty_name = z_ui2_json=>pretty_mode-camel_case CHANGING data = ls_data ).
+    deserialize( EXPORTING json = lv_json pretty_name = pretty_mode-camel_case CHANGING data = ls_data ).
 
     cl_aunit_assert=>assert_bound( act = ls_data-table msg = 'Deserialize to known REF TO data for table fails!' ).
 
@@ -2463,7 +2630,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     " Test implicit generate on tables
     CLEAR ls_data.
 
-    z_ui2_json=>deserialize( EXPORTING json = lv_json pretty_name = z_ui2_json=>pretty_mode-camel_case CHANGING data = ls_data ).
+    deserialize( EXPORTING json = lv_json pretty_name = pretty_mode-camel_case CHANGING data = ls_data ).
 
     cl_aunit_assert=>assert_bound( act = ls_data-table msg = 'Deserialize to unknown REF TO data for table fails!' ).
 
@@ -2478,7 +2645,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     CREATE DATA ls_data-struct TYPE HANDLE lo_struct_descr.
 
-    z_ui2_json=>deserialize( EXPORTING json = lv_json pretty_name = z_ui2_json=>pretty_mode-camel_case CHANGING data = ls_data ).
+    deserialize( EXPORTING json = lv_json pretty_name = pretty_mode-camel_case CHANGING data = ls_data ).
     cl_aunit_assert=>assert_bound( act = ls_data-struct msg = 'Deserialize to unknown REF TO data for struct fails!' ).
 
     ASSIGN ls_data-struct->* TO <struct>.
@@ -2491,10 +2658,10 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     " Test implicit generate on structures
     CLEAR ls_data.
 
-    z_ui2_json=>deserialize( EXPORTING json = lv_json pretty_name = z_ui2_json=>pretty_mode-camel_case assoc_arrays = abap_true assoc_arrays_opt = abap_true CHANGING data = ls_data ).
+    deserialize( EXPORTING json = lv_json pretty_name = pretty_mode-camel_case assoc_arrays = abap_true assoc_arrays_opt = abap_true CHANGING data = ls_data ).
     cl_aunit_assert=>assert_bound( act = ls_data-struct msg = 'Deserialize to unknown REF TO data for struct fails!' ).
 
-    lo_data = /ui2/cl_data_access=>create( iv_data = ls_data-struct iv_component = 'field1').
+    lo_data = /ui2/cl_data_access=>create( iv_data = ls_data-struct iv_component = 'field1' ).
     lo_data->value( IMPORTING ev_data = lv_value ).
     cl_aunit_assert=>assert_equals( act = lv_value exp = 'value1' msg = 'Deserialize to unknown REF TO data for struct fails!' ).
 
@@ -2508,7 +2675,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
         date_x TYPE catstsdate,
       END OF ts_exp.
 
-    DATA: lv_json TYPE z_ui2_json=>json,
+    DATA: lv_json TYPE json,
           ls_exp  TYPE ts_exp,
           ls_act  LIKE ls_exp,
           lt_act  TYPE STANDARD TABLE OF ts_exp WITH DEFAULT KEY.
@@ -2522,22 +2689,22 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     DATA: lv_date_x TYPE c LENGTH 255.
     WRITE: ls_exp-date_x TO lv_date_x.
 
-    lv_json = z_ui2_json=>serialize( data = ls_exp ).
+    lv_json = serialize( data = ls_exp ).
 
     FIND FIRST OCCURRENCE OF lv_date_x IN lv_json.
     cl_aunit_assert=>assert_subrc( act = sy-subrc exp = 4 msg = 'Conversion exit used without been activated!' ).
 
-    lv_json = z_ui2_json=>serialize( data = ls_exp conversion_exits = abap_true ).
+    lv_json = serialize( data = ls_exp conversion_exits = abap_true ).
 
     FIND FIRST OCCURRENCE OF lv_date_x IN lv_json.
     cl_aunit_assert=>assert_subrc( act = sy-subrc msg = 'Conversion exit into external format fails!' ).
 
-    z_ui2_json=>deserialize( EXPORTING json = lv_json conversion_exits = abap_true CHANGING data = ls_act ).
+    deserialize( EXPORTING json = lv_json conversion_exits = abap_true CHANGING data = ls_act ).
 
     cl_aunit_assert=>assert_equals( act = ls_act exp = ls_exp msg = 'Conversion exit into internal format fails!' ).
 
     APPEND ls_exp TO lt_act.
-    lv_json = z_ui2_json=>serialize( data = lt_act conversion_exits = abap_true ).
+    lv_json = serialize( data = lt_act conversion_exits = abap_true ).
 
     FIND FIRST OCCURRENCE OF lv_date_x IN lv_json.
     cl_aunit_assert=>assert_subrc( act = sy-subrc msg = 'Conversion exit into external format in table fails!' ).
@@ -2546,18 +2713,18 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
   METHOD generate_special_attr_names.
 
-    DATA: lv_json  TYPE z_ui2_json=>json,
+    DATA: lv_json  TYPE json,
           lo_data  TYPE REF TO /ui2/cl_data_access,
           lr_data  TYPE REF TO data,
           lr_data2 TYPE REF TO data.
 
     lv_json = `{"system XYZ": {"S/I\D": "XYZ", ":#*~@#$%^&*()_+-|.,=><!?/'{}[]§": "التجاري"}}`. "#EC NOTEXT
 
-    lr_data = z_ui2_json=>generate( json = lv_json ).
+    lr_data = generate( json = lv_json ).
 
     cl_aunit_assert=>assert_bound( act = lr_data msg = 'Generattion of ABAP data for JSON with special attribute names fails!' ).
 
-    lo_data = /ui2/cl_data_access=>create( ir_data = lr_data iv_component = 'SYSTEM_XYZ-S_I_D').
+    lo_data = /ui2/cl_data_access=>create( ir_data = lr_data iv_component = 'SYSTEM_XYZ-S_I_D' ).
     lr_data2 = lo_data->ref( ).
 
     cl_aunit_assert=>assert_bound( act = lr_data2 msg = 'Generattion of ABAP data for JSON with special attribute names fails!' ).
@@ -2571,24 +2738,24 @@ CLASS abap_unit_testclass IMPLEMENTATION.
       END OF ls_data.
 
     DATA:
-      lv_json TYPE z_ui2_json=>json,
+      lv_json TYPE json,
       lv_len  TYPE i.
 
     lv_json = `{"str":"Subject \u EN\u00a0\ud83e\udd14  \u4f1f\u5bb6  \u6210"}`.
-    z_ui2_json=>deserialize( EXPORTING json = lv_json CHANGING data = ls_data ).
+    deserialize( EXPORTING json = lv_json CHANGING data = ls_data ).
 
     " we only support unescaping of unicode symbols, but not escaping
     lv_len = strlen( ls_data-str ).
     cl_aunit_assert=>assert_equals( act = lv_len exp = 22 msg = 'Unescapment of Unicode characters fails!' ).
 
     lv_json = `{"str":"\u6210"}`.
-    z_ui2_json=>deserialize( EXPORTING json = lv_json CHANGING data = ls_data ).
+    deserialize( EXPORTING json = lv_json CHANGING data = ls_data ).
 
     lv_len = strlen( ls_data-str ).
     cl_aunit_assert=>assert_equals( act = lv_len exp = 1 msg = 'Unescapment of Unicode characters fails!' ).
 
     lv_json = `{"str":"\u4f1f\u5bb6"}`.
-    z_ui2_json=>deserialize( EXPORTING json = lv_json CHANGING data = ls_data ).
+    deserialize( EXPORTING json = lv_json CHANGING data = ls_data ).
 
     lv_len = strlen( ls_data-str ).
     cl_aunit_assert=>assert_equals( act = lv_len exp = 2 msg = 'Unescapment of Unicode characters fails!' ).
@@ -2602,17 +2769,36 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     DATA: lt_fligt_exp TYPE STANDARD TABLE OF sflight WITH DEFAULT KEY,
           lt_fligt_act LIKE lt_fligt_exp,
-          lv_json      TYPE z_ui2_json=>json.
+          lv_json      TYPE json.
 
     SELECT * FROM sflight INTO TABLE lt_fligt_exp UP TO 2 ROWS ORDER BY PRIMARY KEY. "#EC CI_NOWHERE
 
     " serialize table lt_flight into JSON, skipping initial fields and converting ABAP field names into camelCase
-    lv_json      = z_ui2_json=>serialize( data = lt_fligt_exp compress = abap_true pretty_name = z_ui2_json=>pretty_mode-camel_case format_output = abap_true ).
+    lv_json      = serialize( data = lt_fligt_exp compress = abap_true pretty_name = pretty_mode-camel_case format_output = abap_true ).
     cl_aunit_assert=>assert_not_initial( act = lv_json msg = 'Serialization with formatting fails!' ).
 
-    z_ui2_json=>deserialize( EXPORTING json = lv_json pretty_name = z_ui2_json=>pretty_mode-camel_case CHANGING data = lt_fligt_act ).
+    deserialize( EXPORTING json = lv_json pretty_name = pretty_mode-camel_case CHANGING data = lt_fligt_act ).
     cl_aunit_assert=>assert_equals( act = lt_fligt_act exp = lt_fligt_exp msg = 'Deserialization with formatting fails!' ).
 
   ENDMETHOD. " serialize_formatted
+
+  METHOD serialize_cycle_reference.
+
+    DATA: dref1   TYPE REF TO data,
+          dref2   TYPE REF TO data,
+          lv_json TYPE json ##NEEDED.
+
+    dref1 = REF #( dref2 ).
+    dref2 = REF #( dref1 ).
+
+    lv_json = abap_to_json_simple_transform( dref1 ).
+    lv_json = serialize(  data             = dref1
+                          pretty_name      = pretty_mode-low_case
+                          compress         = abap_false
+                          hex_as_base64    = abap_false
+                          format_output    = abap_true
+                          assoc_arrays     = abap_true
+                          assoc_arrays_opt = abap_true ).
+  ENDMETHOD.
 
 ENDCLASS.       "abap_unit_testclass
