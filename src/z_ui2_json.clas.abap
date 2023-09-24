@@ -637,7 +637,9 @@ ENDMETHOD.                    "dump
           lv_lb         TYPE string,
           lv_prop_name  TYPE string,
           lv_keyval     TYPE string,
-          lv_helper     TYPE string,
+          lv_ts         TYPE c LENGTH 15,
+          lv_tsl        TYPE c LENGTH 23,
+          lv_utcl       TYPE c LENGTH 27,
           lv_itemval    TYPE string,
           lv_property   TYPE string.
 
@@ -814,7 +816,9 @@ ENDMETHOD.                    "dump
     DATA: lt_fields  TYPE STANDARD TABLE OF string,
           lv_indent  TYPE string,
           lv_level   LIKE level,
-          lv_helper  TYPE string,
+          lv_ts      TYPE c LENGTH 15,
+          lv_tsl     TYPE c LENGTH 23,
+          lv_utcl    TYPE c LENGTH 27,
           lv_itemval TYPE string,
           lv_field   TYPE string.
 
@@ -866,7 +870,9 @@ ENDMETHOD.                    "dump
 
   METHOD dump_type.
 
-    DATA: lv_helper TYPE string.
+    DATA: lv_ts   TYPE c LENGTH 15,
+          lv_tsl  TYPE c LENGTH 23,
+          lv_utcl TYPE c LENGTH 27.
 
     IF convexit IS NOT INITIAL AND data IS NOT INITIAL.
       TRY.
@@ -888,8 +894,8 @@ ENDMETHOD.                    "dump
           IF data IS INITIAL.
             r_json = mv_initial_ts.
           ELSE.
-            lv_helper = data.
-            CONCATENATE '"' lv_helper(10) 'T' lv_helper+11(16) 'Z"'  INTO r_json.
+            lv_utcl = data.
+            CONCATENATE '"' lv_utcl(10) 'T' lv_utcl+11(16) 'Z"'  INTO r_json.
           ENDIF.
         WHEN cl_abap_typedescr=>typekind_float OR cl_abap_typedescr=>typekind_int OR cl_abap_typedescr=>typekind_int1 OR
              cl_abap_typedescr=>typekind_int2 OR cl_abap_typedescr=>typekind_packed OR mc_typekind_int8.
@@ -898,11 +904,12 @@ ENDMETHOD.                    "dump
             IF data IS INITIAL.
               r_json = mv_initial_ts.
             ELSE.
-              lv_helper = data.
               IF type_descr->absolute_name EQ '\TYPE=TIMESTAMP'.
-                CONCATENATE '"' lv_helper(4) '-' lv_helper+4(2) '-' lv_helper+6(2) 'T' lv_helper+8(2) ':' lv_helper+10(2) ':' lv_helper+12(2) 'Z"'  INTO r_json.
+                lv_ts = data.
+                CONCATENATE '"' lv_ts(4) '-' lv_ts+4(2) '-' lv_ts+6(2) 'T' lv_ts+8(2) ':' lv_ts+10(2) ':' lv_ts+12(2) 'Z"'  INTO r_json.
               ELSE. "IF type_descr->absolute_name EQ '\TYPE=TIMESTAMPL'.
-                CONCATENATE '"' lv_helper(4) '-' lv_helper+4(2) '-' lv_helper+6(2) 'T' lv_helper+8(2) ':' lv_helper+10(2) ':' lv_helper+12(2) '.' lv_helper+15(7) 'Z"'  INTO r_json.
+                lv_tsl = data.
+                CONCATENATE '"' lv_tsl(4) '-' lv_tsl+4(2) '-' lv_tsl+6(2) 'T' lv_tsl+8(2) ':' lv_tsl+10(2) ':' lv_tsl+12(2) '.' lv_tsl+15(7) 'Z"'  INTO r_json.
               ENDIF.
             ENDIF.
           ELSEIF data IS INITIAL.

@@ -87,8 +87,8 @@ DEFINE dump_type_int.
           IF &1 IS INITIAL.
             &3 = mv_initial_ts.
           ELSE.
-            lv_helper = &1.
-            CONCATENATE '"' lv_helper(10) 'T' lv_helper+11(16) 'Z"' INTO &3.
+            lv_utcl = &1.
+            CONCATENATE '"' lv_utcl(10) 'T' lv_utcl+11(16) 'Z"' INTO &3.
           ENDIF.
         WHEN cl_abap_typedescr=>typekind_float OR cl_abap_typedescr=>typekind_int OR cl_abap_typedescr=>typekind_int1 OR
              cl_abap_typedescr=>typekind_int2 OR cl_abap_typedescr=>typekind_packed OR mc_typekind_int8.
@@ -97,11 +97,12 @@ DEFINE dump_type_int.
           IF &1 IS INITIAL.
             &3 = mv_initial_ts.
           ELSE.
-            lv_helper = &1.
             IF &2->absolute_name EQ '\TYPE=TIMESTAMP'.
-              CONCATENATE '"' lv_helper(4) '-' lv_helper+4(2) '-' lv_helper+6(2) 'T' lv_helper+8(2) ':' lv_helper+10(2) ':' lv_helper+12(2) 'Z"' INTO &3.
+              lv_ts = &1.
+              CONCATENATE '"' lv_ts(4) '-' lv_ts+4(2) '-' lv_ts+6(2) 'T' lv_ts+8(2) ':' lv_ts+10(2) ':' lv_ts+12(2) 'Z"' INTO &3.
             ELSE. "IF &2->absolute_name EQ '\TYPE=TIMESTAMPL'
-              CONCATENATE '"' lv_helper(4) '-' lv_helper+4(2) '-' lv_helper+6(2) 'T' lv_helper+8(2) ':' lv_helper+10(2) ':' lv_helper+12(2) '.' lv_helper+15(7) 'Z"'  INTO &3.
+              lv_tsl = &1.
+              CONCATENATE '"' lv_tsl(4) '-' lv_tsl+4(2) '-' lv_tsl+6(2) 'T' lv_tsl+8(2) ':' lv_tsl+10(2) ':' lv_tsl+12(2) '.' lv_tsl+15(7) 'Z"'  INTO &3.
             ENDIF.
           ENDIF.
         ELSEIF &1 IS INITIAL.
