@@ -194,7 +194,7 @@ CLASS lc_json_custom IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    r_json = super->dump_type( data = data type_descr = type_descr convexit = convexit ).
+    r_json = super->dump_type( data = data type_descr = type_descr typekind = typekind convexit = convexit ).
 
   ENDMETHOD. "dump_type
 

@@ -185,6 +185,7 @@ protected section.
         name         TYPE string,
         type         TYPE REF TO cl_abap_datadescr,
         elem_type    TYPE REF TO cl_abap_elemdescr,
+        typekind     TYPE abap_typekind,
         convexit_out TYPE string,
         convexit_in  TYPE string,
         value        TYPE REF TO data,
@@ -268,6 +269,40 @@ protected section.
   class-data SO_TYPE_B type ref to CL_ABAP_ELEMDESCR .
   class-data SO_TYPE_T_JSON type ref to CL_ABAP_TABLEDESCR .
   class-data SO_TYPE_T_NAME_VALUE type ref to CL_ABAP_TABLEDESCR .
+  constants:
+    BEGIN OF e_typekind,
+      " new extended pseudo typekind, hack and can clash with standard if new enums come...
+      " always check for duplicates !!!
+      convexit    TYPE abap_typekind VALUE '1' ##NO_TEXT,
+      ts_iso8601  TYPE abap_typekind VALUE '2' ##NO_TEXT,
+      tsl_iso8601 TYPE abap_typekind VALUE '3' ##NO_TEXT,
+      numc_string TYPE abap_typekind VALUE '4' ##NO_TEXT,
+      json        TYPE abap_typekind VALUE '5' ##NO_TEXT,
+      bool        TYPE abap_typekind VALUE '6' ##NO_TEXT,
+      tribool     TYPE abap_typekind VALUE '7' ##NO_TEXT,
+
+      " redefine for existing typekeinds for lower releases
+      utclong     TYPE abap_typekind VALUE 'p' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_UTCLONG -> 'p' only from 7.54
+      int8        TYPE abap_typekind VALUE '8' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_INT8 -> '8' only from 7.40
+      enum        TYPE abap_typekind VALUE 'k' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_ENUM -> 'k'
+
+      " just aliasing
+      float       TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_float,
+      int         TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_int,
+      int1        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_int1,
+      int2        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_int2,
+      packed      TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_packed,
+      num         TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_num,
+      string      TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_string,
+      csequence   TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_csequence,
+      clike       TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_clike,
+      char        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_char,
+      date        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_date,
+      time        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_time,
+      xstring     TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_xstring,
+      hex         TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_hex,
+
+    END OF e_typekind .
 
   class-methods UNESCAPE
     importing
@@ -365,8 +400,16 @@ protected section.
       !DATA type DATA
       !TYPE_DESCR type ref to CL_ABAP_ELEMDESCR
       !CONVEXIT type STRING
+      !TYPEKIND type ABAP_TYPEKIND optional
     returning
       value(R_JSON) type JSON .
+  methods DETECT_TYPEKIND
+  final
+    importing
+      !TYPE_DESCR type ref to CL_ABAP_ELEMDESCR
+      !CONVEXIT type STRING
+    returning
+      value(RV_TYPE) type ABAP_TYPEKIND .
   methods DUMP_TYPE_EX
     importing
       !DATA type DATA
@@ -535,8 +578,8 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     DATA: lo_json TYPE REF TO object.
 
     " **********************************************************************
-    " Usage examples and documentation can be found on SCN:
-    " http://wiki.scn.sap.com/wiki/display/Snippets/One+more+ABAP+to+JSON+Serializer+and+Deserializer
+    " Usage examples and documentation can be found on GitHub:
+    " https://github.com/SAP/abap-to-json
     " **********************************************************************  "
 
     IF json IS NOT INITIAL OR jsonx IS NOT INITIAL.
@@ -572,8 +615,8 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           lv_json   LIKE json.
 
     " **********************************************************************
-    " Usage examples and documentation can be found on SCN:
-    " http://wiki.scn.sap.com/wiki/display/Snippets/One+more+ABAP+to+JSON+Serializer+and+Deserializer
+    " Usage examples and documentation can be found on GitHub:
+    " https://github.com/SAP/abap-to-json
     " **********************************************************************  "
 
     CHECK  json IS NOT INITIAL OR jsonx IS NOT INITIAL.
@@ -637,6 +680,7 @@ ENDMETHOD.                    "dump
           lv_lb         TYPE string,
           lv_prop_name  TYPE string,
           lv_keyval     TYPE string,
+          lv_typekind   TYPE abap_typekind,
           lv_ts         TYPE c LENGTH 15,
           lv_tsl        TYPE c LENGTH 23,
           lv_utcl       TYPE c LENGTH 27,
@@ -689,7 +733,8 @@ ENDMETHOD.                    "dump
 
       WHEN cl_abap_typedescr=>kind_elem.
         lo_elem_descr ?= type_descr.
-        dump_type data lo_elem_descr r_json convexit.
+        lv_typekind = detect_typekind( type_descr = lo_elem_descr convexit = convexit ).
+        dump_type data lo_elem_descr lv_typekind r_json convexit.
 
       WHEN cl_abap_typedescr=>kind_struct.
 
@@ -836,7 +881,7 @@ ENDMETHOD.                    "dump
       ASSIGN <symbol>-value->* TO <value>.
       CHECK <symbol>-compressable EQ abap_false OR <value> IS NOT INITIAL OR opt_array EQ abap_true.
       IF <symbol>-elem_type IS NOT INITIAL.
-        dump_type <value> <symbol>-elem_type lv_itemval <symbol>-convexit_out.
+        dump_type <value> <symbol>-elem_type <symbol>-typekind lv_itemval <symbol>-convexit_out.
       ELSE.
         lv_itemval = dump_int( data = <value> type_descr = <symbol>-type convexit = <symbol>-convexit_out level = lv_level ).
       ENDIF.
@@ -874,124 +919,124 @@ ENDMETHOD.                    "dump
           lv_tsl  TYPE c LENGTH 23,
           lv_utcl TYPE c LENGTH 27.
 
-    IF convexit IS NOT INITIAL AND data IS NOT INITIAL.
-      TRY.
-          CALL FUNCTION convexit
-            EXPORTING
-              input  = data
-            IMPORTING
-              output = r_json
-            EXCEPTIONS
-              OTHERS = 1.
-          IF sy-subrc IS INITIAL.
-            CONCATENATE '"' r_json '"' INTO r_json.
-          ENDIF.
-        CATCH cx_root ##CATCH_ALL ##NO_HANDLER.
-      ENDTRY.
-    ELSE.
-      CASE type_descr->type_kind.
-        WHEN mc_typekind_utclong.
-          IF data IS INITIAL.
-            r_json = mv_initial_ts.
-          ELSE.
-            lv_utcl = data.
-            CONCATENATE '"' lv_utcl(10) 'T' lv_utcl+11(16) 'Z"'  INTO r_json.
-          ENDIF.
-        WHEN cl_abap_typedescr=>typekind_float OR cl_abap_typedescr=>typekind_int OR cl_abap_typedescr=>typekind_int1 OR
-             cl_abap_typedescr=>typekind_int2 OR cl_abap_typedescr=>typekind_packed OR mc_typekind_int8.
-          IF type_descr->type_kind EQ cl_abap_typedescr=>typekind_packed AND mv_ts_as_iso8601 EQ c_bool-true AND
-            ( type_descr->absolute_name EQ '\TYPE=TIMESTAMP' OR type_descr->absolute_name EQ '\TYPE=TIMESTAMPL' ).
-            IF data IS INITIAL.
-              r_json = mv_initial_ts.
-            ELSE.
-              IF type_descr->absolute_name EQ '\TYPE=TIMESTAMP'.
-                lv_ts = data.
-                CONCATENATE '"' lv_ts(4) '-' lv_ts+4(2) '-' lv_ts+6(2) 'T' lv_ts+8(2) ':' lv_ts+10(2) ':' lv_ts+12(2) 'Z"'  INTO r_json.
-              ELSE. "IF type_descr->absolute_name EQ '\TYPE=TIMESTAMPL'.
-                lv_tsl = data.
-                CONCATENATE '"' lv_tsl(4) '-' lv_tsl+4(2) '-' lv_tsl+6(2) 'T' lv_tsl+8(2) ':' lv_tsl+10(2) ':' lv_tsl+12(2) '.' lv_tsl+15(7) 'Z"'  INTO r_json.
+    CASE typekind.
+      WHEN e_typekind-convexit.
+        IF data IS INITIAL.
+          r_json = `""`.
+        ELSE.
+          TRY.
+              CALL FUNCTION convexit
+                EXPORTING
+                  input  = data
+                IMPORTING
+                  output = r_json
+                EXCEPTIONS
+                  OTHERS = 1.
+              IF sy-subrc IS INITIAL.
+                CONCATENATE '"' r_json '"' INTO r_json.
               ENDIF.
-            ENDIF.
-          ELSEIF data IS INITIAL.
-            r_json = `0`.
-          ELSE.
-            r_json = data.
-            IF data LT 0.
-              IF type_descr->type_kind <> cl_abap_typedescr=>typekind_float. "float: sign is already at the beginning
-                SHIFT r_json RIGHT CIRCULAR.
-              ENDIF.
-            ELSE.
-              CONDENSE r_json.
-            ENDIF.
-          ENDIF.
-        WHEN cl_abap_typedescr=>typekind_num.
-          IF mv_numc_as_string EQ abap_true.
-            IF data IS INITIAL.
-              r_json = `""`.
-            ELSE.
-              CONCATENATE '"' data '"' INTO r_json.
-            ENDIF.
-          ELSE.
-            r_json = data.
-            SHIFT r_json LEFT DELETING LEADING ' 0'.
-            IF r_json IS INITIAL.
-              r_json = `0`.
-            ENDIF.
-          ENDIF.
-        WHEN cl_abap_typedescr=>typekind_string OR cl_abap_typedescr=>typekind_csequence OR cl_abap_typedescr=>typekind_clike.
-          IF data IS INITIAL.
-            r_json = `""`.
-          ELSEIF type_descr->absolute_name EQ mc_json_type.
-            r_json = data.
-          ELSE.
-            escape_json data r_json.
-            CONCATENATE '"' r_json '"' INTO r_json.
-          ENDIF.
-        WHEN cl_abap_typedescr=>typekind_xstring OR cl_abap_typedescr=>typekind_hex.
-          IF data IS INITIAL.
-            r_json = `""`.
-          ELSE.
-            xstring_to_string_int data r_json.
-            CONCATENATE '"' r_json '"' INTO r_json.
-          ENDIF.
-        WHEN cl_abap_typedescr=>typekind_char.
-          IF type_descr->output_length EQ 1 AND mv_bool_types CS type_descr->absolute_name.
-            IF data EQ c_bool-true.
-              r_json = `true`.                              "#EC NOTEXT
-            ELSEIF data IS INITIAL AND mv_bool_3state CS type_descr->absolute_name.
-              r_json = `null`.                              "#EC NOTEXT
-            ELSE.
-              r_json = `false`.                             "#EC NOTEXT
-            ENDIF.
-          ELSEIF data IS INITIAL.
-            r_json = `""`.
-          ELSE.
-            escape_json data r_json.
-            CONCATENATE '"' r_json '"' INTO r_json.
-          ENDIF.
-        WHEN cl_abap_typedescr=>typekind_date.
-          IF data IS INITIAL.
-            r_json = mv_initial_date.
-          ELSE.
-            CONCATENATE '"' data(4) '-' data+4(2) '-' data+6(2) '"' INTO r_json.
-          ENDIF.
-        WHEN cl_abap_typedescr=>typekind_time.
-          IF data IS INITIAL.
-            r_json = mv_initial_time.
-          ELSE.
-            CONCATENATE '"' data(2) ':' data+2(2) ':' data+4(2) '"' INTO r_json.
-          ENDIF.
-        WHEN 'k'. " cl_abap_typedescr=>typekind_enum
+            CATCH cx_root ##CATCH_ALL ##NO_HANDLER.
+          ENDTRY.
+        ENDIF.
+      WHEN e_typekind-utclong.
+        IF data IS INITIAL.
+          r_json = mv_initial_ts.
+        ELSE.
+          lv_utcl = data.
+          CONCATENATE '"' lv_utcl(10) 'T' lv_utcl+11(16) 'Z"'  INTO r_json.
+        ENDIF.
+      WHEN e_typekind-ts_iso8601.
+        IF data IS INITIAL.
+          r_json = mv_initial_ts.
+        ELSE.
+          lv_ts = data.
+          CONCATENATE '"' lv_ts(4) '-' lv_ts+4(2) '-' lv_ts+6(2) 'T' lv_ts+8(2) ':' lv_ts+10(2) ':' lv_ts+12(2) 'Z"'  INTO r_json.
+        ENDIF.
+      WHEN e_typekind-tsl_iso8601.
+        IF data IS INITIAL.
+          r_json = mv_initial_ts.
+        ELSE.
+          lv_tsl = data.
+          CONCATENATE '"' lv_tsl(4) '-' lv_tsl+4(2) '-' lv_tsl+6(2) 'T' lv_tsl+8(2) ':' lv_tsl+10(2) ':' lv_tsl+12(2) '.' lv_tsl+15(7) 'Z"'  INTO r_json.
+        ENDIF.
+      WHEN e_typekind-float.
+        IF data IS INITIAL.
+          r_json = `0`.
+        ELSE.
           r_json = data.
-          CONCATENATE '"' r_json '"' INTO r_json.
-        WHEN OTHERS.
-          IF data IS INITIAL.
-            r_json = `null`.                                "#EC NOTEXT
-          ELSE.
-            r_json = data.
+          IF data GT 0.
+            CONDENSE r_json.
           ENDIF.
-      ENDCASE.
-    ENDIF.
+        ENDIF.
+      WHEN e_typekind-int OR e_typekind-int1 OR e_typekind-int2 OR e_typekind-packed OR e_typekind-int8.
+        IF data IS INITIAL.
+          r_json = `0`.
+        ELSE.
+          r_json = data.
+          IF data LT 0.
+            SHIFT r_json RIGHT CIRCULAR.
+          ELSE.
+            CONDENSE r_json.
+          ENDIF.
+        ENDIF.
+      WHEN e_typekind-numc_string.
+        IF data IS INITIAL.
+          r_json = `""`.
+        ELSE.
+          CONCATENATE '"' data '"' INTO r_json.
+        ENDIF.
+      WHEN e_typekind-num.
+        r_json = data.
+        SHIFT r_json LEFT DELETING LEADING ' 0'.
+        IF r_json IS INITIAL.
+          r_json = `0`.
+        ENDIF.
+      WHEN e_typekind-json.
+        r_json = data.
+      WHEN e_typekind-string OR e_typekind-csequence OR e_typekind-clike OR e_typekind-char.
+        IF data IS INITIAL.
+          r_json = `""`.
+        ELSE.
+          escape_json data r_json.
+          CONCATENATE '"' r_json '"' INTO r_json.
+        ENDIF.
+      WHEN cl_abap_typedescr=>typekind_xstring OR cl_abap_typedescr=>typekind_hex.
+        IF data IS INITIAL.
+          r_json = `""`.
+        ELSE.
+          xstring_to_string_int data r_json.
+          CONCATENATE '"' r_json '"' INTO r_json.
+        ENDIF.
+      WHEN e_typekind-bool OR e_typekind-tribool.
+        IF data EQ c_bool-true.
+          r_json = `true`.                                  "#EC NOTEXT
+        ELSEIF data IS INITIAL AND typekind EQ e_typekind-tribool.
+          r_json = `null`.                                  "#EC NOTEXT
+        ELSE.
+          r_json = `false`.                                 "#EC NOTEXT
+        ENDIF.
+      WHEN e_typekind-date.
+        IF data IS INITIAL.
+          r_json = mv_initial_date.
+        ELSE.
+          CONCATENATE '"' data(4) '-' data+4(2) '-' data+6(2) '"' INTO r_json.
+        ENDIF.
+      WHEN e_typekind-time.
+        IF data IS INITIAL.
+          r_json = mv_initial_time.
+        ELSE.
+          CONCATENATE '"' data(2) ':' data+2(2) ':' data+4(2) '"' INTO r_json.
+        ENDIF.
+      WHEN e_typekind-enum.
+        r_json = data.
+        CONCATENATE '"' r_json '"' INTO r_json.
+      WHEN OTHERS.
+        IF data IS INITIAL.
+          r_json = `null`.                                  "#EC NOTEXT
+        ELSE.
+          r_json = data.
+        ENDIF.
+    ENDCASE.
 
   ENDMETHOD.                    "dump_type
 
@@ -1341,8 +1386,9 @@ ENDMETHOD.
           symb-convexit_in = get_convexit_func( elem_descr = symb-elem_type input = abap_true ).
           symb-convexit_out = get_convexit_func( elem_descr = symb-elem_type input = abap_false ).
         ENDIF.
+        symb-typekind = detect_typekind( type_descr = symb-elem_type convexit = symb-convexit_out ).
       ELSE.
-        CLEAR symb-elem_type.
+        CLEAR: symb-elem_type, symb-typekind.
       ENDIF.
       is_compressable symb-type symb-name symb-compressable.
       GET REFERENCE OF <field> INTO symb-value.
@@ -1396,8 +1442,9 @@ ENDMETHOD.
               symbol-convexit_in = get_convexit_func( elem_descr = symbol-elem_type input = abap_true ).
               symbol-convexit_out = get_convexit_func( elem_descr = symbol-elem_type input = abap_false ).
             ENDIF.
+            symbol-typekind = detect_typekind( type_descr = symbol-elem_type convexit = symbol-convexit_out ).
           ELSE.
-            CLEAR symbol-elem_type.
+            CLEAR: symbol-elem_type, symbol-typekind.
           ENDIF.
           is_compressable symbol-type symbol-name symbol-compressable.
           ASSIGN COMPONENT symbol-name OF STRUCTURE <data> TO <field>.
@@ -2083,8 +2130,8 @@ ENDMETHOD.
   METHOD serialize.
 
     " **********************************************************************
-    " Usage examples and documentation can be found on SCN:
-    " http://wiki.scn.sap.com/wiki/display/Snippets/One+more+ABAP+to+JSON+Serializer+and+Deserializer
+    " Usage examples and documentation can be found on GitHub:
+    " https://github.com/SAP/abap-to-json
     " **********************************************************************  "
 
     CONSTANTS: lc_method TYPE string VALUE `SERIALIZE_INT`.
@@ -2119,8 +2166,8 @@ ENDMETHOD.
   METHOD serialize_int.
 
     " **********************************************************************
-    " Usage examples and documentation can be found on SCN:
-    " http://wiki.scn.sap.com/wiki/display/Snippets/One+more+ABAP+to+JSON+Serializer+and+Deserializer
+    " Usage examples and documentation can be found on GitHub:
+    " https://github.com/SAP/abap-to-json
     " **********************************************************************  "
 
     DATA: lo_descr      TYPE REF TO cl_abap_typedescr,
@@ -2283,4 +2330,32 @@ ENDMETHOD.
     ENDIF.
 
   ENDMETHOD.                    "xstring_to_string
+
+
+METHOD DETECT_TYPEKIND.
+
+  IF convexit IS NOT INITIAL.
+    rv_type = e_typekind-convexit.
+  ELSE.
+    rv_type = type_descr->type_kind.
+    IF rv_type EQ cl_abap_typedescr=>typekind_packed AND mv_ts_as_iso8601 EQ c_bool-true.
+      IF type_descr->absolute_name EQ '\TYPE=TIMESTAMP'.
+        rv_type = e_typekind-ts_iso8601.
+      ELSEIF type_descr->absolute_name EQ '\TYPE=TIMESTAMPL'.
+        rv_type = e_typekind-tsl_iso8601.
+      ENDIF.
+    ELSEIF rv_type EQ cl_abap_typedescr=>typekind_num AND mv_numc_as_string EQ abap_true.
+      rv_type = e_typekind-numc_string.
+    ELSEIF rv_type EQ cl_abap_typedescr=>typekind_string AND type_descr->absolute_name EQ mc_json_type.
+      rv_type = e_typekind-json.
+    ELSEIF rv_type EQ cl_abap_typedescr=>typekind_char AND type_descr->output_length EQ 1 AND mv_bool_types CS type_descr->absolute_name.
+      IF mv_bool_3state CS type_descr->absolute_name.
+        rv_type = e_typekind-tribool.
+      ELSE.
+        rv_type = e_typekind-bool.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+
+ENDMETHOD.                    "DETECT_EXT_TYPE_KIND
 ENDCLASS.

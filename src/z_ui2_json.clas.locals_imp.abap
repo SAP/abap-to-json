@@ -32,9 +32,9 @@ END-OF-DEFINITION.
 
 DEFINE dump_type.
   IF mv_extended IS INITIAL.
-    dump_type_int &1 &2 &3 &4.
+    dump_type_int &1 &3 &4 &5.
   ELSE.
-    &3 = dump_type( data = &1 type_descr = &2 convexit = &4 ).
+    &4 = dump_type( data = &1 type_descr = &2 typekind = &3 convexit = &5 ).
   ENDIF.
 END-OF-DEFINITION.
 
@@ -67,124 +67,124 @@ END-OF-DEFINITION. " format_list_output
 
 DEFINE dump_type_int.
 
-  IF &4 IS NOT INITIAL AND &1 IS NOT INITIAL.
-    TRY.
-      CALL FUNCTION &4
-        EXPORTING
-          input    = &1
-        IMPORTING
-          output   = &3
-        EXCEPTIONS
-          OTHERS   = 1.
-      IF sy-subrc IS INITIAL.
+  CASE &2.
+    WHEN e_typekind-convexit.
+      IF &1 IS INITIAL.
+        &3 = `""`.
+      ELSE.
+        TRY.
+            CALL FUNCTION &4
+              EXPORTING
+                input  = &1
+              IMPORTING
+                output = &3
+              EXCEPTIONS
+                OTHERS = 1.
+            IF sy-subrc IS INITIAL.
+              CONCATENATE '"' &3 '"' INTO &3.
+            ENDIF.
+          CATCH cx_root ##CATCH_ALL ##NO_HANDLER.
+        ENDTRY.
+      ENDIF.
+    WHEN e_typekind-utclong.
+      IF &1 IS INITIAL.
+        &3 = mv_initial_ts.
+      ELSE.
+        lv_utcl = &1.
+        CONCATENATE '"' lv_utcl(10) 'T' lv_utcl+11(16) 'Z"'  INTO &3.
+      ENDIF.
+    WHEN e_typekind-ts_iso8601.
+      IF &1 IS INITIAL.
+        &3 = mv_initial_ts.
+      ELSE.
+        lv_ts = &1.
+        CONCATENATE '"' lv_ts(4) '-' lv_ts+4(2) '-' lv_ts+6(2) 'T' lv_ts+8(2) ':' lv_ts+10(2) ':' lv_ts+12(2) 'Z"'  INTO &3.
+      ENDIF.
+    WHEN e_typekind-tsl_iso8601.
+      IF &1 IS INITIAL.
+        &3 = mv_initial_ts.
+      ELSE.
+        lv_tsl = &1.
+        CONCATENATE '"' lv_tsl(4) '-' lv_tsl+4(2) '-' lv_tsl+6(2) 'T' lv_tsl+8(2) ':' lv_tsl+10(2) ':' lv_tsl+12(2) '.' lv_tsl+15(7) 'Z"'  INTO &3.
+      ENDIF.
+    WHEN e_typekind-float.
+      IF &1 IS INITIAL.
+        &3 = `0`.
+      ELSE.
+        &3 = &1.
+        IF &1 GT 0.
+          CONDENSE &3.
+        ENDIF.
+      ENDIF.
+    WHEN e_typekind-int OR e_typekind-int1 OR e_typekind-int2 OR e_typekind-packed OR e_typekind-int8.
+      IF &1 IS INITIAL.
+        &3 = `0`.
+      ELSE.
+        &3 = &1.
+        IF &1 LT 0.
+          SHIFT &3 RIGHT CIRCULAR.
+        ELSE.
+          CONDENSE &3.
+        ENDIF.
+      ENDIF.
+    WHEN e_typekind-numc_string.
+      IF &1 IS INITIAL.
+        &3 = `""`.
+      ELSE.
+        CONCATENATE '"' &1 '"' INTO &3.
+      ENDIF.
+    WHEN e_typekind-num.
+      &3 = &1.
+      SHIFT &3 LEFT DELETING LEADING ' 0'.
+      IF &3 IS INITIAL.
+        &3 = `0`.
+      ENDIF.
+    WHEN e_typekind-json.
+      &3 = &1.
+    WHEN e_typekind-string OR e_typekind-csequence OR e_typekind-clike OR e_typekind-char.
+      IF &1 IS INITIAL.
+        &3 = `""`.
+      ELSE.
+        escape_json &1 &3.
         CONCATENATE '"' &3 '"' INTO &3.
       ENDIF.
-    CATCH cx_root ##CATCH_ALL ##NO_HANDLER.
-    ENDTRY.
-  ELSE.
-    CASE &2->type_kind.
-        WHEN mc_typekind_utclong.
-          IF &1 IS INITIAL.
-            &3 = mv_initial_ts.
-          ELSE.
-            lv_utcl = &1.
-            CONCATENATE '"' lv_utcl(10) 'T' lv_utcl+11(16) 'Z"' INTO &3.
-          ENDIF.
-        WHEN cl_abap_typedescr=>typekind_float OR cl_abap_typedescr=>typekind_int OR cl_abap_typedescr=>typekind_int1 OR
-             cl_abap_typedescr=>typekind_int2 OR cl_abap_typedescr=>typekind_packed OR mc_typekind_int8.
-        IF &2->type_kind EQ cl_abap_typedescr=>typekind_packed AND mv_ts_as_iso8601 EQ c_bool-true AND
-          ( &2->absolute_name  EQ '\TYPE=TIMESTAMP' OR &2->absolute_name EQ '\TYPE=TIMESTAMPL' ).
-          IF &1 IS INITIAL.
-            &3 = mv_initial_ts.
-          ELSE.
-            IF &2->absolute_name EQ '\TYPE=TIMESTAMP'.
-              lv_ts = &1.
-              CONCATENATE '"' lv_ts(4) '-' lv_ts+4(2) '-' lv_ts+6(2) 'T' lv_ts+8(2) ':' lv_ts+10(2) ':' lv_ts+12(2) 'Z"' INTO &3.
-            ELSE. "IF &2->absolute_name EQ '\TYPE=TIMESTAMPL'
-              lv_tsl = &1.
-              CONCATENATE '"' lv_tsl(4) '-' lv_tsl+4(2) '-' lv_tsl+6(2) 'T' lv_tsl+8(2) ':' lv_tsl+10(2) ':' lv_tsl+12(2) '.' lv_tsl+15(7) 'Z"'  INTO &3.
-            ENDIF.
-          ENDIF.
-        ELSEIF &1 IS INITIAL.
-          &3 = `0`.
-        ELSE.
-          &3 = &1.
-          IF &1 LT 0.
-            IF &2->type_kind <> cl_abap_typedescr=>typekind_float. "float: sign is already at the beginning
-              SHIFT &3 RIGHT CIRCULAR.
-            ENDIF.
-          ELSE.
-            CONDENSE &3.
-          ENDIF.
-        ENDIF.
-      WHEN cl_abap_typedescr=>typekind_num.
-        IF mv_numc_as_string EQ abap_true.
-          IF &1 IS INITIAL.
-            &3 = `""`.
-          ELSE.
-            CONCATENATE '"' &1 '"' INTO &3.
-          ENDIF.
-        ELSE.
-          &3 = &1.
-          SHIFT &3 LEFT DELETING LEADING ' 0'.
-          IF &3 IS INITIAL.
-            &3 = `0`.
-          ENDIF.
-        ENDIF.
-      WHEN cl_abap_typedescr=>typekind_string OR cl_abap_typedescr=>typekind_csequence OR cl_abap_typedescr=>typekind_clike.
-        IF &1 IS INITIAL.
-          &3 = `""`.
-        ELSEIF &2->absolute_name EQ mc_json_type.
-          &3 = &1.
-        ELSE.
-          escape_json &1 &3.
-          CONCATENATE '"' &3 '"' INTO &3.
-        ENDIF.
-      WHEN cl_abap_typedescr=>typekind_xstring OR cl_abap_typedescr=>typekind_hex.
-        IF &1 IS INITIAL.
-          &3 = `""`.
-        ELSE.
-          xstring_to_string_int &1 &3.
-          CONCATENATE '"' &3 '"' INTO &3.
-        ENDIF.
-      WHEN cl_abap_typedescr=>typekind_char.
-        IF &2->output_length EQ 1 AND mv_bool_types CS &2->absolute_name.
-          IF &1 EQ c_bool-true.
-            &3 = `true`  ##NO_TEXT.
-          ELSEIF &1 IS INITIAL AND mv_bool_3state CS &2->absolute_name.
-            &3 = `null`.                                    "#EC NOTEXT
-          ELSE.
-            &3 = `false`.                                   "#EC NOTEXT
-          ENDIF.
-        ELSEIF &1 IS INITIAL.
-          &3 = `""`.
-        ELSE.
-          escape_json &1 &3.
-          CONCATENATE '"' &3 '"' INTO &3.
-        ENDIF.
-      WHEN cl_abap_typedescr=>typekind_date.
-        IF &1 IS INITIAL.
-          &3 = mv_initial_date.
-        ELSE.
-          CONCATENATE '"' &1(4) '-' &1+4(2) '-' &1+6(2) '"' INTO &3.
-        ENDIF.
-      WHEN cl_abap_typedescr=>typekind_time.
-        IF &1 IS INITIAL.
-          &3 = mv_initial_time.
-        ELSE.
-          CONCATENATE '"' &1(2) ':' &1+2(2) ':' &1+4(2) '"' INTO &3.
-        ENDIF.
-      WHEN 'k'. " cl_abap_typedescr=>typekind_enum
-        &3 = &1.
+    WHEN cl_abap_typedescr=>typekind_xstring OR cl_abap_typedescr=>typekind_hex.
+      IF &1 IS INITIAL.
+        &3 = `""`.
+      ELSE.
+        xstring_to_string_int &1 &3.
         CONCATENATE '"' &3 '"' INTO &3.
-      WHEN OTHERS.
-        IF &1 IS INITIAL.
-          &3 = `null`.                                      "#EC NOTEXT
-        ELSE.
-          &3 = &1.
-        ENDIF.
-    ENDCASE.
-  ENDIF.
+      ENDIF.
+    WHEN e_typekind-bool OR e_typekind-tribool.
+      IF &1 EQ c_bool-true.
+        &3 = `true`.                                          "#EC NOTEXT
+      ELSEIF &1 IS INITIAL AND &2 EQ e_typekind-tribool.
+        &3 = `null`.                                          "#EC NOTEXT
+      ELSE.
+        &3 = `false`.                                         "#EC NOTEXT
+      ENDIF.
+    WHEN e_typekind-date.
+      IF &1 IS INITIAL.
+        &3 = mv_initial_date.
+      ELSE.
+        CONCATENATE '"' &1(4) '-' &1+4(2) '-' &1+6(2) '"' INTO &3.
+      ENDIF.
+    WHEN e_typekind-time.
+      IF &1 IS INITIAL.
+        &3 = mv_initial_time.
+      ELSE.
+        CONCATENATE '"' &1(2) ':' &1+2(2) ':' &1+4(2) '"' INTO &3.
+      ENDIF.
+    WHEN e_typekind-enum.
+      &3 = &1.
+      CONCATENATE '"' &3 '"' INTO &3.
+    WHEN OTHERS.
+      IF &1 IS INITIAL.
+        &3 = `null`.                                          "#EC NOTEXT
+      ELSE.
+        &3 = &1.
+      ENDIF.
+  ENDCASE.
 
 END-OF-DEFINITION.
 
