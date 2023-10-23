@@ -6,7 +6,7 @@ It is always better to deserialize into explicit data structure but not into ano
 1. It is faster
 2. It is type-safe
 3. Processing deserialized results is much easier.
-Deserializing into REF TO data is the same as using of GENERATE method and results in generating real-time ABAP types, which is quite slow. You can not specify the resulting types for elements and the deserializer needs to guess. To process generated results, you need to always use dynamic programming by default slow (or /UI2/CL_DATA_ACCESS, which is more comfortable but still uses dynamic programming inside).
+Deserializing into REF TO data is the same as using the GENERATE method and results in generating real-time ABAP types, which is quite slow. You can not specify the resulting types for elements and the deserializer needs to guess. To process generated results, you need to always use dynamic programming by default slow (or /UI2/CL_DATA_ACCESS, which is more comfortable but still uses dynamic programming inside).
 
 ## Serialize huge data objects into JSON and short dumps
 You are using the class to serialize your data into JSON. Unfortunately, sometimes you pass too big tables, which results in too long a JSON string (for example, longer than 1GB), and this leads to dumps like SYSTEM_NO_ROLL, STRING_SIZE_TOO_LARGE, MEMORY_NO_MORE_PAGING, while the system can not allocate such a big continuous memory chunk. Potentially this specific case can be solved by increasing the memory allocation limit, but you would still end up with an INT4 size limit for string length, which can not be more than 2GB size.
@@ -30,14 +30,14 @@ First of all, I would agree that this is an incompatible change and I am asking 
 
 The reason for this change of default was a customer complaint regarding the handling of initial date-time values, which are not 0000-00-00 or 00:00:00. In general 0000-00-00 is an invalid date, 00:00:00 is valid, but how to understand that it is initial but not explicit midnight?
 
-Because of that, I have decided not to render initial values for date/time and give a receiver a way to understand that it is initial and has its processing of default/initial. I know that it is incompatible, but I want a default behavior would be the best and most common choice, even with the cost of modification of the consumer code that relies on old behavior :/.
+Because of that, I have decided not to render initial values for date/time and give a receiver a way to understand that it is initial and has its processing of default/initial. I know that it is incompatible, but I want a default behavior to be the best and most common choice, even with the cost of modification of the consumer code that relies on old behavior :/.
 
 Because having custom rendering of the initial date/time is quite exotic, I have only let this for constructor calls and have not extended the serialize method, to keep standard API simple. If I get multiple requests regarding extending SERIALIZE with these defaults - I will do it. 
 
 My recommendation for you:
 * Variant 1: Adopt your unit tests for new initial values for date-time. 
-* Variant 2: Use the instance method for serialization. E.g. parametrized CONSTRUCTOR + SERIALIZE_INT.
-* Variant 2: Extend the /ui2/cl_json class or create a helper method in your class with your static SERIALIZE call which already considers new defaults for the /ui2/cl_json constructor.
+* Variant 2: Use the instance method for serialization. E.g. parametrized CONSTRUCTOR + SERIALIZE_INT (in this case you can customize behavior by parametrizing instance constructor with desired initial values for time date).
+* Variant 2: Extend the /ui2/cl_json class or create a helper method in your class with your static customized SERIALIZE call which already considers new defaults for the /ui2/cl_json constructor.
 
 ## Is there a way to deserialize objects that have references to Interface?
 **Q**: I am using /ui2/cl_json to serialize an object that contains some reference attributes. These reference attributes are TYPE REF TO <Interface>. Upon deserialization, the references are not getting deserialized. Is there a way to deserialize objects that have references to Interface?
