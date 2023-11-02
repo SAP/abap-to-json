@@ -1,5 +1,11 @@
 # Version History
 
+## Note [3315430](https://launchpad.support.sap.com/#/notes/3315430) - PL18
+### /UI2/CL_JSON
+* Fixed: handling of cycle references when serializing data and object references. The serialization will stop processing of the reference if it is already in the serialization stack.
+* Fixed: performance by serialization of timestamps and UTCLONG fields.
+* Fixed: performance in class-constructor.
+
 ## Note [3106267](https://launchpad.support.sap.com/#/notes/3106267) - PL17
 ### /UI2/CL_JSON
 * Fixed: added support for XSDBOOLEAN Boolean type, to be consistent with CALL TRANSFORMATION id rules.
@@ -74,7 +80,7 @@
 ### /UI2/CL_JSON
 * New: JSON timestamp fields, serialized in OData Edm.DateTime format (e.g. "\/Date(1467981296000)\/") is supported, and properly deserialized in ABAP date, time, or timestamp fields
 * New: JSON timestamp fields, serialized in OData Edm.Time format (e.g. "PT10H34M55S") is supported, and properly deserialized in ABAP date, time, or timestamp fields
-* Fixed: content is scrambled when using GENERATE method for JSON objects with a name containing special characters (for example "__metadata")
+* Fixed: content is scrambled when using the GENERATE method for JSON objects with a name containing special characters (for example "__metadata")
 * Fixed: GENERATE method does not consider custom name mapping pairs passed as a parameter for CONSTRUCTOR or GENERATE methods
 * Fixed: generation of very long integers (serialized numeric date) fails, due to I type overflow (you get 0 instead of an expected number) 
 
@@ -115,7 +121,7 @@
 
 ## Note [2429758](https://launchpad.support.sap.com/#/notes/2429758)
 * Fixed: Short Dump on deserialization of classes with read-only attributes
-* New: Serialization parameter added NUMC_AS_STRING, controlling the way how NUMC fields are serialized. The default is FALSE. If set to TRUE, NUMC fields are serialized not as numbers, but as strings, with all leading zeroes. Deserialization works compatibly with both ways of NUMC serialized data.
+* New: Serialization parameter added NUMC_AS_STRING, controlling the way NUMC fields are serialized. The default is FALSE. If set to TRUE, NUMC fields are serialized not as numbers, but as strings, with all leading zeroes. Deserialization works compatibly with both ways of NUMC serialized data.
 * New: GENERATE and GENERATE_INT methods are added for the on-the-fly creation of ABAP data objects from JSON, without the need to have a predefined ABAP structure. Supports automatic creation of ABAP structures, tables, and elementary types, concerning JSON types. Supports structure/table nesting.
 * New: DESERIALIZE_INT method throws an exception CX_SY_MOVE_CAST_ERROR and stops further processing in case of malformed data found and STRICT_MODE parameter in constructor set to TRUE.
 * New: Added support of XSTRING as input for deserialization.
