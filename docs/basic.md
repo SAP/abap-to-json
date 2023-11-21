@@ -24,21 +24,21 @@
 * Generic deserialization of JSON objects into reference data types: 
   * as simple data types (integer, boolean, or string into generic data reference (REF TO DATA) -> ABAP type is selected based on JSON type.
   * as dynamically generated complex object (structures, tables, mixed) for initial REF TO DATA fields
-  * as typed references for prefilled REF TO DATA fields (you assign a reference to a typed empty data object to REF TO DATA field in execution time)
+  * as typed references for prefilled REF TO DATA fields (you assign a reference to a typed empty data object to the REF TO DATA field in execution time)
 * Deserialization of unknown JSON structures possible using method GENERATE into on-the-fly created data types
 * On **JSON** to **ABAP** transformation following rules are used:
   * objects parsed into corresponding ABAP structures, classes (only classes with constructors with no obligatory parameters are supported), or internal hash/sorted tables
   * arrays converted to internal tables (complex tables are also supported). 
   * Boolean converted as ABAP_BOOL (‘’ or ‘X’)
   * Date/Time/Timestamps from JSON converted based on the type of corresponding ABAP element
-  * integers/floats/strings moved to corresponding fields using ABAP move semantic (strings are un-escaped). There is no limit on the size of deserialized strings, the only restriction is the constraints of receiving data type. Escaped Unicode symbols (\u001F) ins strings are decoded.
+  * integers/floats/strings moved to corresponding fields using ABAP move semantic (strings are un-escaped). There is no limit on the size of deserialized strings, the only restriction is the constraints of receiving data type. Escaped Unicode symbols (\u001F) in strings are decoded.
   * elementary data types are converted if do not match: JavaScript integer can come into ABAP string or JavaScript string into ABAP integer, etc.
   * Transformation takes into account property naming guidelines for **JSON** and **ABAP** so that camelCase names will be copied into the corresponding CAMEL_CASE field if the CAMELCASE field is not found in the ABAP structure. Do not forget to use the same PRETTY_MODE for deserialization, as you have used for serialization.
   * Default field values, specified in reference ABAP variable are preserved, and not overwritten if not found in the JSON object
   * Transformation of **JSON** structures into ABAP class instances is NOT supported.
 * Support of conversion exits on deserialization
 
-The parser for serializing/deserializing uses single-pass parsing and is optimized to provide the best possible performance in ABAP in release independent way. But for time-critical applications, which have kernel version 7.20 and higher, it is recommended to use built-in **JSON** to **ABAP** transformations (CALL TRANSFORMATION). If transformation for some reason does not work, please assist with the following notes: [1650141](http://service.sap.com/sap/support/notes/2368774) and [1648418](http://service.sap.com/sap/support/notes/2368774).
+The parser for serializing/deserializing uses single-pass parsing and is optimized to provide the best possible performance in ABAP in release release-independent way. But for time-critical applications, which have kernel version 7.20 and higher, it is recommended to use built-in **JSON** to **ABAP** transformations (CALL TRANSFORMATION). If transformation for some reason does not work, please assist with the following notes: [1650141](http://service.sap.com/sap/support/notes/2368774) and [1648418](http://service.sap.com/sap/support/notes/2368774).
 
 # Usage example
 ## ABAP to JSON usage example
@@ -141,7 +141,7 @@ Two static methods are of most interest in common cases: SERIALIZE and DESERIALI
 * \> **ASSOC_ARRAYS** (bool, default = false) - controls how to serialize hash or sorted tables with unique keys. See below for details.
 * \> **ASSOC_ARRAYS_OPT** (bool, default = false) - when set, the serializer will optimize the rendering of name-value associated arrays (hash maps) in JSON
 * \> **TS_AS_ISO8601** (bool, default = false) - says serializer to output timestamps using ISO8601 format.
-* \> **NUMC_AS_STRING** (bool, default = false) - Controls the way how NUMC fields are serialized. If set to ABAP_TRUE, NUMC fields are serialized not as integers, but as strings, with all leading zeros. Deserialization works compatible with both ways of NUMC serialized data.
+* \> **NUMC_AS_STRING** (bool, default = false) - Controls the way NUMC fields are serialized. If set to ABAP_TRUE, NUMC fields are serialized not as integers, but as strings, with all leading zeros. Deserialization works compatible with both ways of NUMC serialized data.
 * \> **NAME_MAPPINGS** (table) - ABAP<->JSON Name Mapping Table
 * \> **CONVERSION_EXITS** (bool, default = false) - use DDIC conversion exits on serialize of values (performance loss!)
 * \> **FORMAT_OUTPUT** (bool, default = false) - Indent, add formatting spaces, and split into lines serialized JSON
@@ -193,7 +193,7 @@ Encoding rules (ABAP name → JSON name):
 
 ## ASSOC_ARRAYS :
 
-This option controls the way how hashed or sorted tables with unique keys are serialized/deserialized. Normally, ABAP internal tables are serialized into JSON arrays, but in some cases, you will like to serialize them as associative arrays (JSON objects) where every row of the table shall be reflected as a separated property of the JSON object. This can be achieved by setting the *ASSOC_ARRAYS* parameter to TRUE. If set, the serializer checks for sorted/hashed tables with a UNIQUE key(s) and serialize them as an object. The JSON property name, reflecting row, constructed from values of fields, used in key separated by constant *MC_KEY_SEPARATOR* = '-'. If the table has only one field marked as key, the value of this single field becomes a property name and is REMOVED from the associated object (to eliminate redundancy). If TABLE_LINE is used as a unique key, all values of all fields construct key property names (separated by *MC_KEY_SEPARATOR*). During deserialization, logic works vice versa: if *ASSOC_ARRAYS* is set to TRUE, and the JSON object matches the internal hash or sorted table with the unique key, the object is transformed into the table, where every object property is reflected in a separated table row. If the ABAP table has only one key field, the property name is transformed into a value of this key field.
+This option controls the way hashed or sorted tables with unique keys are serialized/deserialized. Normally, ABAP internal tables are serialized into JSON arrays, but in some cases, you will like to serialize them as associative arrays (JSON objects) where every row of the table shall be reflected as a separated property of the JSON object. This can be achieved by setting the *ASSOC_ARRAYS* parameter to TRUE. If set, the serializer checks for sorted/hashed tables with a UNIQUE key(s) and serialize them as an object. The JSON property name, reflecting row, constructed from values of fields, used in key separated by constant *MC_KEY_SEPARATOR* = '-'. If the table has only one field marked as key, the value of this single field becomes a property name and is REMOVED from the associated object (to eliminate redundancy). If TABLE_LINE is used as a unique key, all values of all fields construct key property names (separated by *MC_KEY_SEPARATOR*). During deserialization, logic works vice versa: if *ASSOC_ARRAYS* is set to TRUE, and the JSON object matches the internal hash or sorted table with the unique key, the object is transformed into the table, where every object property is reflected in a separated table row. If the ABAP table has only one key field, the property name is transformed into a value of this key field.
 
 ## ASSOC_ARRAYS_OPT:
 
@@ -232,7 +232,7 @@ Output JSON
 For deserialization, the flag is used to tell the deserializer that the value shall be placed in a non-key field of the structure.
 
 # Supported SAP_BASIS releases
-The code was tested from SAP_BASIS 7.00 and higher, but I do not see the reasons why it cannot be downported on lower releases too. But if you plan to use it on SAP_BASIS 7.02 and higher (and do not need property name pretty-printing) better consider the standard solution for **ABAP**, using CALL TRANSFORMATION. It shall be faster, while implemented in the kernel. See the [blog of Horst Keller](http://scn.sap.com/community/abap/blog/2013/07/04/abap-news-for-release-740--abap-and-json) for details. Maybe the best will be, if you need support in lower SAP_BASIS releases as well as in 7.02 and higher, to modify provided a class in a way to generate the same **JSON** format as standard ABAP CALL TRANSFORMATION for JSON does and redirect flow to home-made code or built-in **ABAP** transformation depending on SAP_BASIS release.
+The code was tested from SAP_BASIS 7.00 and higher, but I do not see the reasons why it cannot be downported on lower releases either. But if you plan to use it on SAP_BASIS 7.02 and higher (and do not need property name pretty-printing) better consider the standard solution for **ABAP**, using CALL TRANSFORMATION. It shall be faster, while implemented in the kernel. See the [blog of Horst Keller](http://scn.sap.com/community/abap/blog/2013/07/04/abap-news-for-release-740--abap-and-json) for details. Maybe the best will be, if you need support in lower SAP_BASIS releases as well as in 7.02 and higher, to modify provided a class in a way to generate the same **JSON** format as standard ABAP CALL TRANSFORMATION for JSON does and redirect flow to home-made code or built-in **ABAP** transformation depending on SAP_BASIS release.
 
 # Further optimizations
 * Be aware, that usage of flag conversion_exits may significantly decrease performance - use only in cases, when you are sure that you need it.
