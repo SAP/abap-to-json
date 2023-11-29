@@ -1,7 +1,7 @@
 # Custom ABAP to JSON, JSON to ABAP name mapping
-By default, you control the way JSON names are formatted/mapped to ABAP names by selecting proper pretty_mode as a parameter for SERIALIZE/DESERIALIZE/GENERATE method. But in some cases, the standard, hard-coded formatting, is not enough. For example, if you need special rules for name formatting (for using special characters) or because the JSON attribute name is too long and you can not map it to ABAP name (which has 30 characters length limit). 
+By default, you control the way JSON names are formatted/mapped to ABAP names by selecting proper pretty_mode as a parameter for the SERIALIZE/DESERIALIZE/GENERATE method. But in some cases, the standard, hard-coded formatting, is not enough. For example, if you need special rules for name formatting (for using special characters) or because the JSON attribute name is too long and you can not map it to the ABAP name (which has 30 30-character length limit). 
 
-The recommended way for custom mapping was an extension of the class and redefining methods PRETTY_NAME or PRETTY_NAME_EX, but since note 2526405 there is an easier way, without the need for its own class. If you have a static list of field mappings from ABAP to JSON you can pass the name mapping table as a parameter for the constructor/serialize/deserialize and control the way JSON names are formatted/mapped to ABAP names. 
+The recommended way for custom mapping was an extension of the class and redefining methods PRETTY_NAME or PRETTY_NAME_EX, but since note 2526405 there is an easier way, without the need for its class. If you have a static list of field mappings from ABAP to JSON you can pass the name mapping table as a parameter for the constructor/serialize/deserialize and control the way JSON names are formatted/mapped to ABAP names. 
 
 ## ABAP to JSON name mapping example
 ```abap
@@ -101,7 +101,7 @@ When it is needed:
 * You deserialize a collection (array/associative array) that has objects with heterogeneous structures (for example the same field has a different type depending on object type). Using partial deserialization, you can restore such a type as JSON string in ABAP and apply later additional deserialization based on the object type.  
 * You serialize ABAP to JSON and have some ready JSON pieces (strings) that you would like to mix in. 
 
-The solution /UI2/CL_JSON has for this type /UI2/CL_JSON=>JSON (alias for built-in type string). ABAP fields using declared with this type will be serialized/deserialized as JSON pieces. Be aware that during serialization from ABAP to JSON, the content of such JSON piece is not validated for correctness, so if you pass an invalid JSON block, it may destroy the whole resulting JSON string at the end.
+The solution /UI2/CL_JSON has for this type /UI2/CL_JSON=>JSON (alias for built-in type string). ABAP fields declared with this type will be serialized/deserialized as JSON pieces. Be aware that during serialization from ABAP to JSON, the content of such JSON piece is not validated for correctness, so if you pass an invalid JSON block, it may destroy the whole resulting JSON string at the end.
 
 Below you can find examples of partial serialization/deserialization.
 
@@ -322,9 +322,9 @@ ENDIF.
 ```
 
 # Exception Handling in /UI2/CL_JSON
-By default, /UI2/CL_JSON tries to hide from consumer-thrown exceptions (that may happen during deserialization) catching them at all levels. In some cases, it will result in missing attributes, in other cases, when an error was critical and the parser can not restore, you will get an empty object back. The main TRY/CATCH block, not letting exceptions out is in DESERIALIZE method.
+By default, /UI2/CL_JSON tries to hide from consumer-thrown exceptions (that may happen during deserialization) catching them at all levels. In some cases, it will result in missing attributes, in other cases, when an error is critical and the parser can not restore, you will get an empty object back. The main TRY/CATCH block, not letting exceptions out is in DESERIALIZE method.
 
-If you want to get a reporting in case of error, you shall use the instance method DESERIALIZE_INT which may fire CX_SY_MOVE_CAST_ERROR. The reporting is rather limited - all errors are translated into CX_SY_MOVE_CAST_ERROR and no additional information is available.
+If you want to get a report in case of error, you shall use the instance method DESERIALIZE_INT which may fire CX_SY_MOVE_CAST_ERROR. The reporting is rather limited - all errors are translated into CX_SY_MOVE_CAST_ERROR and no additional information is available.
 
 # JSON to ABAP transformation with the use of CALL TRANSFORMATION
 Below is a small example of CALL TRANSFORMATION usage to produce JSON from ABAP structures. Do not ask me for details - I do not know them. (smile) Was just a small test of me.
