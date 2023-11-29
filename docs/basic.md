@@ -32,13 +32,13 @@
   * Boolean converted as ABAP_BOOL (‘’ or ‘X’)
   * Date/Time/Timestamps from JSON converted based on the type of corresponding ABAP element
   * integers/floats/strings moved to corresponding fields using ABAP move semantic (strings are un-escaped). There is no limit on the size of deserialized strings, the only restriction is the constraints of receiving data type. Escaped Unicode symbols (\u001F) in strings are decoded.
-  * elementary data types are converted if do not match: JavaScript integer can come into ABAP string or JavaScript string into ABAP integer, etc.
+  * elementary data types are converted if they do not match: JavaScript integer can come into ABAP string or JavaScript string into ABAP integer, etc.
   * Transformation takes into account property naming guidelines for **JSON** and **ABAP** so that camelCase names will be copied into the corresponding CAMEL_CASE field if the CAMELCASE field is not found in the ABAP structure. Do not forget to use the same PRETTY_MODE for deserialization, as you have used for serialization.
   * Default field values, specified in reference ABAP variable are preserved, and not overwritten if not found in the JSON object
   * Transformation of **JSON** structures into ABAP class instances is NOT supported.
 * Support of conversion exits on deserialization
 
-The parser for serializing/deserializing uses single-pass parsing and is optimized to provide the best possible performance in ABAP in release release-independent way. But for time-critical applications, which have kernel version 7.20 and higher, it is recommended to use built-in **JSON** to **ABAP** transformations (CALL TRANSFORMATION). If transformation for some reason does not work, please assist with the following notes: [1650141](http://service.sap.com/sap/support/notes/2368774) and [1648418](http://service.sap.com/sap/support/notes/2368774).
+The parser for serializing/deserializing uses single-pass parsing and is optimized to provide the best possible performance in ABAP in a release-independent way. But for time-critical applications, which have kernel version 7.20 and higher, it is recommended to use built-in **JSON** to **ABAP** transformations (CALL TRANSFORMATION). If transformation for some reason does not work, please assist with the following notes: [1650141](http://service.sap.com/sap/support/notes/2368774) and [1648418](http://service.sap.com/sap/support/notes/2368774).
 
 # Usage example
 ## ABAP to JSON usage example
@@ -91,7 +91,7 @@ START-OF-SELECTION.
 ```json
 [
   {
-    "mandt":"120",
+    "mandt": "120",
     "carrid":"AA",
     "connid":17,
     "fldate":"2018-08-15",
@@ -174,7 +174,7 @@ In addition to the explained methods, there are two options, that need a wider e
 * **NONE** - ABAP component names are serialized as is (UPPERCASE).
 * **LOW_CASE** - ABAP component names serialized in low case 
 * **CAMEL_CASE** - ABAP component types serialized in CamelCase where symbol "\_" is treated as a word separator (and removed from the resulting name). 
-* **EXTENDED** - works the same way as CAMEL_CASE but also, has extended logic for encoding special characters, such as: ".", "@", "~", etc. Shall be used if you need JSON names with characters not allowed for ABAP data component names. Do not use it, if you do not have special characters in JSON names - the performance would be slower in comparison with CAMEL_CASE mode. Example: ABAP name '\_\_A\_\_SCHEMA' translates in JSON name '@schema'
+* **EXTENDED** - works the same way as CAMEL_CASE but also, has extended logic for encoding special characters, such as: ".", "@", "~", etc. It shall be used if you need JSON names with characters not allowed for ABAP data component names. Do not use it, if you do not have special characters in JSON names - the performance would be slower in comparison with CAMEL_CASE mode. Example: ABAP name '\_\_A\_\_SCHEMA' translates in JSON name '@schema'
 Encoding rules (ABAP name → JSON name):
   * '\_\_E\_\_' → '!'
   * '\_\_N\_\_' → '#'
