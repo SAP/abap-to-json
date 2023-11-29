@@ -915,11 +915,20 @@ ENDMETHOD.                    "dump
 
   METHOD dump_type.
 
-    DATA: lv_ts   TYPE c LENGTH 15,
-          lv_tsl  TYPE c LENGTH 23,
-          lv_utcl TYPE c LENGTH 27.
+    DATA: lv_ts         TYPE c LENGTH 15,
+          lv_tsl        TYPE c LENGTH 23,
+          lv_utcl       TYPE c LENGTH 27,
+          lv_typekind   LIKE typekind.
 
-    CASE typekind.
+    ""!!! the fallback code for missing typekind is only for the method but not used in macro
+    IF typekind IS INITIAL.
+      lv_typekind = detect_typekind( type_descr = type_descr convexit = convexit ).
+    ELSE.
+      lv_typekind = typekind.
+    ENDIF.
+    ""!!!!
+
+    CASE lv_typekind.
       WHEN e_typekind-convexit.
         IF data IS INITIAL.
           r_json = `""`.
@@ -1010,7 +1019,7 @@ ENDMETHOD.                    "dump
       WHEN e_typekind-bool OR e_typekind-tribool.
         IF data EQ c_bool-true.
           r_json = `true`.                                  "#EC NOTEXT
-        ELSEIF data IS INITIAL AND typekind EQ e_typekind-tribool.
+        ELSEIF data IS INITIAL AND lv_typekind EQ e_typekind-tribool.
           r_json = `null`.                                  "#EC NOTEXT
         ELSE.
           r_json = `false`.                                 "#EC NOTEXT
@@ -1115,8 +1124,10 @@ ENDMETHOD.                    "dump
 
 METHOD generate_int.
 
-  DATA: lt_json      TYPE t_t_json,
-        lt_fields    TYPE t_t_name_value.
+  DATA: lt_json   TYPE t_t_json,
+        mark      LIKE offset,
+        match     LIKE offset,
+        lt_fields TYPE t_t_name_value.
 
   FIELD-SYMBOLS: <data>   TYPE data,
                  <struct> TYPE data,
@@ -1160,8 +1171,12 @@ METHOD generate_int.
         restore_reference so_type_i.
       ENDIF.
     WHEN OTHERS.
-      IF json+offset EQ 'true' OR json+offset EQ 'false'. "#EC NOTEXT
+      eat_bool_string.
+      IF json+mark(match) EQ 'true' OR json+mark(match) EQ 'false'. "#EC NOTEXT
+        offset = mark. "need to restore after eat_bool_string
         restore_reference so_type_b.
+      ELSE. "null or no match
+        CLEAR data.
       ENDIF.
   ENDCASE.
 
@@ -1738,6 +1753,7 @@ ENDMETHOD.
           elem_descr   TYPE REF TO cl_abap_elemdescr,
           table_descr  TYPE REF TO cl_abap_tabledescr,
           struct_descr TYPE REF TO cl_abap_structdescr,
+          ref_descr    TYPE REF TO cl_abap_refdescr,
           data_descr   TYPE REF TO cl_abap_datadescr.
 
     FIELD-SYMBOLS: <line>      TYPE any,
@@ -1839,7 +1855,16 @@ ENDMETHOD.
                   ENDIF.
                 ELSEIF type_descr->type_kind EQ cl_abap_typedescr=>typekind_dref.
                   IF data IS INITIAL.
-                    generate_int_ex( EXPORTING json = json length = length CHANGING offset = offset data = data ).
+                    ref_descr ?= type_descr.
+                    data_descr ?= ref_descr->get_referenced_type( ).
+                    IF data_descr->type_kind EQ data_descr->typekind_data. " REF TO DATA
+                      generate_int_ex( EXPORTING json = json length = length CHANGING offset = offset data = data ).
+                    ELSEIF data_descr->kind NE data_descr->kind_elem.
+                      restore( EXPORTING json = json length = length type_descr = type_descr field_cache = field_cache
+                               CHANGING data = data offset = offset ).
+                    ELSE. " invlaid type - skip
+                      restore( EXPORTING json = json length = length CHANGING offset = offset ).
+                    ENDIF.
                   ELSE.
                     data_ref ?= data.
                     type_descr = cl_abap_typedescr=>describe_by_data_ref( data_ref ).
@@ -1856,7 +1881,18 @@ ENDMETHOD.
             WHEN '['. " array
               IF data IS SUPPLIED AND type_descr->type_kind EQ cl_abap_typedescr=>typekind_dref.
                 IF data IS INITIAL.
-                  generate_int_ex( EXPORTING json = json length = length CHANGING offset = offset data = data ).
+                  ref_descr ?= type_descr.
+                  data_descr ?= ref_descr->get_referenced_type( ).
+                  IF data_descr->type_kind EQ data_descr->typekind_data. " REF TO DATA
+                    generate_int_ex( EXPORTING json = json length = length CHANGING offset = offset data = data ).
+                  ELSEIF data_descr->kind EQ data_descr->kind_table. " deserialize in typed table
+                    CREATE DATA data TYPE HANDLE data_descr.
+                    data_ref ?= data.
+                    ASSIGN data_ref->* TO <data>.
+                    restore_type( EXPORTING json = json length = length type_descr = data_descr CHANGING data = <data> offset = offset ).
+                  ELSE. "invlaid type - skip
+                    restore_type( EXPORTING json = json length = length CHANGING offset = offset ).
+                  ENDIF.
                 ELSE.
                   data_ref ?= data.
                   type_descr = cl_abap_typedescr=>describe_by_data_ref( data_ref ).
@@ -2061,7 +2097,6 @@ ENDMETHOD.
               IF data IS SUPPLIED.
                 IF type_descr->kind EQ type_descr->kind_ref AND type_descr->type_kind EQ cl_abap_typedescr=>typekind_dref.
                   eat_number sdummy.                        "#EC NOTEXT
-                  match = strlen( sdummy ).
                   IF sdummy CA '.Ee'. " float.
                     CREATE DATA rdummy TYPE f.
                   ELSEIF match GT 9. " packed
@@ -2101,10 +2136,7 @@ ENDMETHOD.
             WHEN OTHERS. " boolean, e.g true/false/null
               IF data IS SUPPLIED.
                 IF type_descr->kind EQ type_descr->kind_ref AND type_descr->type_kind EQ cl_abap_typedescr=>typekind_dref.
-                  CREATE DATA rdummy TYPE bool.
-                  ASSIGN rdummy->* TO <data>.
-                  eat_bool <data>.
-                  data ?= rdummy.
+                  generate_int_ex( EXPORTING json = json length = length CHANGING data = data offset = offset ).
                 ELSEIF type_descr->kind EQ type_descr->kind_elem.
                   eat_bool data.
                 ELSE.

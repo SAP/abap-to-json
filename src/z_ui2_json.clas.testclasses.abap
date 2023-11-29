@@ -194,7 +194,7 @@ CLASS lc_json_custom IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    r_json = super->dump_type( data = data type_descr = type_descr typekind = typekind convexit = convexit ).
+    r_json = super->dump_type( data = data type_descr = type_descr convexit = convexit ).
 
   ENDMETHOD. "dump_type
 
@@ -2337,6 +2337,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
           lv_int    TYPE i,
           lv_float  TYPE f,
           lv_p      TYPE p,
+          lv_act    TYPE json,
           lo_data   TYPE REF TO /ui2/cl_data_access,
           lr_val    TYPE REF TO data,
           lr_act    TYPE REF TO data.
@@ -2449,6 +2450,30 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     lo_data->value( IMPORTING ev_data = lv_int ).
 
     cl_aunit_assert=>assert_equals( act = lv_int exp = 123456789 msg = 'Generation of integer value fails!' ).
+
+    lv_json = 'null'.
+    lr_act  = generate( json = lv_json pretty_name = pretty_mode-user_low_case ).
+    lv_act  = serialize( data = lr_act compress = abap_true numc_as_string = abap_false pretty_name = pretty_mode-user_low_case ).
+
+    cl_aunit_assert=>assert_equals( act = lv_act exp = lv_json msg = 'Generation of null value fails!' ).
+
+    lv_json = '5'.
+    lr_act  = generate( json = lv_json pretty_name = pretty_mode-user_low_case ).
+    lv_act  = serialize( data = lr_act compress = abap_true numc_as_string = abap_false pretty_name = pretty_mode-user_low_case ).
+
+    cl_aunit_assert=>assert_equals( act = lv_act exp = lv_json msg = 'Generation of interger value fails!' ).
+
+    lv_json = 'false'.
+    lr_act  = generate( json = lv_json pretty_name = pretty_mode-user_low_case ).
+    lv_act  = serialize( data = lr_act compress = abap_true numc_as_string = abap_false pretty_name = pretty_mode-user_low_case ).
+
+    cl_aunit_assert=>assert_equals( act = lv_act exp = lv_json msg = 'Generation of boolean value fails!' ).
+
+    lv_json = '"test"'.
+    lr_act  = generate( json = lv_json pretty_name = pretty_mode-user_low_case ).
+    lv_act  = serialize( data = lr_act compress = abap_true numc_as_string = abap_false pretty_name = pretty_mode-user_low_case ).
+
+    cl_aunit_assert=>assert_equals( act = lv_act exp = lv_json msg = 'Generation of string value fails!' ).
 
   ENDMETHOD.                    "generate_simple
 
@@ -2664,6 +2689,34 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     lo_data = /ui2/cl_data_access=>create( iv_data = ls_data-struct iv_component = 'field1' ).
     lo_data->value( IMPORTING ev_data = lv_value ).
     cl_aunit_assert=>assert_equals( act = lv_value exp = 'value1' msg = 'Deserialize to unknown REF TO data for struct fails!' ).
+
+    TYPES: BEGIN OF struct,
+             field TYPE i,
+           END OF struct,
+           tab TYPE STANDARD TABLE OF struct WITH EMPTY KEY.
+    DATA: BEGIN OF target_tab,
+            tab      TYPE REF TO tab,
+            abstract TYPE REF TO data,
+            invalid  TYPE REF TO i,
+          END OF target_tab.
+
+    lv_json = `{"tab":[{"field":1}],"abstract":[{"field":1}],"invalid":[{"field":1}]}`.
+    deserialize( EXPORTING json = lv_json CHANGING  data = target_tab ).
+    cl_aunit_assert=>assert_not_initial( act = target_tab-tab msg = 'Generation of defined table fails!' ).
+    cl_aunit_assert=>assert_not_initial( act = target_tab-abstract msg = 'Generation of abstract table fails!' ).
+    cl_aunit_assert=>assert_initial( act = target_tab-invalid msg = 'Generation of invalid type into table fails!' ).
+
+    DATA: BEGIN OF target_struct,
+            substruct TYPE REF TO struct,
+            abstract  TYPE REF TO data,
+            invalid   TYPE REF TO i,
+          END OF target_struct.
+
+    lv_json = `{"substruct":{"field":1},"abstract":{"field":1},"invalid":{"field":1}}`.
+    deserialize( EXPORTING json = lv_json CHANGING  data = target_struct ).
+    cl_aunit_assert=>assert_not_initial( act = target_struct-substruct msg = 'Generation of defined structure fails!' ).
+    cl_aunit_assert=>assert_not_initial( act = target_struct-abstract msg = 'Generation of abstract structure fails!' ).
+    cl_aunit_assert=>assert_initial( act = target_struct-invalid msg = 'Generation of invalid type into structure fails!' ).
 
   ENDMETHOD.
 

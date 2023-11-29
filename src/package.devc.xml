@@ -4,7 +4,6 @@
   <asx:values>
    <DEVC>
     <CTEXT>Open Source version of /UI2/CL_JSON</CTEXT>
-    <PACKTYPE>H</PACKTYPE>
     <SRV_CHECK>X</SRV_CHECK>
    </DEVC>
   </asx:values>

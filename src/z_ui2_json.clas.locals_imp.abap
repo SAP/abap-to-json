@@ -309,10 +309,14 @@ DEFINE eat_number.
   &1 = json+mark(match).
 END-OF-DEFINITION.
 
-DEFINE eat_bool.
+DEFINE eat_bool_string.
   mark   = offset.
   while_offset_cs 'aeflnrstu'.
   match = offset - mark.
+END-OF-DEFINITION.
+
+DEFINE eat_bool.
+  eat_bool_string.
   IF json+mark(match) EQ 'true'  ##NO_TEXT.
     &1 = c_bool-true.
   ELSEIF json+mark(match) EQ 'false'  ##NO_TEXT.
