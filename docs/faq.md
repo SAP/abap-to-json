@@ -23,7 +23,7 @@ Even if you select another format for serialization (XML or ABAP JSON) you will 
 If you still need to serialize everything, you may split data into chunks and give them to the serializer one by one. Then deserialize all fragments into the same data object for merging.
 
 ## Encoding of Unicode characters (for example Chinese)
-The serializer does not do any explicit character encoding, this is done by ABAP. Normally, ABAP works with UTF16, a 2-byte Unicode encoding that can represent any character, also Chinese. That is why you see Chinese characters in the debugger. Later on, after serializing in JSON (you may also check in debugger JSON and see that Chinese characters are still in), you pass the JSON string further, maybe as a REST response. And there is, probably, converted into UTF8 encoding, which is multibyte encoding, where some characters (Latin) are encoded with one byte and some (Chinese, Russian, etc.) as multibyte. Then the viewer of such UTF8 text shall be able to interpret and display them properly. If you do not see characters as expected in your viewer tool, then, probably, nothing is corrupt and the receiver will get them fine. It is just an issue of the viewer that does not recognize UTF8, or probably, lost an encoding ID interpreted wrong.
+The serializer does not do any explicit character encoding, this is done by ABAP. Normally, ABAP works with UTF16, a 2-byte Unicode encoding that can represent any character (also Chinese). That is why you see Chinese characters in the debugger. Later on, after serializing in JSON (you may also check in debugger JSON and see that Chinese characters are still in), you pass the JSON string further, maybe as a REST response. And there is, probably, converted into UTF8 encoding, which is multibyte encoding, where some characters (Latin) are encoded with one byte and some (Chinese, Russian, etc.) as multibyte. Then the viewer of such UTF8 text shall be able to interpret and display them properly. If you do not see characters as expected in your viewer tool, then, probably, nothing is corrupt and the receiver will get them fine. It is just an issue of the viewer that does not recognize UTF8, or probably, lost an encoding ID interpreted wrong.
 
 ## Incompatible change for initial date/time fields serializing with PL16
 First of all, I would agree that this is an incompatible change and I am asking you to excuse me for your efforts. But it was an intentional change and I was aware that someone can already rely on current behavior and may get issues. 
@@ -42,4 +42,19 @@ My recommendation for you:
 ## Is there a way to deserialize objects that have references to Interface?
 **Q**: I am using /ui2/cl_json to serialize an object that contains some reference attributes. These reference attributes are TYPE REF TO <Interface>. Upon deserialization, the references are not getting deserialized. Is there a way to deserialize objects that have references to Interface?
 
-**A**: Unfortunately - not. To deserialize an object, it shall be created. And how to create an instance of the interface without knowing the class? It can not be done automatically. But you may try to [implement the deserialization logic by yourself](docs/advanced.md#jsonabap-serializationdeserialization-with-runtime-type-information).
+**A**: Unfortunately - not. To deserialize an object, it shall be created. And how would you like to create an instance of the interface without knowing the class? It can not be done automatically. But you may try to [implement the deserialization logic by yourself](docs/advanced.md#jsonabap-serializationdeserialization-with-runtime-type-information).
+
+## Is it possible to have a defined order of fields in ABAP structures generated when deserializing into REF TO DATA fields? If it is possible to have the fields in the generated structure in the same order as they were in the JSON file?
+The order of fields in JSON and also in ABAP is undefined. It may happen that you will have two records of the same type in an array but with attributes serialized in different orders. 
+What to do in this case? In general, the answer is – no (there is no way to configure it). Current alphabetical order gives at least some predefined output (but the result of name normalization and uniqueness check). 
+
+If you want a specific order – just deserialize in a predefined structure, but not in REF TO DATA. Generating into REF TO DATA is always a bad choice (from a performance and type definition perspective). 
+
+But there is not an easy way, in the latest releases of the class.
+If you still want to have a predefined sequence of the fields in generated structure, you may inherit the class, and prefill structure buffer (mt_struct_type) in your inherited class constructor. See method GENERATE_STRUCT for details. In this case, later deserialize/generate calls will use your structure type, but not one created with default logic.
+
+## Is it possible to display the currency amount (CURR fields) formatted in the JSON output based on the related currency (CUKY field)?
+No, there is no built-in support for currency fields. Potentially one can add it in a derived class, overwriting dump_int and restore_type methods, but I do not want to have it in by default, because of implementation complexity and performance penalty. 
+
+Only single-field conversion exits are supported. 
+
