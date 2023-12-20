@@ -329,7 +329,7 @@ If you want to get a report in case of error, you shall use the instance method 
 # JSON to ABAP transformation with the use of CALL TRANSFORMATION
 Below is a small example of CALL TRANSFORMATION usage to produce JSON from ABAP structures. Do not ask me for details - I do not know them. (smile) Was just a small test of me.
 ```abap
-DATA: lt_flight          TYPE STANDARD TABLE OF sflight.
+DATA: lt_flight TYPE STANDARD TABLE OF sflight.
 SELECT * FROM sflight INTO TABLE lt_flight.
 
 * ABAP to JSON
