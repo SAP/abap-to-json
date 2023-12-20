@@ -379,7 +379,6 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     DATA: lo_writer        TYPE REF TO cl_sxml_string_writer,
           lv_output_length TYPE i,
-          lt_binary_tab    TYPE STANDARD TABLE OF sdokcntbin,
           lv_jsonx         TYPE xstring.
 
     FIELD-SYMBOLS: <xt_json> TYPE i.
@@ -392,21 +391,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
       CALL TRANSFORMATION id SOURCE text = data RESULT XML lo_writer.
 
       lv_jsonx = lo_writer->get_output( ).
-      CALL FUNCTION 'SCMS_XSTRING_TO_BINARY'
-        EXPORTING
-          buffer        = lv_jsonx
-        IMPORTING
-          output_length = lv_output_length
-        TABLES
-          binary_tab    = lt_binary_tab.
-      CALL FUNCTION 'SCMS_BINARY_TO_STRING'
-        EXPORTING
-          input_length  = lv_output_length
-        IMPORTING
-          text_buffer   = rv_json
-          output_length = lv_output_length
-        TABLES
-          binary_tab    = lt_binary_tab.
+      rv_json = raw_to_string( lv_jsonx ).
 
       " strip {"TEXT":
       rv_json = rv_json+8.
@@ -414,6 +399,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
       " strip trailing }
       lv_output_length = strlen( rv_json ) - 1.
       rv_json = rv_json(lv_output_length).
+
     ENDIF.
 
   ENDMETHOD.                    "abap_to_json_simple_transform
@@ -2474,6 +2460,34 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     lv_act  = serialize( data = lr_act compress = abap_true numc_as_string = abap_false pretty_name = pretty_mode-user_low_case ).
 
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_json msg = 'Generation of string value fails!' ).
+
+    lv_json = `{"totalDirectCostAmount":100000000976457,"totalOverheadFeesCharges":987698798964543567658786745}`.
+    lr_act = generate( json = lv_json pretty_name = pretty_mode-camel_case ).
+    cl_aunit_assert=>assert_not_initial( act = lr_act msg = 'Generation of huge ints fails!' ).
+
+    lv_act  = serialize( data = lr_act compress = abap_true pretty_name = pretty_mode-camel_case ).
+    cl_aunit_assert=>assert_equals( act = lv_act exp = lv_json msg = 'Generation of huge ints fails!' ).
+
+    DATA:
+      BEGIN OF target_struct,
+        bool_ref   TYPE REF TO abap_bool,
+        string_ref TYPE REF TO string,
+        text_ref   TYPE REF TO char255,
+        int_ref    TYPE REF TO i,
+        data_ref   TYPE REF TO data,
+      END OF target_struct.
+
+    lv_json = '{"bool_ref":true,"string_ref":"true","text_ref":"false","int_ref":5,"data_ref":10}'.
+    deserialize( EXPORTING json = lv_json CHANGING data = target_struct ).
+    lv_act  = serialize( data = target_struct pretty_name = pretty_mode-low_case ).
+
+    cl_aunit_assert=>assert_equals( act = lv_act exp = lv_json msg = 'Generation of references to simple types fails!' ).
+
+    lv_json = '{"bool_ref":null,"string_ref":null,"text_ref":null,"int_ref":null,"data_ref":null}'.
+    deserialize( EXPORTING json = lv_json CHANGING data = target_struct ).
+    lv_act  = serialize( data = target_struct pretty_name = pretty_mode-low_case ).
+
+    cl_aunit_assert=>assert_equals( act = lv_act exp = lv_json msg = 'Generation of null references to simple types fails!' ).
 
   ENDMETHOD.                    "generate_simple
 

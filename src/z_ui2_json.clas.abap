@@ -512,8 +512,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
     so_type_s = cl_abap_elemdescr=>get_string( ).
     so_type_f = cl_abap_elemdescr=>get_f( ).
-    " use the call below instead of cl_abap_elemdescr=>get_p( ) to get default length and decimals
-    so_type_p ?= cl_abap_typedescr=>describe_by_name( 'P' ).
+    so_type_p = cl_abap_elemdescr=>get_p( p_length = 16 p_decimals = 0 ).
     so_type_i = cl_abap_elemdescr=>get_i( ).
     so_type_b ?= cl_abap_typedescr=>describe_by_name( 'ABAP_BOOL' ).
     so_type_t_json ?= cl_abap_typedescr=>describe_by_name( 'T_T_JSON' ).
@@ -1626,7 +1625,13 @@ ENDMETHOD.
         text_buffer   = rv_string
         output_length = lv_output_length
       TABLES
-        binary_tab    = lt_binary_tab.
+        binary_tab    = lt_binary_tab
+      EXCEPTIONS
+        OTHERS        = 10.
+
+    IF sy-subrc IS NOT INITIAL.
+      CLEAR rv_string.
+    ENDIF.
 
   ENDMETHOD.
 
@@ -1948,165 +1953,155 @@ ENDMETHOD.
                 eat_char ']'.
               ENDIF.
             WHEN '"'. " string
-              eat_name sdummy.
               IF data IS SUPPLIED.
-                IF sdummy IS NOT INITIAL.
-                  " unescaped singe characters, e.g \\, \", \/ etc,
-                  FIND FIRST OCCURRENCE OF '\' IN sdummy MATCH OFFSET mark.
-                  IF sy-subrc IS INITIAL.
-                    sdummy = unescape( EXPORTING escaped = sdummy offset = mark ).
-                  ENDIF.
-                  IF type_descr->kind EQ cl_abap_typedescr=>kind_elem.
+                IF type_descr->type_kind EQ cl_abap_typedescr=>typekind_dref.
+                  restore_reference_ex data type_descr.
+                ELSE.
+                  eat_name sdummy.
+                  IF sdummy IS NOT INITIAL.
+                    " unescaped singe characters, e.g \\, \", \/ etc,
+                    FIND FIRST OCCURRENCE OF '\' IN sdummy MATCH OFFSET mark.
+                    IF sy-subrc IS INITIAL.
+                      sdummy = unescape( EXPORTING escaped = sdummy offset = mark ).
+                    ENDIF.
+                    IF type_descr->kind EQ cl_abap_typedescr=>kind_elem.
 
-                    IF lv_convexit IS NOT INITIAL.
-                      TRY .
-                          CALL FUNCTION lv_convexit
-                            EXPORTING
-                              input         = sdummy
-                            IMPORTING
-                              output        = data
-                            EXCEPTIONS
-                              error_message = 2
-                              OTHERS        = 1.
-                          IF sy-subrc IS INITIAL.
+                      IF lv_convexit IS NOT INITIAL.
+                        TRY .
+                            CALL FUNCTION lv_convexit
+                              EXPORTING
+                                input         = sdummy
+                              IMPORTING
+                                output        = data
+                              EXCEPTIONS
+                                error_message = 2
+                                OTHERS        = 1.
+                            IF sy-subrc IS INITIAL.
+                              RETURN.
+                            ENDIF.
+                          CATCH cx_root ##CATCH_ALL ##NO_HANDLER.
+                        ENDTRY.
+                      ENDIF.
+
+                      CASE type_descr->type_kind.
+                        WHEN cl_abap_typedescr=>typekind_char.
+                          elem_descr ?= type_descr.
+                          IF elem_descr->output_length EQ 1 AND mv_bool_types CS type_descr->absolute_name.
+                            IF sdummy(1) CA 'XxTt1'.
+                              data = c_bool-true.
+                            ELSE.
+                              data = c_bool-false.
+                            ENDIF.
                             RETURN.
                           ENDIF.
-                        CATCH cx_root ##CATCH_ALL ##NO_HANDLER.
-                      ENDTRY.
-                    ENDIF.
-
-                    CASE type_descr->type_kind.
-                      WHEN cl_abap_typedescr=>typekind_char.
-                        elem_descr ?= type_descr.
-                        IF elem_descr->output_length EQ 1 AND mv_bool_types CS type_descr->absolute_name.
-                          IF sdummy(1) CA 'XxTt1'.
-                            data = c_bool-true.
+                        WHEN cl_abap_typedescr=>typekind_xstring.
+                          string_to_xstring_int sdummy data.
+                          RETURN.
+                        WHEN cl_abap_typedescr=>typekind_hex.
+                          " support for Edm.Guid
+                          REPLACE FIRST OCCURRENCE OF REGEX lc_edm_guid_regexp IN sdummy ##REGEX_POSIX
+                          WITH '$1$2$3$4$5' REPLACEMENT LENGTH match IGNORING CASE.
+                          IF sy-subrc EQ 0.
+                            sdummy = sdummy(match).
+                            TRANSLATE sdummy TO UPPER CASE.
+                            data = sdummy.
                           ELSE.
-                            data = c_bool-false.
+                            string_to_xstring_int sdummy data.
                           ENDIF.
                           RETURN.
-                        ENDIF.
-                      WHEN cl_abap_typedescr=>typekind_xstring.
-                        string_to_xstring_int sdummy data.
-                        RETURN.
-                      WHEN cl_abap_typedescr=>typekind_hex.
-                        " support for Edm.Guid
-                        REPLACE FIRST OCCURRENCE OF REGEX lc_edm_guid_regexp IN sdummy ##REGEX_POSIX
-                        WITH '$1$2$3$4$5' REPLACEMENT LENGTH match IGNORING CASE.
-                        IF sy-subrc EQ 0.
-                          sdummy = sdummy(match).
-                          TRANSLATE sdummy TO UPPER CASE.
-                          data = sdummy.
-                        ELSE.
-                          string_to_xstring_int sdummy data.
-                        ENDIF.
-                        RETURN.
-                      WHEN cl_abap_typedescr=>typekind_date.
-                        REPLACE FIRST OCCURRENCE OF REGEX '^(\d{4})-(\d{2})-(\d{2})' IN sdummy WITH '$1$2$3' ##REGEX_POSIX
-                        REPLACEMENT LENGTH match.
-                        IF sy-subrc EQ 0. " => ABAP standard
-                          sdummy = sdummy(match).
-                        ELSE.
-                          REPLACE FIRST OCCURRENCE OF REGEX lc_iso8601_regexp IN sdummy WITH '$1$2$3' REPLACEMENT LENGTH match ##REGEX_POSIX.
-                          IF sy-subrc EQ 0. " => ISO8601
+                        WHEN cl_abap_typedescr=>typekind_date.
+                          REPLACE FIRST OCCURRENCE OF REGEX '^(\d{4})-(\d{2})-(\d{2})' IN sdummy WITH '$1$2$3' ##REGEX_POSIX
+                          REPLACEMENT LENGTH match.
+                          IF sy-subrc EQ 0. " => ABAP standard
                             sdummy = sdummy(match).
                           ELSE.
-                            FIND FIRST OCCURRENCE OF REGEX lc_edm_date_time_regexp IN sdummy SUBMATCHES lv_ticks lv_offset IGNORING CASE ##REGEX_POSIX.
-                            IF sy-subrc EQ 0. " => Edm.DateTime
-                              sdummy = edm_datetime_to_ts( ticks = lv_ticks offset = lv_offset typekind = type_descr->type_kind ).
-                            ELSE.
-                              REPLACE FIRST OCCURRENCE OF REGEX lc_edm_time_regexp IN sdummy WITH '$1$2$3' REPLACEMENT LENGTH match ##REGEX_POSIX.
-                              IF sy-subrc EQ 0. " => Edm.Time
-                                sdummy = sdummy(match).
-                              ENDIF.
-                            ENDIF.
-                          ENDIF.
-                        ENDIF.
-                      WHEN cl_abap_typedescr=>typekind_time.
-                        REPLACE FIRST OCCURRENCE OF REGEX '^(\d{2}):(\d{2}):(\d{2})' IN sdummy WITH '$1$2$3' ##REGEX_POSIX
-                        REPLACEMENT LENGTH match.           "#EC NOTEXT
-                        IF sy-subrc EQ 0. " => ABAP standard
-                          sdummy = sdummy(match).
-                        ELSE.
-                          REPLACE FIRST OCCURRENCE OF REGEX lc_iso8601_regexp IN sdummy WITH '$4$5$6' REPLACEMENT LENGTH match ##REGEX_POSIX.
-                          IF sy-subrc EQ 0. " => ISO8601
-                            sdummy = sdummy(match).
-                          ELSE.
-                            FIND FIRST OCCURRENCE OF REGEX lc_edm_date_time_regexp IN sdummy SUBMATCHES lv_ticks lv_offset IGNORING CASE ##REGEX_POSIX.
-                            IF sy-subrc EQ 0. " => Edm.DateTime
-                              sdummy = edm_datetime_to_ts( ticks = lv_ticks offset = lv_offset typekind = type_descr->type_kind ).
-                            ELSE.
-                              REPLACE FIRST OCCURRENCE OF REGEX lc_edm_time_regexp IN sdummy WITH '$4$5$6' REPLACEMENT LENGTH match ##REGEX_POSIX.
-                              IF sy-subrc EQ 0. " => Edm.Time
-                                sdummy = sdummy(match).
-                              ENDIF.
-                            ENDIF.
-                          ENDIF.
-                        ENDIF.
-                      WHEN mc_typekind_utclong.
-                        REPLACE FIRST OCCURRENCE OF REGEX lc_iso8601_regexp IN sdummy WITH '$1-$2-$3 $4:$5:$6.$7' REPLACEMENT LENGTH match ##REGEX_POSIX.
-                        IF sy-subrc EQ 0.
-                          sdummy = sdummy(match).
-                        ELSE.
-                          throw_error. " Wrong ISO8601 format
-                        ENDIF.
-                      WHEN cl_abap_typedescr=>typekind_packed.
-                        REPLACE FIRST OCCURRENCE OF REGEX lc_iso8601_regexp IN sdummy WITH '$1$2$3$4$5$6.$7' REPLACEMENT LENGTH match ##REGEX_POSIX.
-                        IF sy-subrc EQ 0.
-                          sdummy = sdummy(match).
-                        ELSE.
-                          FIND FIRST OCCURRENCE OF REGEX lc_edm_date_time_regexp IN sdummy SUBMATCHES lv_ticks lv_offset IGNORING CASE ##REGEX_POSIX.
-                          IF sy-subrc EQ 0. " => Edm.DateTime
-                            sdummy = edm_datetime_to_ts( ticks = lv_ticks offset = lv_offset typekind = type_descr->type_kind ).
-                          ELSE.
-                            REPLACE FIRST OCCURRENCE OF REGEX lc_edm_time_regexp IN sdummy WITH '$1$2$3$4$5$6.$7' REPLACEMENT LENGTH match ##REGEX_POSIX.
-                            IF sy-subrc EQ 0. " => Edm.Time
+                            REPLACE FIRST OCCURRENCE OF REGEX lc_iso8601_regexp IN sdummy WITH '$1$2$3' REPLACEMENT LENGTH match ##REGEX_POSIX.
+                            IF sy-subrc EQ 0. " => ISO8601
                               sdummy = sdummy(match).
+                            ELSE.
+                              FIND FIRST OCCURRENCE OF REGEX lc_edm_date_time_regexp IN sdummy SUBMATCHES lv_ticks lv_offset IGNORING CASE ##REGEX_POSIX.
+                              IF sy-subrc EQ 0. " => Edm.DateTime
+                                sdummy = edm_datetime_to_ts( ticks = lv_ticks offset = lv_offset typekind = type_descr->type_kind ).
+                              ELSE.
+                                REPLACE FIRST OCCURRENCE OF REGEX lc_edm_time_regexp IN sdummy WITH '$1$2$3' REPLACEMENT LENGTH match ##REGEX_POSIX.
+                                IF sy-subrc EQ 0. " => Edm.Time
+                                  sdummy = sdummy(match).
+                                ENDIF.
+                              ENDIF.
                             ENDIF.
                           ENDIF.
-                        ENDIF.
-                      WHEN 'k'. "cl_abap_typedescr=>typekind_enum
-                        TRY.
-                            CALL METHOD ('CL_ABAP_XSD')=>('TO_VALUE')
-                              EXPORTING
-                                cs  = sdummy
-                              CHANGING
-                                val = data.
-                            RETURN.
-                          CATCH cx_sy_dyn_call_error.
-                            throw_error. " Deserialization of enums is not supported
-                        ENDTRY.
-                    ENDCASE.
-                  ELSEIF type_descr->type_kind EQ cl_abap_typedescr=>typekind_dref.
-                    CREATE DATA rdummy TYPE string.
-                    ASSIGN rdummy->* TO <data>.
-                    <data> = sdummy.
-                    data ?= rdummy.
-                    RETURN.
+                        WHEN cl_abap_typedescr=>typekind_time.
+                          REPLACE FIRST OCCURRENCE OF REGEX '^(\d{2}):(\d{2}):(\d{2})' IN sdummy WITH '$1$2$3' ##REGEX_POSIX
+                          REPLACEMENT LENGTH match.         "#EC NOTEXT
+                          IF sy-subrc EQ 0. " => ABAP standard
+                            sdummy = sdummy(match).
+                          ELSE.
+                            REPLACE FIRST OCCURRENCE OF REGEX lc_iso8601_regexp IN sdummy WITH '$4$5$6' REPLACEMENT LENGTH match ##REGEX_POSIX.
+                            IF sy-subrc EQ 0. " => ISO8601
+                              sdummy = sdummy(match).
+                            ELSE.
+                              FIND FIRST OCCURRENCE OF REGEX lc_edm_date_time_regexp IN sdummy SUBMATCHES lv_ticks lv_offset IGNORING CASE ##REGEX_POSIX.
+                              IF sy-subrc EQ 0. " => Edm.DateTime
+                                sdummy = edm_datetime_to_ts( ticks = lv_ticks offset = lv_offset typekind = type_descr->type_kind ).
+                              ELSE.
+                                REPLACE FIRST OCCURRENCE OF REGEX lc_edm_time_regexp IN sdummy WITH '$4$5$6' REPLACEMENT LENGTH match ##REGEX_POSIX.
+                                IF sy-subrc EQ 0. " => Edm.Time
+                                  sdummy = sdummy(match).
+                                ENDIF.
+                              ENDIF.
+                            ENDIF.
+                          ENDIF.
+                        WHEN mc_typekind_utclong.
+                          REPLACE FIRST OCCURRENCE OF REGEX lc_iso8601_regexp IN sdummy WITH '$1-$2-$3 $4:$5:$6.$7' REPLACEMENT LENGTH match ##REGEX_POSIX.
+                          IF sy-subrc EQ 0.
+                            sdummy = sdummy(match).
+                          ELSE.
+                            throw_error. " Wrong ISO8601 format
+                          ENDIF.
+                        WHEN cl_abap_typedescr=>typekind_packed.
+                          REPLACE FIRST OCCURRENCE OF REGEX lc_iso8601_regexp IN sdummy WITH '$1$2$3$4$5$6.$7' REPLACEMENT LENGTH match ##REGEX_POSIX.
+                          IF sy-subrc EQ 0.
+                            sdummy = sdummy(match).
+                          ELSE.
+                            FIND FIRST OCCURRENCE OF REGEX lc_edm_date_time_regexp IN sdummy SUBMATCHES lv_ticks lv_offset IGNORING CASE ##REGEX_POSIX.
+                            IF sy-subrc EQ 0. " => Edm.DateTime
+                              sdummy = edm_datetime_to_ts( ticks = lv_ticks offset = lv_offset typekind = type_descr->type_kind ).
+                            ELSE.
+                              REPLACE FIRST OCCURRENCE OF REGEX lc_edm_time_regexp IN sdummy WITH '$1$2$3$4$5$6.$7' REPLACEMENT LENGTH match ##REGEX_POSIX.
+                              IF sy-subrc EQ 0. " => Edm.Time
+                                sdummy = sdummy(match).
+                              ENDIF.
+                            ENDIF.
+                          ENDIF.
+                        WHEN 'k'. "cl_abap_typedescr=>typekind_enum
+                          TRY.
+                              CALL METHOD ('CL_ABAP_XSD')=>('TO_VALUE')
+                                EXPORTING
+                                  cs  = sdummy
+                                CHANGING
+                                  val = data.
+                              RETURN.
+                            CATCH cx_sy_dyn_call_error.
+                              throw_error. " Deserialization of enums is not supported
+                          ENDTRY.
+                      ENDCASE.
+                    ELSE.
+                      throw_error. " Other wise dumps with OBJECTS_MOVE_NOT_SUPPORTED
+                    ENDIF.
+                    data = sdummy.
+                  ELSEIF type_descr->kind EQ cl_abap_typedescr=>kind_elem.
+                    CLEAR data.
                   ELSE.
                     throw_error. " Other wise dumps with OBJECTS_MOVE_NOT_SUPPORTED
                   ENDIF.
-                  data = sdummy.
-                ELSEIF type_descr->kind EQ cl_abap_typedescr=>kind_elem.
-                  CLEAR data.
-                ELSE.
-                  throw_error. " Other wise dumps with OBJECTS_MOVE_NOT_SUPPORTED
                 ENDIF.
+              ELSE.
+                eat_name sdummy.
               ENDIF.
             WHEN '-' OR '0' OR '1' OR '2' OR '3' OR '4' OR '5' OR '6' OR '7' OR '8' OR '9'. " number
               IF data IS SUPPLIED.
-                IF type_descr->kind EQ type_descr->kind_ref AND type_descr->type_kind EQ cl_abap_typedescr=>typekind_dref.
-                  eat_number sdummy.                        "#EC NOTEXT
-                  IF sdummy CA '.Ee'. " float.
-                    CREATE DATA rdummy TYPE f.
-                  ELSEIF match GT 9. " packed
-                    CREATE DATA rdummy TYPE p.
-                  ELSE. " integer
-                    CREATE DATA rdummy TYPE i.
-                  ENDIF.
-                  ASSIGN rdummy->* TO <data>.
-                  <data> = sdummy.
-                  data ?= rdummy.
+                IF type_descr->type_kind EQ cl_abap_typedescr=>typekind_dref.
+                  restore_reference_ex data type_descr.
                 ELSEIF type_descr->kind EQ type_descr->kind_elem.
                   IF lv_convexit IS NOT INITIAL.
                     TRY .
@@ -2135,8 +2130,13 @@ ENDMETHOD.
               ENDIF.
             WHEN OTHERS. " boolean, e.g true/false/null
               IF data IS SUPPLIED.
-                IF type_descr->kind EQ type_descr->kind_ref AND type_descr->type_kind EQ cl_abap_typedescr=>typekind_dref.
-                  generate_int_ex( EXPORTING json = json length = length CHANGING data = data offset = offset ).
+                IF type_descr->type_kind EQ cl_abap_typedescr=>typekind_dref.
+                  IF json+offset(1) EQ 'n' OR json+offset(1) EQ 'N'. " null
+                    eat_bool sdummy.
+                    CLEAR data.
+                  ELSE.
+                    restore_reference_ex data type_descr.
+                  ENDIF.
                 ELSEIF type_descr->kind EQ type_descr->kind_elem.
                   eat_bool data.
                 ELSE.

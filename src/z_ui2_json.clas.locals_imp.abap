@@ -223,6 +223,22 @@ DEFINE restore_reference.
   restore_type( EXPORTING json = json length = length type_descr = &1 CHANGING offset = offset data = <data> ).
 END-OF-DEFINITION.
 
+DEFINE restore_reference_ex. " &1 - data, &2 - type_descr
+    ref_descr ?= &2.
+    data_descr ?= ref_descr->get_referenced_type( ).
+    IF &1 IS INITIAL.
+      IF data_descr->type_kind EQ data_descr->typekind_data. " REF TO DATA
+        generate_int_ex( EXPORTING json = json length = length CHANGING offset = offset data = &1 ).
+        RETURN.
+      ELSE.
+        CREATE DATA &1 TYPE HANDLE data_descr.
+      ENDIF.
+    ENDIF.
+    data_ref ?= &1.
+    ASSIGN data_ref->* TO <data>.
+    restore_type( EXPORTING json = json length = length type_descr = data_descr CHANGING data = <data> offset = offset ).
+END-OF-DEFINITION.
+
 DEFINE throw_error.
   RAISE EXCEPTION TYPE cx_sy_move_cast_error.
 END-OF-DEFINITION.
