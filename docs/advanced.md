@@ -329,36 +329,14 @@ If you want to get a report in case of error, you shall use the instance method 
 # JSON to ABAP transformation with the use of CALL TRANSFORMATION
 Below is a small example of CALL TRANSFORMATION usage to produce JSON from ABAP structures. Do not ask me for details - I do not know them. (smile) Was just a small test of me.
 ```abap
-DATA: lt_flight          TYPE STANDARD TABLE OF sflight,
-      lo_writer          TYPE REF TO cl_sxml_string_writer,
-      lv_output_length   TYPE i,
-      lt_binary_tab      TYPE STANDARD TABLE OF sdokcntbin,
-      lv_jsonx           TYPE xstring,
-      lv_json            TYPE string.
-
+DATA: lt_flight          TYPE STANDARD TABLE OF sflight.
 SELECT * FROM sflight INTO TABLE lt_flight.
 
 * ABAP to JSON
-lo_writer = cl_sxml_string_writer=>create( type = if_sxml=>co_xt_json ).
+DATA(lo_writer) = cl_sxml_string_writer=>create( type = if_sxml=>co_xt_json ).
 CALL TRANSFORMATION id SOURCE text = lt_flight RESULT XML lo_writer.
-lv_jsonx = lo_writer->get_output( ).
-
-CALL FUNCTION 'SCMS_XSTRING_TO_BINARY'
-  EXPORTING
-    buffer                = lv_jsonx
-  IMPORTING
-    output_length         = lv_output_length
-  TABLES
-    binary_tab            = lt_binary_tab.
-
-CALL FUNCTION 'SCMS_BINARY_TO_STRING'
-  EXPORTING
-    input_length          = lv_output_length
-  IMPORTING
-    text_buffer           = lv_json
-    output_length         = lv_output_length
-  TABLES
-    binary_tab            = lt_binary_tab.
+DATA(lv_jsonx) = lo_writer->get_output( ).
+DATA(lv_json) = /ui2/cl_json=>raw_to_string( lv_jsonx ).
 
  * JSON to ABAP
  CALL TRANSFORMATION id SOURCE XML lv_jsonx RESULT text = lt_flight.
