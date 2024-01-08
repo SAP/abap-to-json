@@ -263,6 +263,10 @@ INHERITING FROM z_ui2_json.
     METHODS: serialize_formatted FOR TESTING.
     METHODS: serialize_cycle_reference FOR TESTING.
 
+    METHODS: deserialize_table_null FOR TESTING.
+    METHODS: deserialize_structure_null FOR TESTING.
+    METHODS: deserialize_string_null FOR TESTING.
+
 ENDCLASS.       "abap_unit_testclass
 * ----------------------------------------------------------------------
 CLASS abap_unit_testclass IMPLEMENTATION.
@@ -2866,6 +2870,100 @@ CLASS abap_unit_testclass IMPLEMENTATION.
                           format_output    = abap_true
                           assoc_arrays     = abap_true
                           assoc_arrays_opt = abap_true ).
+  ENDMETHOD.
+
+  METHOD deserialize_table_null.
+
+    TYPES: BEGIN OF ty_test,
+             tab1    TYPE STANDARD TABLE OF string WITH EMPTY KEY,
+             BEGIN OF struc1,
+               field1 TYPE string,
+             END OF struc1,
+             string1 TYPE string,
+           END OF ty_test.
+
+    DATA s_test2 TYPE ty_test.
+
+    deserialize(
+      EXPORTING
+        json             = '{"tab1":null,"struc1":{"field1":"hugo"},"string1":"u__u"}'
+      CHANGING
+        data             = s_test2
+    ).
+
+    cl_abap_unit_assert=>assert_initial(
+       act = s_test2-tab1 ).
+
+    cl_abap_unit_assert=>assert_equals(
+           exp = 'hugo'
+           act = s_test2-struc1-field1 ).
+
+    cl_abap_unit_assert=>assert_equals(
+           exp = 'u__u'
+           act = s_test2-string1 ).
+
+  ENDMETHOD.
+
+  METHOD deserialize_structure_null.
+
+    TYPES: BEGIN OF ty_test,
+             tab1    TYPE STANDARD TABLE OF string WITH EMPTY KEY,
+             BEGIN OF struc1,
+               field1 TYPE string,
+             END OF struc1,
+             string1 TYPE string,
+           END OF ty_test.
+
+    DATA s_test2 TYPE ty_test.
+
+    deserialize(
+      EXPORTING
+        json             = '{"tab1":["hugo"],"struc1":null,"string1":"u__u"}'
+      CHANGING
+        data             = s_test2
+    ).
+
+    cl_abap_unit_assert=>assert_equals(
+           exp = `hugo`
+           act = s_test2-tab1[ 1 ] ).
+
+    cl_abap_unit_assert=>assert_initial(
+       act = s_test2-struc1 ).
+
+    cl_abap_unit_assert=>assert_equals(
+           exp = 'u__u'
+           act = s_test2-string1 ).
+  ENDMETHOD.
+
+  METHOD deserialize_string_null.
+
+    TYPES: BEGIN OF ty_test2,
+             tab1    TYPE STANDARD TABLE OF string WITH EMPTY KEY,
+             BEGIN OF struc1,
+               field1 TYPE string,
+             END OF struc1,
+             string1 TYPE string,
+           END OF ty_test2.
+
+    DATA s_test2 TYPE ty_test2.
+
+    deserialize(
+      EXPORTING
+        json             = '{"tab1":["hugo"],"struc1":{"field1":"hugo"},"string1":null}'
+      CHANGING
+        data             = s_test2
+    ).
+
+    cl_abap_unit_assert=>assert_equals(
+          exp = `hugo`
+          act = s_test2-tab1[ 1 ] ).
+
+    cl_abap_unit_assert=>assert_equals(
+          exp = 'hugo'
+          act = s_test2-struc1-field1 ).
+
+    cl_abap_unit_assert=>assert_initial(
+           act = s_test2-string1 ).
   ENDMETHOD.
 
 ENDCLASS.       "abap_unit_testclass
