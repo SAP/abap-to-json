@@ -263,9 +263,12 @@ INHERITING FROM z_ui2_json.
     METHODS: serialize_formatted FOR TESTING.
     METHODS: serialize_cycle_reference FOR TESTING.
 
-    METHODS: deserialize_table_null FOR TESTING.
-    METHODS: deserialize_structure_null FOR TESTING.
-    METHODS: deserialize_string_null FOR TESTING.
+    "! deserialize a null value for a table field in strict mode
+    METHODS deserialize_strict_table_null FOR TESTING.
+    "! deserialize a null value for a structure field in strict mode
+    METHODS deserialize_strict_struct_null FOR TESTING.
+    "! deserialize a null value for a string field in strict mode
+    METHODS deserialize_strict_string_null FOR TESTING.
 
 ENDCLASS.       "abap_unit_testclass
 * ----------------------------------------------------------------------
@@ -2872,7 +2875,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
                           assoc_arrays_opt = abap_true ).
   ENDMETHOD.
 
-  METHOD deserialize_table_null.
+  METHOD deserialize_strict_table_null.
 
     TYPES: BEGIN OF ty_test,
              tab1    TYPE STANDARD TABLE OF string WITH EMPTY KEY,
@@ -2884,7 +2887,13 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     DATA s_test2 TYPE ty_test.
 
-    deserialize(
+    DATA lo_json TYPE t_json.
+    CREATE OBJECT lo_json
+      EXPORTING
+        strict_mode = abap_true
+        pretty_name = pretty_mode-camel_case.
+
+    lo_json->deserialize_int(
       EXPORTING
         json             = '{"tab1":null,"struc1":{"field1":"hugo"},"string1":"u__u"}'
       CHANGING
@@ -2904,7 +2913,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
   ENDMETHOD.
 
-  METHOD deserialize_structure_null.
+  METHOD deserialize_strict_struct_null.
 
     TYPES: BEGIN OF ty_test,
              tab1    TYPE STANDARD TABLE OF string WITH EMPTY KEY,
@@ -2916,7 +2925,13 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     DATA s_test2 TYPE ty_test.
 
-    deserialize(
+    DATA lo_json TYPE t_json.
+    CREATE OBJECT lo_json
+      EXPORTING
+        strict_mode = abap_true
+        pretty_name = pretty_mode-camel_case.
+
+    lo_json->deserialize_int(
       EXPORTING
         json             = '{"tab1":["hugo"],"struc1":null,"string1":"u__u"}'
       CHANGING
@@ -2935,7 +2950,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
            act = s_test2-string1 ).
   ENDMETHOD.
 
-  METHOD deserialize_string_null.
+  METHOD deserialize_strict_string_null.
 
     TYPES: BEGIN OF ty_test2,
              tab1    TYPE STANDARD TABLE OF string WITH EMPTY KEY,
@@ -2947,7 +2962,13 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     DATA s_test2 TYPE ty_test2.
 
-    deserialize(
+    DATA lo_json TYPE t_json.
+    CREATE OBJECT lo_json
+      EXPORTING
+        strict_mode = abap_true
+        pretty_name = pretty_mode-camel_case.
+
+    lo_json->deserialize_int(
       EXPORTING
         json             = '{"tab1":["hugo"],"struc1":{"field1":"hugo"},"string1":null}'
       CHANGING
