@@ -2139,6 +2139,8 @@ ENDMETHOD.
                   ENDIF.
                 ELSEIF type_descr->kind EQ type_descr->kind_elem.
                   eat_bool data.
+                ELSEIF type_descr->kind EQ type_descr->kind_struct OR type_descr->kind EQ type_descr->kind_table.
+                  eat_null data.
                 ELSE.
                   eat_bool sdummy.
                   throw_error.

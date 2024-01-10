@@ -353,3 +353,14 @@ DEFINE eat_char.
     throw_error.
   ENDIF.
 END-OF-DEFINITION.
+
+DEFINE eat_null.
+  mark   = offset.
+  while_offset_cs `nul`.
+  match = offset - mark.
+  IF json+mark(match) EQ `null`  ##NO_TEXT.
+    CLEAR &1.
+  ELSE.
+    throw_error.
+  ENDIF.
+END-OF-DEFINITION.
