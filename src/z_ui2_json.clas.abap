@@ -2131,7 +2131,7 @@ ENDMETHOD.
             WHEN OTHERS. " boolean, e.g true/false/null
               IF data IS SUPPLIED.
                 IF type_descr->type_kind EQ cl_abap_typedescr=>typekind_dref.
-                  IF json+offset(1) EQ 'n' OR json+offset(1) EQ 'N'. " null
+                  IF json+offset(1) EQ 'n'. " null
                     eat_bool sdummy.
                     CLEAR data.
                   ELSE.
@@ -2139,11 +2139,13 @@ ENDMETHOD.
                   ENDIF.
                 ELSEIF type_descr->kind EQ type_descr->kind_elem.
                   eat_bool data.
-                ELSEIF type_descr->kind EQ type_descr->kind_struct OR type_descr->kind EQ type_descr->kind_table.
-                  eat_null data.
                 ELSE.
                   eat_bool sdummy.
-                  throw_error.
+                  IF json+mark(match) EQ 'null'.
+                    CLEAR data.
+                  ELSE.
+                    throw_error.
+                  ENDIF.
                 ENDIF.
               ELSE.
                 eat_bool sdummy.
