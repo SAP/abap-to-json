@@ -1,5 +1,10 @@
 # Version History
 
+## Note [3414589](https://launchpad.support.sap.com/#/notes/3414589) - PL19 (not released, planned)
+### /UI2/CL_JSON
+* Fixed: enhanced processing of deserialization into typed TYPE REFs
+* Fixed: deserialization of JSON 'null' into complex, not reference ABAP fields does not lead to exception in strict mode ([details](https://github.com/SAP/abap-to-json/pull/5))
+
 ## Note [3315430](https://launchpad.support.sap.com/#/notes/3315430) - PL18
 ### /UI2/CL_JSON
 * Fixed: handling of cycle references when serializing data and object references. The serialization will stop processing of the reference if it is already in the serialization stack.
