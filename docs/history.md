@@ -8,7 +8,7 @@
 ## Note [3315430](https://launchpad.support.sap.com/#/notes/3315430) - PL18
 ### /UI2/CL_JSON
 * Fixed: handling of cycle references when serializing data and object references. The serialization will stop processing of the reference if it is already in the serialization stack.
-* Fixed: performance by serialization of timestamps and UTCLONG fields.
+* Fixed: performance by serialization of timestamps and UTCLONG fields ([details](https://github.com/SAP/abap-to-json/issues/4)).
 * Fixed: performance in class-constructor.
 * Fixed: deserialization into typed TYPE REF does not work as expected - always the generic GENERATE approach is used.
 * Fixed: null references generated as ABAP_BOOL types
