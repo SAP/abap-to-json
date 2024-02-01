@@ -5,6 +5,10 @@
 * Fixed: enhanced processing of deserialization into typed TYPE REFs
 * Fixed: deserialization of JSON 'null' into complex, not reference ABAP fields does not lead to exception in strict mode ([details](https://github.com/SAP/abap-to-json/pull/5))
 
+## Note [3424850](https://launchpad.support.sap.com/#/notes/3424850) - /UI2/CL_JSON - Release API for Cloud Development
+You can not use the class in the Private Cloud, because the class has not been released for Cloud Development (for the Public Cloud it was already released).
+Delivered with OP 2025 and OP 2023 FPS2. Note for OP 2023 (SAP_BASIS 758)
+
 ## Note [3315430](https://launchpad.support.sap.com/#/notes/3315430) - PL18
 ### /UI2/CL_JSON
 * Fixed: handling of cycle references when serializing data and object references. The serialization will stop processing of the reference if it is already in the serialization stack.
