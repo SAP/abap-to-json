@@ -1,3 +1,4 @@
+
 *----------------------------------------------------------------------*
 *       CLASS lcl_util DEFINITION
 *----------------------------------------------------------------------*
@@ -471,6 +472,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
                                                             "+"T0930Z
     "+"T14:45:15Z
     "+"2023-03-08T00:00:00
+    "?"2024-01-06T11:30:00-ABS
     "-"20151002134450.5545900
     "-"50
     "-"-10
@@ -1975,7 +1977,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
           lv_string  TYPE string,
           lt_mapping TYPE name_mappings,
           ls_mapping LIKE LINE OF lt_mapping,
-          lo_data    TYPE REF TO /ui2/cl_data_access,
+          lo_data    TYPE REF TO z_ui2_data_access,
           lo_json    TYPE t_json,
           lv_json    TYPE lc_json_custom=>json.
 
@@ -2018,7 +2020,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     " test generation with custom name mappings
     lo_json->generate_int( EXPORTING json = lv_json CHANGING data = lr_data ).
 
-    lo_data = /ui2/cl_data_access=>create( ir_data = lr_data iv_component = 'shortened_abap_name' ).
+    lo_data = z_ui2_data_access=>create( ir_data = lr_data iv_component = 'shortened_abap_name' ).
     lo_data->value( IMPORTING ev_data = lv_string ).
 
     cl_aunit_assert=>assert_equals( act = lv_string exp = `abc3` msg = 'Generation of OData structure with name mapping fails!' ).
@@ -2331,7 +2333,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
           lv_float  TYPE f,
           lv_p      TYPE p,
           lv_act    TYPE json,
-          lo_data   TYPE REF TO /ui2/cl_data_access,
+          lo_data   TYPE REF TO z_ui2_data_access,
           lr_val    TYPE REF TO data,
           lr_act    TYPE REF TO data.
 
@@ -2361,17 +2363,17 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     lr_act = generate( json = lv_json pretty_name = pretty_mode-camel_case ).
     cl_aunit_assert=>assert_not_initial( act = lr_act msg = 'Generation of ABAP object fails!' ).
 
-    lo_data = /ui2/cl_data_access=>create( ir_data = lr_act iv_component = 'output-additional_properties' ).
+    lo_data = z_ui2_data_access=>create( ir_data = lr_act iv_component = 'output-additional_properties' ).
     lo_data->value( IMPORTING ev_data = lv_bool ).
 
     cl_aunit_assert=>assert_equals( act = lv_bool exp = abap_true msg = 'Generation of boolean for ABAP object fails!' ).
 
-    lo_data = /ui2/cl_data_access=>create( ir_data = lr_act iv_component = 'output-properties-conversion_flags_map-properties-is_value_list_converted' ).
+    lo_data = z_ui2_data_access=>create( ir_data = lr_act iv_component = 'output-properties-conversion_flags_map-properties-is_value_list_converted' ).
     lr_val = lo_data->ref( ).
 
     cl_aunit_assert=>assert_bound( act = lr_val msg = 'Generation of deep structure with different pretty name modes fails!' ).
 
-    lo_data = /ui2/cl_data_access=>create( ir_data = lr_act iv_component = 'output-required[1]' ).
+    lo_data = z_ui2_data_access=>create( ir_data = lr_act iv_component = 'output-required[1]' ).
     lo_data->value( IMPORTING ev_data = lv_string ).
 
     cl_aunit_assert=>assert_equals( act = lv_string exp = 'vocabulary' msg = 'Generation of table fails!' ).
@@ -2389,12 +2391,12 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     ls_comp_descr-type = cl_abap_elemdescr=>get_c( p_length = 30 ).
     INSERT ls_comp_descr INTO TABLE lt_comp_descr.
 
-    lo_data = /ui2/cl_data_access=>create( iv_data = lt_comp_descr iv_component = '[2]-name' ).
+    lo_data = z_ui2_data_access=>create( iv_data = lt_comp_descr iv_component = '[2]-name' ).
     lo_data->value( IMPORTING ev_data = lv_string ).
 
     cl_aunit_assert=>assert_equals( act = lv_string exp = 'FIELD2' msg = 'Dynamic access fails!' ).
 
-    lo_data = /ui2/cl_data_access=>create( iv_data = lt_comp_descr iv_component = '[name=FIELD1]-suffix' ).
+    lo_data = z_ui2_data_access=>create( iv_data = lt_comp_descr iv_component = '[name=FIELD1]-suffix' ).
     lo_data->value( IMPORTING ev_data = lv_string ).
 
     cl_aunit_assert=>assert_equals( act = lv_string exp = 'ABC' msg = 'Dynamic access fails!' ).
@@ -2404,7 +2406,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     lr_act = generate( json = lv_json ).
     cl_aunit_assert=>assert_not_initial( act = lr_act msg = 'Generation of ABAP object from JSON with duplicate attributes fails!' ).
 
-    lo_data = /ui2/cl_data_access=>create( iv_data = lr_act iv_component = 'CODE' ).
+    lo_data = z_ui2_data_access=>create( iv_data = lr_act iv_component = 'CODE' ).
     lo_data->value( IMPORTING ev_data = lv_string ).
 
     cl_aunit_assert=>assert_equals( act = lv_string exp = '2000' msg = 'Generation of ABAP object from JSON with duplicate attributes fails!' ).
@@ -2414,7 +2416,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     lr_act = generate( json = lv_json pretty_name = pretty_mode-camel_case ).
     cl_aunit_assert=>assert_not_initial( act = lr_act msg = 'Generation of ABAP object from JSON with long attributes fails!' ).
 
-    lo_data = /ui2/cl_data_access=>create( iv_data = lr_act iv_component = 'ORDER_LINE_PRICE_OVERRIDE_HIST' ).
+    lo_data = z_ui2_data_access=>create( iv_data = lr_act iv_component = 'ORDER_LINE_PRICE_OVERRIDE_HIST' ).
     lo_data->value( IMPORTING ev_data = lv_string ).
 
     cl_aunit_assert=>assert_equals( act = lv_string exp = '2000' msg = 'Generation of ABAP object from JSON with long attributes fails!' ).
@@ -2424,22 +2426,22 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     lr_act = generate( json = lv_json ).
     cl_aunit_assert=>assert_not_initial( act = lr_act msg = 'Type conversion during generation object from JSON fails!' ).
 
-    lo_data = /ui2/cl_data_access=>create( iv_data = lr_act iv_component = 'EXPONENTIAL' ).
+    lo_data = z_ui2_data_access=>create( iv_data = lr_act iv_component = 'EXPONENTIAL' ).
     lo_data->value( IMPORTING ev_data = lv_float ).
 
     cl_aunit_assert=>assert_equals( act = lv_float exp = '1000' msg = 'Generation of exponential value fails!' ).
 
-    lo_data = /ui2/cl_data_access=>create( iv_data = lr_act iv_component = 'BOOL' ).
+    lo_data = z_ui2_data_access=>create( iv_data = lr_act iv_component = 'BOOL' ).
     lo_data->value( IMPORTING ev_data = lv_bool ).
 
     cl_aunit_assert=>assert_equals( act = lv_bool exp = abap_true msg = 'Generation of boolean value fails!' ).
 
-    lo_data = /ui2/cl_data_access=>create( iv_data = lr_act iv_component = 'PACKED' ).
+    lo_data = z_ui2_data_access=>create( iv_data = lr_act iv_component = 'PACKED' ).
     lo_data->value( IMPORTING ev_data = lv_p ).
 
     cl_aunit_assert=>assert_equals( act = lv_p exp = 12345678910 msg = 'Generation of packed value fails!' ).
 
-    lo_data = /ui2/cl_data_access=>create( iv_data = lr_act iv_component = 'INT' ).
+    lo_data = z_ui2_data_access=>create( iv_data = lr_act iv_component = 'INT' ).
     lo_data->value( IMPORTING ev_data = lv_int ).
 
     cl_aunit_assert=>assert_equals( act = lv_int exp = 123456789 msg = 'Generation of integer value fails!' ).
@@ -2503,7 +2505,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     DATA: lv_json TYPE json,
           lv_etag TYPE string,
           lv_date TYPE p,
-          lo_data TYPE REF TO /ui2/cl_data_access,
+          lo_data TYPE REF TO z_ui2_data_access,
           lr_act  TYPE REF TO data.
 
     CONCATENATE
@@ -2516,12 +2518,12 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     lr_act = generate( json = lv_json pretty_name = pretty_mode-camel_case ).
     cl_aunit_assert=>assert_not_initial( act = lr_act msg = 'Generation of OData ABAP object fails!' ).
 
-    lo_data = /ui2/cl_data_access=>create( ir_data = lr_act iv_component = 'd-__metadata-etag' ).
+    lo_data = z_ui2_data_access=>create( ir_data = lr_act iv_component = 'd-__metadata-etag' ).
     lo_data->value( IMPORTING ev_data = lv_etag ).
 
     cl_aunit_assert=>assert_equals( act = lv_etag exp = `W/"datetimeoffset'2018-05-03T14%3A19%3A49Z'"` msg = 'Generation of OData structure fails!' ).
 
-    lo_data = /ui2/cl_data_access=>create( ir_data = lr_act iv_component = 'd-begin_date' ).
+    lo_data = z_ui2_data_access=>create( ir_data = lr_act iv_component = 'd-begin_date' ).
     lo_data->value( IMPORTING ev_data = lv_date ).
 
     cl_aunit_assert=>assert_equals( act = lv_date exp = `1520781590000` msg = 'Generation of OData structure with long int fails!' ).
@@ -2642,7 +2644,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
       lt_comp_descr   TYPE abap_component_tab,
       lo_table_descr  TYPE REF TO cl_abap_tabledescr,
       lo_struct_descr TYPE REF TO cl_abap_structdescr,
-      lo_data         TYPE REF TO /ui2/cl_data_access,
+      lo_data         TYPE REF TO z_ui2_data_access,
       lv_json         TYPE json,
       lv_value        TYPE string,
       lv_lines        TYPE i.
@@ -2707,7 +2709,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     deserialize( EXPORTING json = lv_json pretty_name = pretty_mode-camel_case assoc_arrays = abap_true assoc_arrays_opt = abap_true CHANGING data = ls_data ).
     cl_aunit_assert=>assert_bound( act = ls_data-struct msg = 'Deserialize to unknown REF TO data for struct fails!' ).
 
-    lo_data = /ui2/cl_data_access=>create( iv_data = ls_data-struct iv_component = 'field1' ).
+    lo_data = z_ui2_data_access=>create( iv_data = ls_data-struct iv_component = 'field1' ).
     lo_data->value( IMPORTING ev_data = lv_value ).
     cl_aunit_assert=>assert_equals( act = lv_value exp = 'value1' msg = 'Deserialize to unknown REF TO data for struct fails!' ).
 
@@ -2788,7 +2790,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
   METHOD generate_special_attr_names.
 
     DATA: lv_json  TYPE json,
-          lo_data  TYPE REF TO /ui2/cl_data_access,
+          lo_data  TYPE REF TO z_ui2_data_access,
           lr_data  TYPE REF TO data,
           lr_data2 TYPE REF TO data.
 
@@ -2798,7 +2800,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     cl_aunit_assert=>assert_bound( act = lr_data msg = 'Generattion of ABAP data for JSON with special attribute names fails!' ).
 
-    lo_data = /ui2/cl_data_access=>create( ir_data = lr_data iv_component = 'SYSTEM_XYZ-S_I_D' ).
+    lo_data = z_ui2_data_access=>create( ir_data = lr_data iv_component = 'SYSTEM_XYZ-S_I_D' ).
     lr_data2 = lo_data->ref( ).
 
     cl_aunit_assert=>assert_bound( act = lr_data2 msg = 'Generattion of ABAP data for JSON with special attribute names fails!' ).

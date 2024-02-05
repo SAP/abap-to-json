@@ -50,7 +50,7 @@ public section.
   constants MC_KEY_SEPARATOR type STRING value `-` ##NO_TEXT.
   class-data MC_BOOL_TYPES type STRING read-only value `\TYPE-POOL=ABAP\TYPE=ABAP_BOOL\TYPE=BOOLEAN\TYPE=BOOLE_D\TYPE=XFELD\TYPE=XSDBOOLEAN\TYPE=WDY_BOOLEAN` ##NO_TEXT.
   class-data MC_BOOL_3STATE type STRING read-only value `\TYPE=BOOLEAN` ##NO_TEXT.
-  constants VERSION type I value 18 ##NO_TEXT.
+  constants VERSION type I value 19 ##NO_TEXT.
   class-data MC_JSON_TYPE type STRING read-only .
 
   class-methods CLASS_CONSTRUCTOR .

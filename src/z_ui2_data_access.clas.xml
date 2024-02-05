@@ -1,0 +1,161 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<abapGit version="v1.0.0" serializer="LCL_OBJECT_CLAS" serializer_version="v1.0.0">
+ <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
+  <asx:values>
+   <VSEOCLASS>
+    <CLSNAME>Z_UI2_DATA_ACCESS</CLSNAME>
+    <LANGU>E</LANGU>
+    <DESCRIPT>Dynamic Data Access Helper Class</DESCRIPT>
+    <STATE>1</STATE>
+    <CLSCCINCL>X</CLSCCINCL>
+    <FIXPT>X</FIXPT>
+    <UNICODE>X</UNICODE>
+    <WITH_UNIT_TESTS>X</WITH_UNIT_TESTS>
+   </VSEOCLASS>
+   <DESCRIPTIONS>
+    <SEOCOMPOTX>
+     <CMPNAME>AT</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Component accessor</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>AT_INT</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Internal helper for comonent access</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>CONSTRUCTOR</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Constructor</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>COUNT</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Return number of table lines, if attached object is table</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>CREATE</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Helper method for creating instance of dynamic accessor</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>DEREF</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Dereference deep nested references</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>EMPTY</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Returns TRUE if embedded object is initial (not bound)</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>REF</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Returns reference to embedded object</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>SET</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Sets value of the embedded object, if not initial</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>VALUE</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Returns copy of the value</DESCRIPT>
+    </SEOCOMPOTX>
+   </DESCRIPTIONS>
+   <DESCRIPTIONS_SUB>
+    <SEOSUBCOTX>
+     <CMPNAME>AT</CMPNAME>
+     <SCONAME>IV_COMPONENT</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Sub-component name (xpath is supported)</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>AT</CMPNAME>
+     <SCONAME>RO_REF</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Reference to accessor object pointing to subcomponent</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>CONSTRUCTOR</CMPNAME>
+     <SCONAME>IR_DATA</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Reference to data (allows modification)</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>CONSTRUCTOR</CMPNAME>
+     <SCONAME>IV_DATA</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Data (modification not allowed)</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>COUNT</CMPNAME>
+     <SCONAME>RV_LINES</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Lines count</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>CREATE</CMPNAME>
+     <SCONAME>IR_DATA</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Reference to data (allows modification)</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>CREATE</CMPNAME>
+     <SCONAME>IV_COMPONENT</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Sub-component name (xpath is supported)</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>CREATE</CMPNAME>
+     <SCONAME>IV_DATA</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Data (modification not allowed)</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>CREATE</CMPNAME>
+     <SCONAME>RO_REF</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Reference to accessor object pointing to subcomponent</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>EMPTY</CMPNAME>
+     <SCONAME>RV_VAL</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>ABAP_TRUE if object is initial and data is not bound</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>REF</CMPNAME>
+     <SCONAME>RV_DATA</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Reference to embedded data</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>SET</CMPNAME>
+     <SCONAME>IV_DATA</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>New value for embedded object</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>SET</CMPNAME>
+     <SCONAME>RV_SUCCESS</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>TRUE, if data was successfully modified</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>VALUE</CMPNAME>
+     <SCONAME>EV_DATA</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Copy of the embedded data value, or initial</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>VALUE</CMPNAME>
+     <SCONAME>IV_DEFAULT</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Default value to be returned, if no data is assigned</DESCRIPT>
+    </SEOSUBCOTX>
+   </DESCRIPTIONS_SUB>
+  </asx:values>
+ </asx:abap>
+</abapGit>
