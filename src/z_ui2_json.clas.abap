@@ -1962,7 +1962,7 @@ ENDMETHOD.
                     " unescaped singe characters, e.g \\, \", \/ etc,
                     FIND FIRST OCCURRENCE OF '\' IN sdummy MATCH OFFSET mark.
                     IF sy-subrc IS INITIAL.
-                      sdummy = unescape( EXPORTING escaped = sdummy offset = mark ).
+                      sdummy = unescape( escaped = sdummy offset = mark ).
                     ENDIF.
                     IF type_descr->kind EQ cl_abap_typedescr=>kind_elem.
 

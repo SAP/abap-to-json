@@ -15,6 +15,11 @@ CLASS lcl_util DEFINITION FINAL FRIENDS z_ui2_json.
 
 ENDCLASS.                    "lcl_util DEFINITION
 
+*----------------------------------------------------------------------*
+*       CLASS lcl_util IMPLEMENTATION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
 CLASS lcl_util IMPLEMENTATION.
 
   METHOD read_string.
@@ -44,7 +49,7 @@ CLASS lcl_util IMPLEMENTATION.
     match = offset - mark.
     text = json+mark(match).
 
-  ENDMETHOD.
+  ENDMETHOD.                    "read_string
 
   " Creates MD5 hash from string
   METHOD to_md5.
@@ -64,13 +69,13 @@ CLASS lcl_util IMPLEMENTATION.
         rv_result = lv_md5_key.
       ENDIF.
     ENDIF.
-  ENDMETHOD.
+  ENDMETHOD.                    "to_md5
 
   METHOD _escape.
     out = escape( val = in format = cl_abap_format=>e_json_string ).
-  ENDMETHOD.
+  ENDMETHOD.                    "_escape
 
-ENDCLASS.
+ENDCLASS.                    "lcl_util IMPLEMENTATION
 
 *----------------------------------------------------------------------*
 *       CLASS lcl_test DEFINITION
@@ -93,12 +98,17 @@ CLASS lcl_test DEFINITION FINAL FRIENDS z_ui2_json.
 
 ENDCLASS.                    "lcl_test DEFINITION
 
+*----------------------------------------------------------------------*
+*       CLASS lcl_test IMPLEMENTATION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
 CLASS lcl_test IMPLEMENTATION.
 
   METHOD constructor.
     priv = 1.
     prot = 2.
-  ENDMETHOD.
+  ENDMETHOD.                    "constructor
 
 ENDCLASS.                    "lcl_test IMPLEMENTATION
 
@@ -481,7 +491,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     CALL FUNCTION 'GUID_CREATE'
       IMPORTING
-        ev_guid_16 = ls_data-guid. "#EC FB_OLDED
+        ev_guid_16 = ls_data-guid.                        "#EC FB_OLDED
 
     CONVERT TIME STAMP ls_data-ts TIME ZONE tz INTO DATE ls_data-date TIME ls_data-time.
 
@@ -883,7 +893,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 *
 *    cl_aunit_assert=>assert_equals( act = ls_act exp = ls_data msg = 'Deserialization of enumerations fails' ).
 
-  ENDMETHOD.
+  ENDMETHOD.                    "serialize_enums
 
   METHOD serialize_upper_camel_case.
     DATA:
@@ -1458,7 +1468,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     lr_data = generate( json = lv_json ).
     cl_aunit_assert=>assert_not_initial( act = lr_data msg = 'Generation with custom spaces fails JSON fails!' ).
 
-  ENDMETHOD.
+  ENDMETHOD.                    "deserialize_white_space
 
   METHOD deserialize_news.
     TYPES: BEGIN OF tp_s_tile_news_config,
@@ -2601,7 +2611,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     cl_aunit_assert=>assert_equals( act = ls_result-case_guid exp = lc_guid msg = 'Deserilaization of Edm.Guid fails!' ).
 
 
-  ENDMETHOD.
+  ENDMETHOD.                    "deserialize_odata
 
   METHOD initialize_on_deserialize.
 
@@ -2624,7 +2634,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     deserialize( EXPORTING json = lv_json pretty_name = pretty_mode-camel_case CHANGING data = ls_data ).
     cl_aunit_assert=>assert_initial( act = ls_data msg = 'Initialize of elements on deserialize fails!' ).
 
-  ENDMETHOD.
+  ENDMETHOD.                    "initialize_on_deserialize
 
   """""""""""""""""""""""""""""""""""""""""""""""""""
   " TODO:
@@ -2716,7 +2726,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     TYPES: BEGIN OF struct,
              field TYPE i,
            END OF struct,
-           tab TYPE STANDARD TABLE OF struct WITH EMPTY KEY.
+           tab TYPE STANDARD TABLE OF struct WITH DEFAULT KEY.
     DATA: BEGIN OF target_tab,
             tab      TYPE REF TO tab,
             abstract TYPE REF TO data,
@@ -2741,7 +2751,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     cl_aunit_assert=>assert_not_initial( act = target_struct-abstract msg = 'Generation of abstract structure fails!' ).
     cl_aunit_assert=>assert_initial( act = target_struct-invalid msg = 'Generation of invalid type into structure fails!' ).
 
-  ENDMETHOD.
+  ENDMETHOD.                    "deserialize_ref_to_data
 
   METHOD conversion_exits.
 
@@ -2785,7 +2795,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     FIND FIRST OCCURRENCE OF lv_date_x IN lv_json.
     cl_aunit_assert=>assert_subrc( act = sy-subrc msg = 'Conversion exit into external format in table fails!' ).
 
-  ENDMETHOD.
+  ENDMETHOD.                    "conversion_exits
 
   METHOD generate_special_attr_names.
 
@@ -2805,7 +2815,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     cl_aunit_assert=>assert_bound( act = lr_data2 msg = 'Generattion of ABAP data for JSON with special attribute names fails!' ).
 
-  ENDMETHOD.
+  ENDMETHOD.                    "generate_special_attr_names
 
   METHOD escape_and_unescape.
     DATA:
@@ -2839,7 +2849,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     " we only support unescaping of unicode symbols, but not escaping
     "cl_aunit_assert=>assert_equals( act = ls_data-str exp = `Subject u ENu00a0ud83eudd14` msg = 'Unescapment of Unicode characters fails!' ).
 
-  ENDMETHOD.
+  ENDMETHOD.                    "escape_and_unescape
 
   METHOD serialize_formatted.
 
@@ -2864,8 +2874,8 @@ CLASS abap_unit_testclass IMPLEMENTATION.
           dref2   TYPE REF TO data,
           lv_json TYPE json ##NEEDED.
 
-    dref1 = REF #( dref2 ).
-    dref2 = REF #( dref1 ).
+    GET REFERENCE OF dref2 INTO dref1.
+    GET REFERENCE OF dref1 INTO  dref2.
 
     lv_json = abap_to_json_simple_transform( dref1 ).
     lv_json = serialize(  data             = dref1
@@ -2875,12 +2885,12 @@ CLASS abap_unit_testclass IMPLEMENTATION.
                           format_output    = abap_true
                           assoc_arrays     = abap_true
                           assoc_arrays_opt = abap_true ).
-  ENDMETHOD.
+  ENDMETHOD.                    "serialize_cycle_reference
 
   METHOD deserialize_strict_table_null.
 
     TYPES: BEGIN OF ty_test,
-             tab1    TYPE STANDARD TABLE OF string WITH EMPTY KEY,
+             tab1    TYPE STANDARD TABLE OF string WITH DEFAULT KEY,
              BEGIN OF struc1,
                field1 TYPE string,
              END OF struc1,
@@ -2913,12 +2923,12 @@ CLASS abap_unit_testclass IMPLEMENTATION.
            exp = 'u__u'
            act = s_test2-string1 ).
 
-  ENDMETHOD.
+  ENDMETHOD.                    "deserialize_strict_table_null
 
   METHOD deserialize_strict_struct_null.
 
     TYPES: BEGIN OF ty_test,
-             tab1    TYPE STANDARD TABLE OF string WITH EMPTY KEY,
+             tab1    TYPE STANDARD TABLE OF string WITH DEFAULT KEY,
              BEGIN OF struc1,
                field1 TYPE string,
              END OF struc1,
@@ -2940,22 +2950,20 @@ CLASS abap_unit_testclass IMPLEMENTATION.
         data             = s_test2
     ).
 
-    cl_abap_unit_assert=>assert_equals(
-           exp = `hugo`
-           act = s_test2-tab1[ 1 ] ).
+    DATA: lv_val TYPE string.
 
-    cl_abap_unit_assert=>assert_initial(
-       act = s_test2-struc1 ).
+    READ TABLE s_test2-tab1 INDEX 1 INTO lv_val.
 
-    cl_abap_unit_assert=>assert_equals(
-           exp = 'u__u'
-           act = s_test2-string1 ).
-  ENDMETHOD.
+    cl_abap_unit_assert=>assert_equals( exp = `hugo` act = lv_val ).
+    cl_abap_unit_assert=>assert_initial( act = s_test2-struc1 ).
+    cl_abap_unit_assert=>assert_equals( exp = 'u__u' act = s_test2-string1 ).
+
+  ENDMETHOD.                    "deserialize_strict_struct_null
 
   METHOD deserialize_strict_string_null.
 
     TYPES: BEGIN OF ty_test2,
-             tab1    TYPE STANDARD TABLE OF string WITH EMPTY KEY,
+             tab1    TYPE STANDARD TABLE OF string WITH DEFAULT KEY,
              BEGIN OF struc1,
                field1 TYPE string,
              END OF struc1,
@@ -2977,16 +2985,14 @@ CLASS abap_unit_testclass IMPLEMENTATION.
         data             = s_test2
     ).
 
-    cl_abap_unit_assert=>assert_equals(
-          exp = `hugo`
-          act = s_test2-tab1[ 1 ] ).
+    DATA: lv_val TYPE string.
 
-    cl_abap_unit_assert=>assert_equals(
-          exp = 'hugo'
-          act = s_test2-struc1-field1 ).
+    READ TABLE s_test2-tab1 INDEX 1 INTO lv_val.
 
-    cl_abap_unit_assert=>assert_initial(
-           act = s_test2-string1 ).
-  ENDMETHOD.
+    cl_abap_unit_assert=>assert_equals( exp = `hugo` act = lv_val ).
+    cl_abap_unit_assert=>assert_equals( exp = 'hugo' act = s_test2-struc1-field1 ).
+    cl_abap_unit_assert=>assert_initial( act = s_test2-string1 ).
+
+  ENDMETHOD.                    "deserialize_strict_string_null
 
 ENDCLASS.       "abap_unit_testclass
