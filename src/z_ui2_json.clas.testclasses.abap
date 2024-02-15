@@ -11,7 +11,7 @@ CLASS lcl_util DEFINITION FINAL FRIENDS z_ui2_json.
     CLASS-METHODS:
       _escape IMPORTING in TYPE data EXPORTING out TYPE string,
       to_md5  IMPORTING iv_value TYPE string RETURNING VALUE(rv_result) TYPE string,
-      read_string IMPORTING json TYPE string mark TYPE i CHANGING offset TYPE i DEFAULT 0 text TYPE string.
+      read_string IMPORTING json TYPE string mark TYPE i CHANGING offset TYPE i DEFAULT 0 text TYPE string RAISING cx_sy_move_cast_error .
 
 ENDCLASS.                    "lcl_util DEFINITION
 
@@ -31,7 +31,9 @@ CLASS lcl_util IMPLEMENTATION.
 
     DO.
       FIND FIRST OCCURRENCE OF `"` IN SECTION OFFSET offset OF json MATCH OFFSET pos.
-      " ASSERT sy-subrc IS INITIAL.
+      IF sy-subrc IS NOT INITIAL.
+        throw_error.
+      ENDIF.
 
       offset = pos.
       pos = pos - 1.
@@ -1144,6 +1146,9 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     DATA: lr_data TYPE REF TO data.
     lr_data = generate( json = `INVALID_JSON` ).
+    cl_aunit_assert=>assert_initial( act = lr_data msg = 'Generation of invalid JSON fails' ).
+
+    lr_data = generate( json = `{"error":"n \"<\"\">` ).
     cl_aunit_assert=>assert_initial( act = lr_data msg = 'Generation of invalid JSON fails' ).
 
   ENDMETHOD.                    "deserialize_malformed

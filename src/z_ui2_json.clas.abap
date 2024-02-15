@@ -551,7 +551,10 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     IF mt_name_mappings IS NOT INITIAL.
 
       " if it dumps here, you have passed ambiguous mapping to the API
-      " please check your code for duplicates, pairs ABAP - JSON shall be unique
+      " Please check your code for duplicates, pairs ABAP - JSON shall be unique
+      " and there shall be no ambiguity for looking up only by JSON name (deserialize, generate)
+      " and no ambiguity for looking up only by ABAP name (serialize)
+      " per default, serializer/deserializer tries to have lossless conversion from JSON to ABAP and vice versa
       INSERT LINES OF mt_name_mappings INTO TABLE mt_name_mappings_ex.
 
       IF mv_pretty_name EQ pretty_mode-none.
