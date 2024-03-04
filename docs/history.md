@@ -4,6 +4,7 @@
 ### /UI2/CL_JSON
 * Fixed: enhanced processing of deserialization into typed TYPE REFs
 * Fixed: deserialization of JSON 'null' into complex, not reference ABAP fields does not lead to exception in strict mode ([details](https://github.com/SAP/abap-to-json/pull/5))
+* Fixed: Added support for ABAP_BOOLEAN type. 
 
 ## Removed dependency to /ui2/cl_data_acceess for z_ui2_json
 * Added: Open Source version of the /ui2/cl_data_access as Z_UI2_DATA_ACCESS
