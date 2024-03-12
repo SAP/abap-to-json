@@ -633,7 +633,17 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     length = strlen( lv_json ).
     while_offset_not_cs '"{[aeflnrstu0123456789+-eE.' lv_json.
 
-    restore_type( EXPORTING json = lv_json length = length CHANGING data = data offset = offset ).
+    TRY.
+
+        restore_type( EXPORTING json = lv_json length = length CHANGING data = data offset = offset ).
+
+      CATCH cx_sy_move_cast_error INTO DATA(lx_move).
+        RAISE EXCEPTION TYPE cx_sy_move_cast_error
+          EXPORTING
+            previous        = lx_move
+            source_typename = `$.` && lx_move->source_typename
+            target_typename = lx_move->target_typename.
+    ENDTRY.
 
   ENDMETHOD.                    "deserialize
 
@@ -1696,31 +1706,46 @@ ENDMETHOD.
     WHILE offset < length AND json+offset(1) NE '}'.
 
       eat_name name_json.
-      eat_white.
-      eat_char ':'.
-      eat_white.
 
-      READ TABLE fields WITH TABLE KEY name = name_json ASSIGNING <field_cache>.
-      IF sy-subrc IS NOT INITIAL.
-        TRANSLATE name_json TO UPPER CASE.
-        READ TABLE fields WITH TABLE KEY name = name_json ASSIGNING <field_cache>.
-      ENDIF.
+      TRY.
+          eat_white.
+          eat_char ':'.
+          eat_white.
 
-      IF sy-subrc IS INITIAL.
-        ASSIGN <field_cache>-value->* TO <value>.
-        restore_type( EXPORTING json = json length = length type_descr = <field_cache>-type convexit = <field_cache>-convexit_in CHANGING data = <value> offset = offset ).
-      ELSE.
-        restore_type( EXPORTING json = json length = length CHANGING offset = offset ).
-      ENDIF.
+          READ TABLE fields WITH TABLE KEY name = name_json ASSIGNING <field_cache>.
+          IF sy-subrc IS NOT INITIAL.
+            TRANSLATE name_json TO UPPER CASE.
+            READ TABLE fields WITH TABLE KEY name = name_json ASSIGNING <field_cache>.
+          ENDIF.
 
-      eat_white.
+          IF sy-subrc IS INITIAL.
+            ASSIGN <field_cache>-value->* TO <value>.
+            restore_type( EXPORTING json = json length = length type_descr = <field_cache>-type convexit = <field_cache>-convexit_in CHANGING data = <value> offset = offset ).
+          ELSE.
+            restore_type( EXPORTING json = json length = length CHANGING offset = offset ).
+          ENDIF.
 
-      IF offset < length AND json+offset(1) NE '}'.
-        eat_char ','.
-        eat_white.
-      ELSE.
-        EXIT.
-      ENDIF.
+          eat_white.
+
+          IF offset < length AND json+offset(1) NE '}'.
+            eat_char ','.
+            eat_white.
+          ELSE.
+            EXIT.
+          ENDIF.
+
+        CATCH cx_sy_move_cast_error INTO DATA(lx_move).
+            RAISE EXCEPTION TYPE cx_sy_move_cast_error
+              EXPORTING
+                previous        = lx_move
+                source_typename = name_json && COND #( WHEN lx_move->source_typename IS NOT INITIAL AND lx_move->source_typename(1) <> `[` THEN |.| ) && lx_move->source_typename
+                target_typename = COND #( WHEN lx_move->target_typename IS NOT INITIAL
+                                              THEN lx_move->target_typename
+                                            WHEN <field_cache> IS ASSIGNED
+                                              THEN |{ <field_cache>-elem_type->absolute_name }|
+                                            ELSE `?`
+                                          ).
+      ENDTRY.
 
     ENDWHILE.
 
@@ -1919,7 +1944,9 @@ ENDMETHOD.
                     CREATE DATA line LIKE LINE OF <table>.
                     ASSIGN line->* TO <line>.
                     lt_fields = get_fields( type_descr = data_descr data = line ).
+                    DATA(array_index) = 0.
                     WHILE offset < length AND json+offset(1) NE ']'.
+                      array_index = sy-index.
                       CLEAR <line>.
                       restore_type( EXPORTING json = json length = length type_descr = data_descr field_cache = lt_fields
                                     CHANGING data = <line> offset = offset ).
@@ -2155,7 +2182,37 @@ ENDMETHOD.
               ENDIF.
           ENDCASE.
         ENDIF.
-      CATCH cx_sy_move_cast_error cx_sy_conversion_no_number cx_sy_conversion_overflow INTO lo_exp.
+      CATCH cx_sy_move_cast_error INTO DATA(lo_move_exp).
+        " + CX_SY_CONVERSION_NOT_SUPPORTED > 7.54
+        CLEAR data.
+        IF mv_strict_mode EQ abap_true.
+
+          RAISE EXCEPTION TYPE cx_sy_move_cast_error
+            EXPORTING
+              previous        = lo_move_exp
+              source_typename = COND #( WHEN key_value IS NOT INITIAL
+                                          THEN key_value && COND #( WHEN lo_move_exp->source_typename IS NOT INITIAL AND lo_move_exp->source_typename(1) <> `[` THEN |.| )
+                                         WHEN array_index > 0
+                                          THEN |[{ array_index }]| && COND #( WHEN lo_move_exp->source_typename IS NOT INITIAL AND lo_move_exp->source_typename(1) <> `[` THEN |.| )
+                                      ) && lo_move_exp->source_typename
+              target_typename = COND #( WHEN lo_move_exp->target_typename IS NOT INITIAL
+                                          THEN lo_move_exp->target_typename
+                                        WHEN type_descr IS BOUND
+                                          THEN SWITCH #( type_descr->kind
+                                              WHEN cl_abap_typedescr=>kind_table  THEN `table`
+                                              WHEN cl_abap_typedescr=>kind_struct THEN `structure`
+                                              WHEN cl_abap_typedescr=>kind_class  THEN `class`
+                                              WHEN cl_abap_typedescr=>kind_intf   THEN `interface`
+                                              WHEN cl_abap_typedescr=>kind_ref    THEN `reference`
+                                              WHEN cl_abap_typedescr=>kind_elem   THEN
+                                                  |{ CAST cl_abap_elemdescr( type_descr )->absolute_name }|
+                                              ELSE `?`
+                                               )
+                                          ELSE `?`
+                                      ).
+
+        ENDIF.
+      CATCH cx_sy_conversion_no_number cx_sy_conversion_overflow INTO lo_exp.
         " + CX_SY_CONVERSION_NOT_SUPPORTED > 7.54
         CLEAR data.
         IF mv_strict_mode EQ abap_true.
@@ -2200,6 +2257,7 @@ ENDMETHOD.
         r_json = r_json.
 
   ENDMETHOD.                    "serialize
+
 
 
   METHOD serialize_int.
