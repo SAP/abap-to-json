@@ -3025,19 +3025,22 @@ CLASS abap_unit_testclass IMPLEMENTATION.
         tab2    TYPE STANDARD TABLE OF ty_test WITH EMPTY KEY,
       END OF ty_test2.
 
-    DATA s_test2 TYPE ty_test2.
+    DATA: s_test2    TYPE ty_test2,
+          serializer TYPE REF TO z_ui2_json,
+          lx_move    TYPE REF TO cx_sy_move_cast_error
+          .
 
-    DATA(serializer) = NEW z_ui2_json(
-            compress         = abap_true
-            pretty_name      = z_ui2_json=>pretty_mode-camel_case
-            assoc_arrays     = abap_true
-            assoc_arrays_opt = abap_true
-            ts_as_iso8601    = abap_false
-            expand_includes  = abap_true
-            strict_mode      = abap_true " raise sometimes an exception in error case
-            numc_as_string   = abap_false
-            conversion_exits = abap_false
-        ).
+    CREATE OBJECT serializer
+      EXPORTING
+        compress         = abap_true
+        pretty_name      = z_ui2_json=>pretty_mode-camel_case
+        assoc_arrays     = abap_true
+        assoc_arrays_opt = abap_true
+        ts_as_iso8601    = abap_false
+        expand_includes  = abap_true
+        strict_mode      = abap_true " raise sometimes an exception in error case
+        numc_as_string   = abap_false
+        conversion_exits = abap_false.
 
     TRY.
         serializer->deserialize_int(
@@ -3047,7 +3050,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
             data             = s_test2
         ).
         cl_abap_unit_assert=>fail( ).
-      CATCH cx_sy_move_cast_error INTO DATA(lx_move).
+      CATCH cx_sy_move_cast_error INTO lx_move.
         cl_abap_unit_assert=>assert_equals(
             exp = `$.tab1`
             act = lx_move->source_typename
@@ -3119,9 +3122,13 @@ CLASS abap_unit_testclass IMPLEMENTATION.
              string1 TYPE string,
            END OF ty_test2.
 
-    DATA s_test2 TYPE ty_test2.
+    DATA: s_test2    TYPE ty_test2,
+          serializer TYPE REF TO z_ui2_json,
+          lx_move    TYPE REF TO cx_sy_move_cast_error
+          .
 
-    DATA(serializer) = NEW z_ui2_json(
+    CREATE OBJECT serializer
+      EXPORTING
             compress         = abap_true
             pretty_name      = z_ui2_json=>pretty_mode-camel_case
             assoc_arrays     = abap_true
@@ -3131,7 +3138,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
             strict_mode      = abap_true " raise sometimes an exception in error case
             numc_as_string   = abap_false
             conversion_exits = abap_false
-        ).
+        .
 
     TRY.
         serializer->deserialize_int(
@@ -3141,7 +3148,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
             data             = s_test2
         ).
         cl_abap_unit_assert=>fail( ).
-      CATCH cx_sy_move_cast_error INTO DATA(lx_move).
+      CATCH cx_sy_move_cast_error INTO lx_move.
         cl_abap_unit_assert=>assert_equals(
             exp = `$.struc1`
             act = lx_move->source_typename
@@ -3182,9 +3189,13 @@ CLASS abap_unit_testclass IMPLEMENTATION.
              string1 TYPE string,
            END OF ty_test2.
 
-    DATA s_test2 TYPE ty_test2.
+    DATA: s_test2    TYPE ty_test2,
+          serializer TYPE REF TO z_ui2_json,
+          lx_move    TYPE REF TO cx_sy_move_cast_error
+          .
 
-    DATA(serializer) = NEW z_ui2_json(
+    CREATE OBJECT serializer
+      EXPORTING
             compress         = abap_true
             pretty_name      = z_ui2_json=>pretty_mode-camel_case
             assoc_arrays     = abap_true
@@ -3194,7 +3205,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
             strict_mode      = abap_true " raise sometimes an exception in error case
             numc_as_string   = abap_false
             conversion_exits = abap_false
-        ).
+        .
 
     TRY.
         serializer->deserialize_int(
@@ -3204,7 +3215,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
             data             = s_test2
         ).
         cl_abap_unit_assert=>fail( ).
-      CATCH cx_sy_move_cast_error INTO DATA(lx_move).
+      CATCH cx_sy_move_cast_error INTO lx_move.
         cl_abap_unit_assert=>assert_equals(
             exp = `$.struc1.field1`
             act = lx_move->source_typename
