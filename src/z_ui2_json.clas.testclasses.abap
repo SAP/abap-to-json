@@ -283,6 +283,16 @@ INHERITING FROM z_ui2_json.
     "! deserialize a null value for a string field in strict mode
     METHODS deserialize_strict_string_null FOR TESTING.
 
+    "! test error message with path to the field with an invalid value<br/>
+    "! try to deserialize a JSON string with an invalid value for a table type
+    METHODS deser_table_invalid_value FOR TESTING.
+    "! test error message with path to the field with an invalid value<br/>
+    "! try to deserialize a JSON string with an invalid value for a structure type
+    METHODS deser_structure_invalid_value FOR TESTING.
+    "! test error message with path to the field with an invalid value<br/>
+    "! try to deserialize a JSON string with an invalid value for a string type
+    METHODS deser_field_invalid_value FOR TESTING.
+
 ENDCLASS.       "abap_unit_testclass
 * ----------------------------------------------------------------------
 CLASS abap_unit_testclass IMPLEMENTATION.
@@ -2999,5 +3009,224 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     cl_abap_unit_assert=>assert_initial( act = s_test2-string1 ).
 
   ENDMETHOD.                    "deserialize_strict_string_null
+
+  METHOD deser_table_invalid_value.
+
+    TYPES:
+      BEGIN OF ty_test,
+        int_p2  TYPE i,
+      END OF ty_test,
+      BEGIN OF ty_test2,
+        tab1    TYPE STANDARD TABLE OF string WITH DEFAULT KEY,
+        BEGIN OF struc1,
+          field1 TYPE string,
+        END OF struc1,
+        string1 TYPE string,
+        tab2    TYPE STANDARD TABLE OF ty_test WITH EMPTY KEY,
+      END OF ty_test2.
+
+    DATA: s_test2    TYPE ty_test2,
+          serializer TYPE REF TO z_ui2_json,
+          lx_move    TYPE REF TO cx_sy_move_cast_error
+          .
+
+    CREATE OBJECT serializer
+      EXPORTING
+        compress         = abap_true
+        pretty_name      = z_ui2_json=>pretty_mode-camel_case
+        assoc_arrays     = abap_true
+        assoc_arrays_opt = abap_true
+        ts_as_iso8601    = abap_false
+        expand_includes  = abap_true
+        strict_mode      = abap_true " raise sometimes an exception in error case
+        numc_as_string   = abap_false
+        conversion_exits = abap_false.
+
+    TRY.
+        serializer->deserialize_int(
+          EXPORTING
+            json             = '{"tab1":true,"string1":"u__u"}'
+          CHANGING
+            data             = s_test2
+        ).
+        cl_abap_unit_assert=>fail( ).
+      CATCH cx_sy_move_cast_error INTO lx_move.
+        cl_abap_unit_assert=>assert_equals(
+            exp = `$.tab1`
+            act = lx_move->source_typename
+             ).
+        cl_abap_unit_assert=>assert_equals(
+            exp = `table`
+            act = lx_move->target_typename
+             ).
+        cl_abap_unit_assert=>assert_equals(
+            exp = `Source type $.tab1 is not compatible, for the purposes of assignment, with target type table`
+            act = lx_move->get_text( )
+             ).
+    ENDTRY.
+
+    TRY.
+        serializer->deserialize_int(
+          EXPORTING
+            json             = '{"tab1":"hugo","string1":"u__u"}'
+          CHANGING
+            data             = s_test2
+        ).
+        cl_abap_unit_assert=>fail( ).
+      CATCH cx_sy_move_cast_error INTO lx_move.
+        cl_abap_unit_assert=>assert_equals(
+            exp = `$.tab1`
+            act = lx_move->source_typename
+             ).
+    ENDTRY.
+
+    TRY.
+        serializer->deserialize_int(
+          EXPORTING
+            json             = '{"tab1":["hugo",?]}'
+          CHANGING
+            data             = s_test2
+        ).
+        cl_abap_unit_assert=>fail( ).
+      CATCH cx_sy_move_cast_error INTO lx_move.
+        cl_abap_unit_assert=>assert_equals(
+            exp = `$.tab1[2]`
+            act = lx_move->source_typename
+             ).
+    ENDTRY.
+
+    TRY.
+        serializer->deserialize_int(
+          EXPORTING
+            json             = '{"tab2":[{"intP2":1 },{"intP2":"illegal int"}]}'
+          CHANGING
+            data             = s_test2
+        ).
+        cl_abap_unit_assert=>fail( ).
+      CATCH cx_sy_move_cast_error INTO lx_move.
+        cl_abap_unit_assert=>assert_equals(
+            exp = `$.tab2[2].intP2`
+            act = lx_move->source_typename
+             ).
+    ENDTRY.
+
+  ENDMETHOD.
+
+  METHOD deser_structure_invalid_value.
+
+    TYPES: BEGIN OF ty_test2,
+             tab1    TYPE STANDARD TABLE OF string WITH DEFAULT KEY,
+             BEGIN OF struc1,
+               field1 TYPE string,
+             END OF struc1,
+             string1 TYPE string,
+           END OF ty_test2.
+
+    DATA: s_test2    TYPE ty_test2,
+          serializer TYPE REF TO z_ui2_json,
+          lx_move    TYPE REF TO cx_sy_move_cast_error
+          .
+
+    CREATE OBJECT serializer
+      EXPORTING
+            compress         = abap_true
+            pretty_name      = z_ui2_json=>pretty_mode-camel_case
+            assoc_arrays     = abap_true
+            assoc_arrays_opt = abap_true
+            ts_as_iso8601    = abap_false
+            expand_includes  = abap_true
+            strict_mode      = abap_true " raise sometimes an exception in error case
+            numc_as_string   = abap_false
+            conversion_exits = abap_false
+        .
+
+    TRY.
+        serializer->deserialize_int(
+          EXPORTING
+            json             = '{"struc1":true,"string1":"u__u"}'
+          CHANGING
+            data             = s_test2
+        ).
+        cl_abap_unit_assert=>fail( ).
+      CATCH cx_sy_move_cast_error INTO lx_move.
+        cl_abap_unit_assert=>assert_equals(
+            exp = `$.struc1`
+            act = lx_move->source_typename
+             ).
+        cl_abap_unit_assert=>assert_equals(
+            exp = `structure`
+            act = lx_move->target_typename
+             ).
+        cl_abap_unit_assert=>assert_equals(
+            exp = `Source type $.struc1 is not compatible, for the purposes of assignment, with target type structure`
+            act = lx_move->get_text( )
+             ).
+    ENDTRY.
+
+    TRY.
+        serializer->deserialize_int(
+          EXPORTING
+            json             = '{"struc1":"hugo","string1":"u__u"}'
+          CHANGING
+            data             = s_test2
+        ).
+        cl_abap_unit_assert=>fail( ).
+      CATCH cx_sy_move_cast_error INTO lx_move.
+        cl_abap_unit_assert=>assert_equals(
+            exp = `$.struc1`
+            act = lx_move->source_typename
+             ).
+    ENDTRY.
+  ENDMETHOD.
+
+  METHOD deser_field_invalid_value.
+
+    TYPES: BEGIN OF ty_test2,
+             tab1    TYPE STANDARD TABLE OF string WITH DEFAULT KEY,
+             BEGIN OF struc1,
+               field1 TYPE string,
+             END OF struc1,
+             string1 TYPE string,
+           END OF ty_test2.
+
+    DATA: s_test2    TYPE ty_test2,
+          serializer TYPE REF TO z_ui2_json,
+          lx_move    TYPE REF TO cx_sy_move_cast_error
+          .
+
+    CREATE OBJECT serializer
+      EXPORTING
+            compress         = abap_true
+            pretty_name      = z_ui2_json=>pretty_mode-camel_case
+            assoc_arrays     = abap_true
+            assoc_arrays_opt = abap_true
+            ts_as_iso8601    = abap_false
+            expand_includes  = abap_true
+            strict_mode      = abap_true " raise sometimes an exception in error case
+            numc_as_string   = abap_false
+            conversion_exits = abap_false
+        .
+
+    TRY.
+        serializer->deserialize_int(
+          EXPORTING
+            json             = '{"struc1":{"field1":?}}'
+          CHANGING
+            data             = s_test2
+        ).
+        cl_abap_unit_assert=>fail( ).
+      CATCH cx_sy_move_cast_error INTO lx_move.
+        cl_abap_unit_assert=>assert_equals(
+            exp = `$.struc1.field1`
+            act = lx_move->source_typename
+             ).
+        cl_abap_unit_assert=>assert_equals(
+            exp = `\TYPE=STRING`
+            act = lx_move->target_typename
+             ).
+    ENDTRY.
+
+
+  ENDMETHOD.
 
 ENDCLASS.       "abap_unit_testclass

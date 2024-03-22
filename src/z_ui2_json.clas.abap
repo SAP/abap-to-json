@@ -633,7 +633,17 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     length = strlen( lv_json ).
     while_offset_not_cs '"{[aeflnrstu0123456789+-eE.' lv_json.
 
-    restore_type( EXPORTING json = lv_json length = length CHANGING data = data offset = offset ).
+    TRY.
+
+        restore_type( EXPORTING json = lv_json length = length CHANGING data = data offset = offset ).
+
+      CATCH cx_sy_move_cast_error INTO DATA(lx_move).
+        RAISE EXCEPTION TYPE cx_sy_move_cast_error
+          EXPORTING
+            previous        = lx_move
+            source_typename = `$.` && lx_move->source_typename
+            target_typename = lx_move->target_typename.
+    ENDTRY.
 
   ENDMETHOD.                    "deserialize
 
@@ -1649,7 +1659,10 @@ ENDMETHOD.
           data_ref   TYPE REF TO data,
           object_ref TYPE REF TO object,
           fields     LIKE field_cache,
-          name_json  TYPE string.
+          name_json  TYPE string,
+          lo_move_cast_error TYPE REF TO cx_sy_move_cast_error,
+          source_typename type string,
+          target_typename type string.
 
     FIELD-SYMBOLS: <value>       TYPE any,
                    <field_cache> LIKE LINE OF field_cache.
@@ -1696,31 +1709,55 @@ ENDMETHOD.
     WHILE offset < length AND json+offset(1) NE '}'.
 
       eat_name name_json.
-      eat_white.
-      eat_char ':'.
-      eat_white.
 
-      READ TABLE fields WITH TABLE KEY name = name_json ASSIGNING <field_cache>.
-      IF sy-subrc IS NOT INITIAL.
-        TRANSLATE name_json TO UPPER CASE.
-        READ TABLE fields WITH TABLE KEY name = name_json ASSIGNING <field_cache>.
-      ENDIF.
+      TRY.
+          eat_white.
+          eat_char ':'.
+          eat_white.
 
-      IF sy-subrc IS INITIAL.
-        ASSIGN <field_cache>-value->* TO <value>.
-        restore_type( EXPORTING json = json length = length type_descr = <field_cache>-type convexit = <field_cache>-convexit_in CHANGING data = <value> offset = offset ).
-      ELSE.
-        restore_type( EXPORTING json = json length = length CHANGING offset = offset ).
-      ENDIF.
+          READ TABLE fields WITH TABLE KEY name = name_json ASSIGNING <field_cache>.
+          IF sy-subrc IS NOT INITIAL.
+            TRANSLATE name_json TO UPPER CASE.
+            READ TABLE fields WITH TABLE KEY name = name_json ASSIGNING <field_cache>.
+          ENDIF.
 
-      eat_white.
+          IF sy-subrc IS INITIAL.
+            ASSIGN <field_cache>-value->* TO <value>.
+            restore_type( EXPORTING json = json length = length type_descr = <field_cache>-type convexit = <field_cache>-convexit_in CHANGING data = <value> offset = offset ).
+          ELSE.
+            restore_type( EXPORTING json = json length = length CHANGING offset = offset ).
+          ENDIF.
 
-      IF offset < length AND json+offset(1) NE '}'.
-        eat_char ','.
-        eat_white.
-      ELSE.
-        EXIT.
-      ENDIF.
+          eat_white.
+
+          IF offset < length AND json+offset(1) NE '}'.
+            eat_char ','.
+            eat_white.
+          ELSE.
+            EXIT.
+          ENDIF.
+
+        CATCH cx_sy_move_cast_error INTO lo_move_cast_error.
+            IF lo_move_cast_error->source_typename IS NOT INITIAL AND lo_move_cast_error->source_typename(1) <> `[`.
+              source_typename = name_json && |.| && lo_move_cast_error->source_typename.
+            ELSE.
+              source_typename = name_json && lo_move_cast_error->source_typename.
+            ENDIF.
+
+            IF lo_move_cast_error->target_typename IS NOT INITIAL.
+              target_typename = lo_move_cast_error->target_typename.
+            ELSEIF <field_cache> IS ASSIGNED.
+              target_typename = |{ <field_cache>-elem_type->absolute_name }|.
+            ELSE.
+              target_typename = `?`.
+            ENDIF.
+
+            RAISE EXCEPTION TYPE cx_sy_move_cast_error
+              EXPORTING
+                previous        = lo_move_cast_error
+                source_typename = source_typename
+                target_typename = target_typename.
+      ENDTRY.
 
     ENDWHILE.
 
@@ -1742,27 +1779,31 @@ ENDMETHOD.
       lc_edm_time_regexp      TYPE string VALUE `^-?P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)(?:\.(\d+))?S)?)?\s*$`. "#EC NOTEXT
 
 
-    DATA: mark         LIKE offset,
-          match        LIKE offset,
-          sdummy       TYPE string,                         "#EC NEEDED
-          rdummy       TYPE REF TO data,                    "#EC NEEDED
-          pos          LIKE offset,
-          line         TYPE REF TO data,
-          key_ref      TYPE REF TO data,
-          data_ref     TYPE REF TO data,
-          key_name     TYPE string,
-          key_value    TYPE string,
-          lt_fields    LIKE field_cache,
-          ls_symbols   TYPE t_s_struct_cache_res,
-          lv_ticks     TYPE string,
-          lv_offset    TYPE string,
-          lv_convexit  LIKE convexit,
-          lo_exp       TYPE REF TO cx_root,
-          elem_descr   TYPE REF TO cl_abap_elemdescr,
-          table_descr  TYPE REF TO cl_abap_tabledescr,
-          struct_descr TYPE REF TO cl_abap_structdescr,
-          ref_descr    TYPE REF TO cl_abap_refdescr,
-          data_descr   TYPE REF TO cl_abap_datadescr.
+    DATA: mark               LIKE offset,
+          match              LIKE offset,
+          sdummy             TYPE string,                   "#EC NEEDED
+          rdummy             TYPE REF TO data,              "#EC NEEDED
+          pos                LIKE offset,
+          line               TYPE REF TO data,
+          key_ref            TYPE REF TO data,
+          data_ref           TYPE REF TO data,
+          key_name           TYPE string,
+          key_value          TYPE string,
+          lt_fields          LIKE field_cache,
+          ls_symbols         TYPE t_s_struct_cache_res,
+          lv_ticks           TYPE string,
+          lv_offset          TYPE string,
+          lv_convexit        LIKE convexit,
+          lo_exp             TYPE REF TO cx_root,
+          elem_descr         TYPE REF TO cl_abap_elemdescr,
+          table_descr        TYPE REF TO cl_abap_tabledescr,
+          struct_descr       TYPE REF TO cl_abap_structdescr,
+          ref_descr          TYPE REF TO cl_abap_refdescr,
+          data_descr         TYPE REF TO cl_abap_datadescr,
+          array_index        TYPE i,
+          lo_move_cast_error TYPE REF TO cx_sy_move_cast_error,
+          source_typename    TYPE string,
+          target_typename    TYPE string.
 
     FIELD-SYMBOLS: <line>      TYPE any,
                    <value>     TYPE any,
@@ -1919,7 +1960,9 @@ ENDMETHOD.
                     CREATE DATA line LIKE LINE OF <table>.
                     ASSIGN line->* TO <line>.
                     lt_fields = get_fields( type_descr = data_descr data = line ).
+                    array_index = 0.
                     WHILE offset < length AND json+offset(1) NE ']'.
+                      array_index = sy-index.
                       CLEAR <line>.
                       restore_type( EXPORTING json = json length = length type_descr = data_descr field_cache = lt_fields
                                     CHANGING data = <line> offset = offset ).
@@ -2155,7 +2198,58 @@ ENDMETHOD.
               ENDIF.
           ENDCASE.
         ENDIF.
-      CATCH cx_sy_move_cast_error cx_sy_conversion_no_number cx_sy_conversion_overflow INTO lo_exp.
+      CATCH cx_sy_move_cast_error INTO lo_move_cast_error.
+        " + CX_SY_CONVERSION_NOT_SUPPORTED > 7.54
+        CLEAR data.
+        IF mv_strict_mode EQ abap_true.
+
+          IF key_value IS NOT INITIAL.
+            IF lo_move_cast_error->source_typename IS NOT INITIAL AND lo_move_cast_error->source_typename(1) <> `[`.
+              source_typename = key_value && |.| && lo_move_cast_error->source_typename.
+            ELSE.
+              source_typename = key_value && lo_move_cast_error->source_typename.
+            ENDIF.
+          ELSEIF array_index > 0.
+            IF lo_move_cast_error->source_typename IS NOT INITIAL AND lo_move_cast_error->source_typename(1) <> `[`.
+              source_typename = |[{ array_index }]| && |.| && lo_move_cast_error->source_typename.
+            ELSE.
+              source_typename = |[{ array_index }]| && lo_move_cast_error->source_typename.
+            ENDIF.
+          ELSE.
+            source_typename = lo_move_cast_error->source_typename.
+          ENDIF.
+          IF lo_move_cast_error->target_typename IS NOT INITIAL.
+            target_typename = lo_move_cast_error->target_typename.
+          ELSEIF type_descr IS BOUND.
+            CASE type_descr->kind.
+              WHEN cl_abap_typedescr=>kind_table.
+                target_typename = `table`.
+              WHEN cl_abap_typedescr=>kind_struct.
+                target_typename = `structure`.
+              WHEN cl_abap_typedescr=>kind_class.
+                target_typename = `class`.
+              WHEN cl_abap_typedescr=>kind_intf.
+                target_typename = `interface`.
+              WHEN cl_abap_typedescr=>kind_ref.
+                target_typename = `reference`.
+              WHEN cl_abap_typedescr=>kind_elem.
+                elem_descr ?= type_descr.
+                target_typename = elem_descr->absolute_name.
+              WHEN OTHERS.
+                target_typename = `?`.
+            ENDCASE.
+          ELSE.
+            target_typename = `?`.
+          ENDIF.
+
+          RAISE EXCEPTION TYPE cx_sy_move_cast_error
+            EXPORTING
+              previous        = lo_move_cast_error
+              source_typename = source_typename
+              target_typename = target_typename.
+
+        ENDIF.
+      CATCH cx_sy_conversion_no_number cx_sy_conversion_overflow INTO lo_exp.
         " + CX_SY_CONVERSION_NOT_SUPPORTED > 7.54
         CLEAR data.
         IF mv_strict_mode EQ abap_true.
@@ -2200,6 +2294,7 @@ ENDMETHOD.
         r_json = r_json.
 
   ENDMETHOD.                    "serialize
+
 
 
   METHOD serialize_int.
