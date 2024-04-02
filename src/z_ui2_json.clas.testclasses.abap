@@ -292,6 +292,8 @@ INHERITING FROM z_ui2_json.
     "! test error message with path to the field with an invalid value<br/>
     "! try to deserialize a JSON string with an invalid value for a string type
     METHODS deser_field_invalid_value FOR TESTING.
+    "! serialized timestamps with domain XSDDATETIME_Z
+    METHODS serialize_time_stamp FOR TESTING.
 
 ENDCLASS.       "abap_unit_testclass
 * ----------------------------------------------------------------------
@@ -3226,6 +3228,43 @@ CLASS abap_unit_testclass IMPLEMENTATION.
              ).
     ENDTRY.
 
+
+  ENDMETHOD.
+
+  METHOD serialize_time_stamp.
+    DATA test_xsd_tms TYPE xsddatetime_z.
+
+    GET TIME STAMP FIELD DATA(tms_t).
+    test_xsd_tms = '19370101120027' .
+    DATA(ser_tms) = NEW Z_UI2_JSON( ts_as_iso8601 = abap_true )->serialize_int( test_xsd_tms ).
+    cl_abap_unit_assert=>assert_equals(
+      exp = '"1937-01-01T12:00:27Z"'
+      act = ser_tms ).
+
+    deserialize(
+        EXPORTING  json = '"1937-01-01T12:00:27"'
+        CHANGING data = test_xsd_tms
+        ).
+    cl_abap_unit_assert=>assert_equals(
+      exp = '19370101120027'
+      act = test_xsd_tms ).
+
+
+    TYPES ty_tms TYPE xsddatetime_z.
+    DATA test_xsd_tms2 TYPE ty_tms.
+    test_xsd_tms2 = '19370101120027' .
+    DATA(ser_tms2) = NEW Z_UI2_JSON( ts_as_iso8601 = abap_true )->serialize_int( test_xsd_tms2 ).
+    cl_abap_unit_assert=>assert_equals(
+      exp = '"1937-01-01T12:00:27Z"'
+      act = ser_tms2 ).
+
+    deserialize(
+        EXPORTING  json = '"1937-01-01T12:00:27"'
+        CHANGING data = test_xsd_tms2
+        ).
+    cl_abap_unit_assert=>assert_equals(
+      exp = '19370101120027'
+      act = test_xsd_tms2 ).
 
   ENDMETHOD.
 
