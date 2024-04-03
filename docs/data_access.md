@@ -6,6 +6,7 @@ Sometimes you need to access [ABAP data objects dynamically](https://help.sap.co
 * you do a cross-release development in ABAP and do not know if some field exists, so need dynamic access to data
 *	you access data from the optional ABAP component and also need dynamic access to the ABAP structure field or internal table row
 *	you need a key or index access to a dynamic internal table
+
 Normally, if you need to access ABAP fields/structure components dynamically, you will end up coding like this:
 
 ## Accessing Data Objects Dynamically (as suggested in the documentation) 
@@ -48,7 +49,7 @@ ENDIF.
 
 And if one thinks about accessing dynamically elements from nested tables it would be at all - hell.
 So, below one can find a helper class, which may help in such cases, in a lean and tasty way.  
-An original and actual version of the source can be found in class /UI2/CL_DATA_ACCESS delivered with UI2 Add-on (can be applied to SAP_BASIS 700 – 76X). So, you can use this ABAP JSON parser in your standard code mostly on any system. Delivered with note 2526405. 
+An original and actual version of the source can be found in class /UI2/CL_DATA_ACCESS delivered with UI2 Add-on (can be applied to SAP_BASIS 700 – 76X). So, you can use this ABAP JSON parser in your standard code mostly on any system. Delivered with a note [2526405](https://help.sap.com/http.svc/rc/abapdocu_751_index_htm/7.51/en-US/abendyn_access_data_obj_guidl.htm). 
 
 # What it can
 The accessor is a single class, with the following features:
@@ -110,6 +111,7 @@ GET REFERENCE OF ls_data INTO lr_data.
 ## Usage examples
 
 ### Traversing ABAP data dynamically 
+Simplest usage example:
 ```abap
 CREATE OBJECT lo_data EXPORTING ir_data = lr_data.
 
@@ -191,13 +193,13 @@ WRITE: lv_value.
 # API description 
 
 ## CREATE - Static Method Public Helper method for creating an instance of dynamic accessor
-*	\> IR_DATA (ref to data)Importing Type Ref To DATA Reference to data (allows modification of embedded data)
+*	\> IR_DATA (ref to data) - Importing Type Ref To DATA Reference to data (allows modification of embedded data)
 *	\> IV_DATA (data) - any data (modification of embedded data not allowed)
 *	\> IV_COMPONENT (string) - Sub-component name (XPath-like syntax is supported)
 *	\< RO_REF (ref to /ui2/cl_data_access) - Reference to accessor object pointing to subcomponent
 
 ## CONSTRUCTOR   - Instance Method Public Constructor
-*	\> IR_DATA (ref to data)Importing Type Ref To DATA Reference to data (allows modification of embedded data)
+*	\> IR_DATA (ref to data) - Importing Type Ref To DATA Reference to data (allows modification of embedded data)
 *	\> IV_DATA (data) - any data (modification of embedded data not allowed)
 
 ## AT  - Instance Method Public Component accessor
@@ -214,7 +216,7 @@ WRITE: lv_value.
 *	\< EV_DATA (data) - Copy of the embedded data value, or initial if data is not bound
 
 ## SET  - Instance Method Public Sets the value of the embedded object, if not initial
-*	\> IV_DATA (data)  - New value for embedded object
+*	\> IV_DATA (data) - New value for embedded object
 *	\< RV_SUCCESS (boolean) - ABAP_TRUE, if data was successfully modified
 
 # XPath-like dynamic data access
@@ -237,3 +239,14 @@ abap lo_object->at('subcomp1->subcomp11->subcomp111')
 * You can use any symbol (or combinations of symbols) as a component separator, except "[", "]", "=", ",". The recommended separator symbol is "-".
 * For dynamic index access of rows in nested tables use "[index]" after the component name. E.g. "table_name[2]". The indexing starts from 1. If the accessor object references the table data object directly, you may skip the component name. E.g. "[2]". You may continue accessing components after index access, e.g.: "table_a[1]-struct-table_b[2]". If you do out-of-range access, you get an empty reference back. Index access works only with index tables (STANDARD, SORTED). 
 * For dynamic key access of rows in nested tables use "(key=value)" for single key lookup, "(key1=value1, key2=value2)" for multi-key lookup, and "(value)" for table line lookup. You can NOT search for values containing ",". You can use nested lookups: "table_a(key1=value1)-table_b(key2=value2, key3=value3)". Values used in a query shall be assignable to field structures. 
+
+# Version History
+
+## Note [2798102](https://launchpad.support.sap.com/#/notes/2798102) - PL12
+* Fixed. Access to fields with special characters in the name (e.g. "/BIC/YEAR") fails.
+
+## Note [2786259](https://launchpad.support.sap.com/#/notes/2786259) - PL11
+* Fixed. Short dump, when accessing elements of a null array
+
+## Note [2526405](https://launchpad.support.sap.com/#/notes/2526405)
+* New: /UI2/CL_DATA_ACCESS class for working with dynamic ABAP data object (generated with method /UI2/CL_JSON=>GENERATE). The class can be used as a replacement for multiple ASSIGN COMPONENT language constructions.
