@@ -218,7 +218,7 @@ Output JSON
     }
 }
 ```
-But if you will use the assoc_arrays_opt flag during serialization, the serializer will try to omit unnecessary object nesting on dumping of simple, name/value tables, containing only one key field and one value field:
+But suppose you will use the assoc_arrays_opt flag during serialization. In that case, the serializer will try to omit unnecessary object nesting on dumping of simple, name/value tables, containing only one key field and one value field:
 ```abap
 lv_json = /ui2/cl_json=>serialize( data = lt_exp assoc_arrays = abap_true assoc_arrays_opt = abap_true ).
 ```
