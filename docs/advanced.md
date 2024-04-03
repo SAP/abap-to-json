@@ -1,7 +1,7 @@
 # Custom ABAP to JSON, JSON to ABAP name mapping
-By default, you control the way JSON names are formatted/mapped to ABAP names by selecting proper pretty_mode as a parameter for the SERIALIZE/DESERIALIZE/GENERATE method. But in some cases, the standard, hard-coded formatting, is not enough. For example, if you need special rules for name formatting (for using special characters) or because the JSON attribute name is too long and you can not map it to the ABAP name (which has 30 30-character length limit). 
+By default, you control the way JSON names are formatted/mapped to ABAP names by selecting proper pretty_mode as a parameter for the SERIALIZE/DESERIALIZE/GENERATE method. But in some cases, the standard, hard-coded formatting, is not enough. For example, if you need special rules for name formatting (for using special characters) or because the JSON attribute name is too long and you can not map it to the ABAP name (which has a 30-character length limit). 
 
-The recommended way for custom mapping was an extension of the class and redefining methods PRETTY_NAME or PRETTY_NAME_EX, but since note 2526405 there is an easier way, without the need for its class. If you have a static list of field mappings from ABAP to JSON you can pass the name mapping table as a parameter for the constructor/serialize/deserialize and control the way JSON names are formatted/mapped to ABAP names. 
+The recommended way for custom mapping was an extension of the class and redefining methods PRETTY_NAME or PRETTY_NAME_EX, but since note (2526405)[https://launchpad.support.sap.com/#/notes/2526405] there is an easier way, without the need for its class. If you have a static list of field mappings from ABAP to JSON you can pass the name mapping table as a parameter for the constructor/serialize/deserialize and control the way JSON names are formatted/mapped to ABAP names. 
 
 ## ABAP to JSON name mapping example
 ```abap
