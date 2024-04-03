@@ -228,7 +228,7 @@ IF lr_data IS BOUND.
   ENDIF.
 ENDIF.
 ```
-A nice alternative, using [dynamic data accessor helper class](data_access.md): 
+A nice alternative, using [dynamic data accessor helper class](data-access.md): 
 ```abap
 DATA: lv_json TYPE /ui2/cl_json=>json,
       lr_data TYPE REF TO data,
