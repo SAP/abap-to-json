@@ -2468,14 +2468,33 @@ ENDMETHOD.
 
 METHOD DETECT_TYPEKIND.
 
+  DATA: domain_name     TYPE domname,
+        inner_elemdescr TYPE REF TO cl_abap_elemdescr.
+
   IF convexit IS NOT INITIAL.
     rv_type = e_typekind-convexit.
   ELSE.
     rv_type = type_descr->type_kind.
     IF rv_type EQ cl_abap_typedescr=>typekind_packed AND mv_ts_as_iso8601 EQ c_bool-true.
-      IF type_descr->absolute_name EQ '\TYPE=TIMESTAMP'.
+
+      IF type_descr->help_id IS NOT INITIAL AND NOT contains( val = type_descr->absolute_name end = type_descr->help_id ).
+        TRY.
+            inner_elemdescr ?= cl_abap_elemdescr=>describe_by_name( type_descr->help_id ).
+            IF inner_elemdescr->is_ddic_type( ).
+              domain_name = inner_elemdescr->get_ddic_field( )-domname.
+            ENDIF.
+          CATCH cx_root.
+            domain_name = ''.
+        ENDTRY.
+      ELSE.
+        IF type_descr->is_ddic_type( ).
+          domain_name = type_descr->get_ddic_field( )-domname.
+        ENDIF.
+      ENDIF.
+
+      IF domain_name EQ 'TZNTSTMPS' OR domain_name EQ 'XSDDATETIME_Z'. " domain of TIMESTAMP is TZNTSTMPS
         rv_type = e_typekind-ts_iso8601.
-      ELSEIF type_descr->absolute_name EQ '\TYPE=TIMESTAMPL'.
+      ELSEIF domain_name EQ 'TZNTSTMPL' OR domain_name EQ 'XSDDATETIME_LONG_Z'.
         rv_type = e_typekind-tsl_iso8601.
       ENDIF.
     ELSEIF rv_type EQ cl_abap_typedescr=>typekind_num AND mv_numc_as_string EQ abap_true.
