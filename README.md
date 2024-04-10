@@ -25,7 +25,7 @@ If for some reason the solution does not fit your purposes, there are other alte
 * [Base Usage](docs/basic.md)
 * [Advanced Usage](docs/advanced.md)
 * [Class Extension](docs/class-extension.md)
-* [Dynamic Data Accessor for ABAP (/ui2/cl_data_access)](docs/data-access.md)
+* [Dynamic Data Accessor](docs/data-access.md)
 * [FAQ](docs/faq.md)
 * [Version History](docs/history.md)
 
