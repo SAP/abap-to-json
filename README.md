@@ -4,17 +4,17 @@
 
 ## About this project
 
-This is an Open source version of the standard /UI2/CL_JSON class and its public documentation that was previously available on SCN wiki as "One more ABAP to JSON Serializer and Deserializer" from 2013.
+This is an Open source version of the standard /UI2/CL_JSON class and its public documentation previously available on SCN wiki as "One more ABAP to JSON Serializer and Deserializer" from 2013.
 The official delivery of /UI2/CL_JSON will continue. The Open Source version (Z_UI2_JSON) is your way to contribute and get updates sooner using ABAP Git infrastructure. 
 
 ### Why
-There are a lot of other implementations of the **ABAP to JSON Serializer and Deserializer** in SDN, but for different reasons, all implementations I have found were not suitable for my needs. From SAP_BASIS 7.40 there is also **a simple transformation** available for converting **ABAP to JSON** and **JSON to ABAP**. It is the best choice if you need maximal performance and do not care about **serialization format**, but for proper handling of ABAP types and name **pretty-printing**, it fits badly. 
+There are a lot of other implementations of the **ABAP to JSON Serializer and Deserializer** in SDN, but for different reasons, all implementations I have found were not suitable for my needs. From SAP_BASIS 7.40 there is also **a simple transformation** available for converting **ABAP to JSON** and **JSON to ABAP**. It is the best choice if you need maximal performance and do not care about **serialization format**, but it fits badly for proper handling of ABAP types and name **pretty-printing**. 
 
 So, I have written my **ABAP JSON serializer and ABAP JSON deserializer** which has some key differences from other implementations.
 
 Here you can find an Open Source version of the standard /UI2/CL_JSON class in the form of a Z* class that you can use as a local class or as a global one.
 
-An original and actual version of the source can be found in class /UI2/CL_JSON delivered with UI2 Add-on (can be applied to SAP_BASIS 740 – 76X). So, you can use this ABAP JSON parser in your standard code mostly on any system.
+An original and actual source version can be found in class /UI2/CL_JSON delivered with UI2 Add-on (can be applied to SAP_BASIS 740 – 76X). So, you can use this ABAP JSON parser in your standard code mostly on any system.
 
 ## Alternatives
 If for some reason the solution does not fit your purposes, there are other alternatives you may try:
@@ -25,6 +25,7 @@ If for some reason the solution does not fit your purposes, there are other alte
 * [Base Usage](docs/basic.md)
 * [Advanced Usage](docs/advanced.md)
 * [Class Extension](docs/class-extension.md)
+* [Dynamic Data Accessor for ABAP (/ui2/cl_data_access)](docs/data-access.md)
 * [FAQ](docs/faq.md)
 * [Version History](docs/history.md)
 
