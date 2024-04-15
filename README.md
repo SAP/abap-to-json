@@ -8,13 +8,13 @@ This is an Open source version of the standard /UI2/CL_JSON class and its public
 The official delivery of /UI2/CL_JSON will continue. The Open Source version (Z_UI2_JSON) is your way to contribute and get updates sooner using ABAP Git infrastructure. 
 
 ### Why
-There are a lot of other implementations of the **ABAP to JSON Serializer and Deserializer** in SDN. Still, for different reasons, all implementations I found were unsuitable for my needs. From SAP_BASIS 7.40 there is also **a simple transformation** available for converting **ABAP to JSON** and **JSON to ABAP**. It is the best choice if you need maximal performance and do not care about **serialization format**, but it fits badly for properly handling ABAP types and name **pretty-printing**. 
+There are a lot of other implementations of the **ABAP to JSON Serializer and Deserializer** in SDN. Still, for different reasons, I found all implementations unsuitable for my needs. From SAP_BASIS 7.40 there is also **a simple transformation** available for converting **ABAP to JSON** and **JSON to ABAP**. It is the best choice if you need maximal performance and do not care about **serialization format**, but it fits badly for properly handling ABAP types and name **pretty-printing**. 
 
 So, I have written my **ABAP JSON serializer and ABAP JSON deserializer** which has some key differences from other implementations.
 
 Here you can find an Open Source version of the standard /UI2/CL_JSON class in the form of a Z* class that you can use as a local class or as a global one.
 
-An original and actual source version can be found in class /UI2/CL_JSON delivered with UI2 Add-on (can be applied to SAP_BASIS 740 – 76X). So, you can use this ABAP JSON parser in your standard code mostly on any system.
+An original and current source version can be found in class /UI2/CL_JSON delivered with UI2 Add-on (can be applied to SAP_BASIS 740 – 76X). So, you can use this ABAP JSON parser in your standard code mostly on any system.
 
 ## Alternatives
 If for some reason the solution does not fit your purposes, there are other alternatives you may try:
@@ -38,7 +38,7 @@ Install via [abapGit Eclipse plugin](https://github.com/abapGit/ADT_Frontend) on
 
 ## Support, Feedback, Contributing
 
-This project is open to feature requests/suggestions, bug reports, etc. via [GitHub issues](https://github.com/SAP/abap-to-json/issues). Contribution and feedback are encouraged and always welcome. For more information about how to contribute, the project structure, as well as additional contribution information, see our [Contribution Guidelines](CONTRIBUTING.md). The contribution in the Open Source version will be then integrated into the standard SAP-delivered version (/UI2/CL_JSON). 
+This project is open to feature requests/suggestions, bug reports, etc. via [GitHub issues](https://github.com/SAP/abap-to-json/issues). Contribution and feedback are encouraged and always welcome. For more information about how to contribute, the project structure, and additional contribution information, see our [Contribution Guidelines](CONTRIBUTING.md). The contribution in the Open Source version will be then integrated into the standard SAP-delivered version (/UI2/CL_JSON). 
 You can also use [Github Discussion](https://github.com/SAP/abap-to-json/discussions) to comment, request features or discuss the behavior.
 
 ## Code of Conduct
