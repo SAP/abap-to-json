@@ -206,3 +206,8 @@ Results in the following JSON:
 	"initialXxx": 0
 }
 ```
+
+# Continue reading
+* [Advanced Use cases](advanced.md)
+* [FAQ](faq.md)
+* [Version History](history.md)
