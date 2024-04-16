@@ -344,6 +344,7 @@ DATA(lv_json) = /ui2/cl_json=>raw_to_string( lv_jsonx ).
 The transformation above uses the built-in ID transformation, that produces "ABAP JSON" output. If you want to have your custom transformation rules you can use [this project](https://github.com/timostark/abap-json-serialization) to create an XSLT transformation for your data structure.
 
 # Continue reading
+* [Basic usage of the class](basic.md)
 * [Extension (inheriting) of the class](class-extension.md)
 * [FAQ](faq.md)
 * [Version History](history.md)
