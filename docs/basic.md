@@ -218,7 +218,7 @@ Output JSON
     }
 }
 ```
-But suppose you will use the assoc_arrays_opt flag during serialization. In that case, the serializer will try to omit unnecessary object nesting on dumping of simple, name/value tables, containing only one key field and one value field:
+But suppose you will use the assoc_arrays_opt flag during serialization. In that case, the serializer will try to omit unnecessary object nesting by dumping simple, name/value tables, containing only one key field and one value field:
 ```abap
 lv_json = /ui2/cl_json=>serialize( data = lt_exp assoc_arrays = abap_true assoc_arrays_opt = abap_true ).
 ```
@@ -237,7 +237,7 @@ The code was tested from SAP_BASIS 7.00 and higher, but I do not see the reasons
 # Further optimizations
 * Be aware, that usage of flag conversion_exits may significantly decrease performance - use only in cases, when you are sure that you need it.
 * Escaping property values can be expensive. To optimize performance, in this case, you can replace escapement code with some kernel-implemented function (from cl_http_utility class for example), instead of explicit *REPLACE ALL OCCURRENCES* calls.
-* Unescaping can influence deserialization performance even worse, depending on the fact that your JSON has encoded \n\r\t\f\b\x. So, avoid the usage of them if you can. 
+* Unescaping can influence deserialization performance even worse, depending on the fact that your JSON has encoded \n\r\t\f\b\x. So, avoid their usage if you can. 
 * It is possible to significantly increase performance for serialization/deserialization by dropping the support of releases below 7.40. That can be realized by moving base parsing from ABAP to kernel-implemented classes cl_sxml_string_writer and cl_sxml_string_reader.
 
 # Remarks
