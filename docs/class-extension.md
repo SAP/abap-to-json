@@ -208,6 +208,7 @@ Results in the following JSON:
 ```
 
 # Continue reading
+* [Basic usage of the class](basic.md)
 * [Advanced Use cases](advanced.md)
 * [FAQ](faq.md)
 * [Version History](history.md)
