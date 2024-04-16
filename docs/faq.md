@@ -61,4 +61,10 @@ Only single-field conversion exits are supported.
 ## My fields are/NOT serialized as true/false instead and serialized like 'X' or ''! E.g. how to control ABAP/JSON Boolean conversion?
 JSON, as JavaSctript, has a built-in Boolean type with true/false values. ABAP does not have a built-in Boolean type and uses fields of char 1 with constant values of 'X' (TRUE) and ''(space, FALSE). Different teams use different predefined types to be used as a Boolean type for them. It is a zoo. There is no way to detect the boolean type or even be able to auto-convert them between different ABAP types. But there are some more or less standard conventions of which standard types shall be used for booleans. The serializer class has the default list of standard boolean types hardcoded in constant MC_BOOL_TYPES (ABAP_BOOLEAN, ABAP_BOOL, BOOLEAN, BOOLE_D, XFELD, XSDBOOLEAN, WDY_BOOLEAN). If you use one of these types in your data, passed to the serializer, it will be automatically processed by the parser and converted from ''/'X' into false/true and vice versa. If you use any other type not in the list, there will be no auto-conversion. OK, you do not like default (it processes too many types or two less), what to do? You have the following choices:
 * Do not use static methods for serialization and deserialization, but instance ones (e.g. json_obj->serilaize_int instead of /ui2/cl_json=>serilaize) AND customize the behavior of the instance by constructor parameters. You can pass an alternative set of boolean types with the parameter BOOL_TYPES. The usage of instance methods is also faster if you repeat calls for serialization.
-* Inherit the class and overwrite default boolean types, stored in the class variable mv_bool_types with your preferred default. Use your class everywhere instead of standard, to ensure consistency. How to inherit the class you can find [here](docs/class-extension.md).
+* Inherit the class and overwrite default boolean types, stored in the class variable mv_bool_types with your preferred default. Use your class everywhere instead of standard, to ensure consistency. How to inherit the class you can find [here](docs/class-extension.md). 
+
+
+# Continue reading
+* [Basic usage of the class](basic.md)
+* [Advanced Use cases](advanced.md)
+* [Version History](history.md)
