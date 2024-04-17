@@ -8,7 +8,7 @@ This is an Open source version of the standard /UI2/CL_JSON class and its public
 The official delivery of /UI2/CL_JSON will continue. The Open Source version (Z_UI2_JSON) is your way to contribute and get updates sooner using ABAP Git infrastructure. 
 
 ### Why
-There are a lot of other implementations of the **ABAP to JSON Serializer and Deserializer** in SDN. Still, for different reasons, I found all implementations unsuitable for my needs. From SAP_BASIS 7.40 there is also **a simple transformation** available for converting **ABAP to JSON** and **JSON to ABAP**. It is the best choice if you need maximal performance and do not care about **serialization format**, but it fits badly for properly handling ABAP types and name **pretty-printing**. 
+There are a lot of other implementations of the **ABAP to JSON Serializer and Deserializer** in SDN. Still, I found all implementations unsuitable for my needs for different reasons. From SAP_BASIS 7.40 there is also **a simple transformation** available for converting **ABAP to JSON** and **JSON to ABAP**. It is the best choice if you need maximal performance and do not care about **serialization format**, but it fits badly for properly handling ABAP types and name **pretty-printing**. 
 
 So, I have written my **ABAP JSON serializer and ABAP JSON deserializer** which has some key differences from other implementations.
 
@@ -43,7 +43,7 @@ You can also use [Github Discussion](https://github.com/SAP/abap-to-json/discuss
 
 ## Code of Conduct
 
-We as members, contributors, and leaders pledge to make participation in our community a harassment-free experience for everyone. By participating in this project, you agree to abide by its [Code of Conduct](https://github.com/SAP/.github/blob/main/CODE_OF_CONDUCT.md) at all times.
+Members, contributors, and leaders pledge to make participation in our community a harassment-free experience for everyone. By participating in this project, you agree to abide by its [Code of Conduct](https://github.com/SAP/.github/blob/main/CODE_OF_CONDUCT.md) at all times.
 
 ## Licensing
 
