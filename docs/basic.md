@@ -2,7 +2,7 @@
 
 # What the class can
 ## ABAP to JSON
-* Serialize classes, structures, internal tables, class and data references, and any kind of elementary types. Complex types, such as a table of structures/classes, classes with complex attributes, etc. are also supported and recursively processed.
+* Serialize classes, structures, internal tables, class and data references, and elementary types. Complex types, such as a table of structures/classes, classes with complex attributes, etc. are also supported and recursively processed.
 * **ABAP to JavaScript** adopted way of data type serializations:
   * strings, character types to JavaScript string format (no length limitation),
   * ABAP_BOOL / BOOLEAN / XFELD / BOOLE_D to JavaScript Boolean,
@@ -19,7 +19,7 @@
 * Performance is optimized for processing big internal tables with structures
 
 ## JSON to ABAP
-* Deserialize JSON objects, arrays, and any elementary types into corresponding ABAP structures. Complex objects, with embedded arrays and objects with any level of nesting, are also supported.
+* Deserialize JSON objects, arrays, and elementary types into corresponding ABAP structures. Complex objects, with embedded arrays and objects with any level of nesting, are also supported.
 * **Convert JSON to an internal table**
 * Generic deserialization of JSON objects into reference data types: 
   * as simple data types (integer, boolean, or string into generic data reference (REF TO DATA) -> ABAP type is selected based on JSON type.
