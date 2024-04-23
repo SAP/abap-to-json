@@ -33,7 +33,7 @@
   * Date/Time/Timestamps from JSON converted based on the type of corresponding ABAP element
   * integers/floats/strings moved to corresponding fields using ABAP move semantic (strings are un-escaped). There is no limit on the size of deserialized strings, the only restriction is the constraints of receiving data type. Escaped Unicode symbols (\u001F) in strings are decoded.
   * elementary data types are converted if they do not match: JavaScript integer can come into ABAP string or JavaScript string into ABAP integer, etc.
-  * Transformation considers property naming guidelines for **JSON** and **ABAP** so that camelCase names will be copied into the corresponding CAMEL_CASE field if the CAMELCASE field is not found in the ABAP structure. Do not forget to use the same PRETTY_MODE for deserialization, as you have used for serialization.
+  * Transformation considers property naming guidelines for **JSON** and **ABAP** so that camelCase names will be copied into the corresponding CAMEL_CASE field if the CAMELCASE field is not found in the ABAP structure. Please don't forget to use the same PRETTY_MODE for deserialization, as you have used for serialization.
   * Default field values, specified in reference ABAP variable are preserved, and not overwritten if not found in the JSON object
   * Transformation of **JSON** structures into ABAP class instances is NOT supported.
 * Support of conversion exits on deserialization
@@ -129,7 +129,7 @@ START-OF-SELECTION.
 ....
 ```
 # API description
-Two static methods are of most interest in common cases: SERIALIZE and DESERIALIZE. The rest of the public methods are done public only for reuse purposes if you would like to build/extend your own serialization/deserialization code. 
+Two static methods are most interesting in common cases: SERIALIZE and DESERIALIZE. The rest of the public methods are done public only for reuse purposes if you would like to build/extend your own serialization/deserialization code. 
 
 ## SERIALIZE: Serialize ABAP object into JSON
 
