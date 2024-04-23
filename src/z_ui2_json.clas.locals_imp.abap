@@ -240,6 +240,7 @@ DEFINE restore_reference_ex. " &1 - data, &2 - type_descr
 END-OF-DEFINITION.
 
 DEFINE throw_error.
+  " RAISE EXCEPTION TYPE cx_sy_move_cast_error EXPORTING source_typename = |({ offset })|.
   RAISE EXCEPTION TYPE cx_sy_move_cast_error.
 END-OF-DEFINITION.
 

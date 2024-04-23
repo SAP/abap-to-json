@@ -11,7 +11,8 @@ CLASS lcl_util DEFINITION FINAL FRIENDS z_ui2_json.
     CLASS-METHODS:
       _escape IMPORTING in TYPE data EXPORTING out TYPE string,
       to_md5  IMPORTING iv_value TYPE string RETURNING VALUE(rv_result) TYPE string,
-      read_string IMPORTING json TYPE string mark TYPE i CHANGING offset TYPE i DEFAULT 0 text TYPE string RAISING cx_sy_move_cast_error .
+      read_string IMPORTING json TYPE string mark TYPE i CHANGING offset TYPE i DEFAULT 0 text TYPE string RAISING cx_sy_move_cast_error,
+      describe_type IMPORTING io_type_descr TYPE REF TO cl_abap_typedescr RETURNING VALUE(rv_typename) TYPE string.
 
 ENDCLASS.                    "lcl_util DEFINITION
 
@@ -21,6 +22,51 @@ ENDCLASS.                    "lcl_util DEFINITION
 *
 *----------------------------------------------------------------------*
 CLASS lcl_util IMPLEMENTATION.
+
+  METHOD describe_type.
+
+    DATA: lo_elem_descr TYPE REF TO cl_abap_elemdescr,
+          lv_kind_name  TYPE string,
+          lv_pos        TYPE i.
+
+    rv_typename = `?`.
+
+    CHECK io_type_descr IS NOT INITIAL.
+
+    FIND FIRST OCCURRENCE OF '\TYPE=' IN io_type_descr->absolute_name MATCH OFFSET lv_pos.
+    IF sy-subrc IS INITIAL.
+      lv_pos = lv_pos + 6.
+      IF io_type_descr->absolute_name+lv_pos(1) NE '%'.
+        rv_typename = io_type_descr->absolute_name+lv_pos.
+      ELSE.
+        CLEAR rv_typename.
+      ENDIF.
+    ELSE.
+      rv_typename = io_type_descr->absolute_name.
+    ENDIF.
+
+    CASE io_type_descr->kind.
+      WHEN cl_abap_typedescr=>kind_table.
+        lv_kind_name = `TABLE`.
+      WHEN cl_abap_typedescr=>kind_struct.
+        lv_kind_name = `STRUCTURE`.
+      WHEN cl_abap_typedescr=>kind_class.
+        lv_kind_name = `CLASS`.
+      WHEN cl_abap_typedescr=>kind_intf.
+        lv_kind_name = `INTERFACE`.
+      WHEN cl_abap_typedescr=>kind_ref.
+        lv_kind_name = `REFERENCE`.
+    ENDCASE.
+
+    IF lv_kind_name IS NOT INITIAL.
+      IF rv_typename IS NOT INITIAL.
+        CONCATENATE lv_kind_name `(` rv_typename `)` INTO rv_typename.
+      ELSE.
+        rv_typename = lv_kind_name.
+      ENDIF.
+    ENDIF.
+
+  ENDMETHOD.
 
   METHOD read_string.
 
@@ -2821,7 +2867,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
           lr_data  TYPE REF TO data,
           lr_data2 TYPE REF TO data.
 
-    lv_json = `{"system XYZ": {"S/I\D": "XYZ", ":#*~@#$%^&*()_+-|.,=><!?/'{}[]§": "التجاري"}}`. "#EC NOTEXT
+    lv_json = `{"system XYZ": {"S/I\D": "XYZ", ":#*~@#$%^&*()_+-|.,=><!?/'{}[]В§": "Ш§Щ„ШЄШ¬Ш§Ш±ЩЉ"}}`. "#EC NOTEXT
 
     lr_data = generate( json = lv_json ).
 
@@ -2902,6 +2948,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
                           format_output    = abap_true
                           assoc_arrays     = abap_true
                           assoc_arrays_opt = abap_true ).
+
   ENDMETHOD.                    "serialize_cycle_reference
 
   METHOD deserialize_strict_table_null.
@@ -2914,31 +2961,21 @@ CLASS abap_unit_testclass IMPLEMENTATION.
              string1 TYPE string,
            END OF ty_test.
 
-    DATA s_test2 TYPE ty_test.
+    DATA: ls_test TYPE ty_test,
+          lv_json TYPE json,
+          lo_json TYPE t_json.
 
-    DATA lo_json TYPE t_json.
     CREATE OBJECT lo_json
       EXPORTING
         strict_mode = abap_true
         pretty_name = pretty_mode-camel_case.
 
-    lo_json->deserialize_int(
-      EXPORTING
-        json             = '{"tab1":null,"struc1":{"field1":"hugo"},"string1":"u__u"}'
-      CHANGING
-        data             = s_test2
-    ).
+    lv_json = '{"tab1":null,"struc1":{"field1":"hugo"},"string1":"u__u"}'.
+    lo_json->deserialize_int( EXPORTING json = lv_json CHANGING data = ls_test ).
 
-    cl_abap_unit_assert=>assert_initial(
-       act = s_test2-tab1 ).
-
-    cl_abap_unit_assert=>assert_equals(
-           exp = 'hugo'
-           act = s_test2-struc1-field1 ).
-
-    cl_abap_unit_assert=>assert_equals(
-           exp = 'u__u'
-           act = s_test2-string1 ).
+    cl_abap_unit_assert=>assert_initial( act = ls_test-tab1 ).
+    cl_abap_unit_assert=>assert_equals( exp = 'hugo' act = ls_test-struc1-field1 ).
+    cl_abap_unit_assert=>assert_equals( exp = 'u__u' act = ls_test-string1 ).
 
   ENDMETHOD.                    "deserialize_strict_table_null
 
@@ -2952,63 +2989,55 @@ CLASS abap_unit_testclass IMPLEMENTATION.
              string1 TYPE string,
            END OF ty_test.
 
-    DATA s_test2 TYPE ty_test.
+    DATA: ls_test TYPE ty_test,
+          lv_val  TYPE string,
+          lv_json TYPE json,
+          lo_json TYPE t_json.
 
-    DATA lo_json TYPE t_json.
     CREATE OBJECT lo_json
       EXPORTING
         strict_mode = abap_true
         pretty_name = pretty_mode-camel_case.
 
-    lo_json->deserialize_int(
-      EXPORTING
-        json             = '{"tab1":["hugo"],"struc1":null,"string1":"u__u"}'
-      CHANGING
-        data             = s_test2
-    ).
+    lv_json = '{"tab1":["hugo"],"struc1":null,"string1":"u__u"}'.
+    lo_json->deserialize_int( EXPORTING json = lv_json CHANGING data = ls_test ).
 
-    DATA: lv_val TYPE string.
+    READ TABLE ls_test-tab1 INDEX 1 INTO lv_val.
 
-    READ TABLE s_test2-tab1 INDEX 1 INTO lv_val.
-
-    cl_abap_unit_assert=>assert_equals( exp = `hugo` act = lv_val ).
-    cl_abap_unit_assert=>assert_initial( act = s_test2-struc1 ).
-    cl_abap_unit_assert=>assert_equals( exp = 'u__u' act = s_test2-string1 ).
+    cl_abap_unit_assert=>assert_equals( exp = 'hugo' act = lv_val ).
+    cl_abap_unit_assert=>assert_initial( act = ls_test-struc1 ).
+    cl_abap_unit_assert=>assert_equals( exp = 'u__u' act = ls_test-string1 ).
 
   ENDMETHOD.                    "deserialize_strict_struct_null
 
   METHOD deserialize_strict_string_null.
 
-    TYPES: BEGIN OF ty_test2,
+    TYPES: BEGIN OF ty_test,
              tab1    TYPE STANDARD TABLE OF string WITH DEFAULT KEY,
              BEGIN OF struc1,
                field1 TYPE string,
              END OF struc1,
              string1 TYPE string,
-           END OF ty_test2.
+           END OF ty_test.
 
-    DATA s_test2 TYPE ty_test2.
+    DATA: ls_test TYPE ty_test,
+          lv_val  TYPE string,
+          lv_json TYPE json,
+          lo_json TYPE t_json.
 
-    DATA lo_json TYPE t_json.
     CREATE OBJECT lo_json
       EXPORTING
         strict_mode = abap_true
         pretty_name = pretty_mode-camel_case.
 
-    lo_json->deserialize_int(
-      EXPORTING
-        json             = '{"tab1":["hugo"],"struc1":{"field1":"hugo"},"string1":null}'
-      CHANGING
-        data             = s_test2
-    ).
+    lv_json = '{"tab1":["hugo"],"struc1":{"field1":"hugo"},"string1":null}'.
+    lo_json->deserialize_int( EXPORTING json = lv_json CHANGING data = ls_test ).
 
-    DATA: lv_val TYPE string.
+    READ TABLE ls_test-tab1 INDEX 1 INTO lv_val.
 
-    READ TABLE s_test2-tab1 INDEX 1 INTO lv_val.
-
-    cl_abap_unit_assert=>assert_equals( exp = `hugo` act = lv_val ).
-    cl_abap_unit_assert=>assert_equals( exp = 'hugo' act = s_test2-struc1-field1 ).
-    cl_abap_unit_assert=>assert_initial( act = s_test2-string1 ).
+    cl_abap_unit_assert=>assert_equals( exp = 'hugo' act = lv_val ).
+    cl_abap_unit_assert=>assert_equals( exp = 'hugo' act = ls_test-struc1-field1 ).
+    cl_abap_unit_assert=>assert_initial( act = ls_test-string1 ).
 
   ENDMETHOD.                    "deserialize_strict_string_null
 
@@ -3016,26 +3045,29 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     TYPES:
       BEGIN OF ty_test,
-        int_p2  TYPE i,
+        int_p2 TYPE i,
       END OF ty_test,
+      ty_tab TYPE STANDARD TABLE OF i WITH DEFAULT KEY,
+      ty_s_tab TYPE STANDARD TABLE OF ty_test WITH DEFAULT KEY,
       BEGIN OF ty_test2,
         tab1    TYPE STANDARD TABLE OF string WITH DEFAULT KEY,
         BEGIN OF struc1,
           field1 TYPE string,
         END OF struc1,
         string1 TYPE string,
-        tab2    TYPE STANDARD TABLE OF ty_test WITH EMPTY KEY,
+        tab2    TYPE STANDARD TABLE OF ty_test WITH DEFAULT KEY,
+        tab3    TYPE STANDARD TABLE OF ty_tab WITH DEFAULT KEY,
+        tab4    TYPE STANDARD TABLE OF ty_s_tab WITH DEFAULT KEY,
       END OF ty_test2.
 
-    DATA: s_test2    TYPE ty_test2,
-          serializer TYPE REF TO z_ui2_json,
-          lx_move    TYPE REF TO cx_sy_move_cast_error
-          .
+    DATA: ls_test    TYPE ty_test2,
+          lo_json    TYPE t_json,
+          lx_move    TYPE REF TO cx_sy_move_cast_error.
 
-    CREATE OBJECT serializer
+    CREATE OBJECT lo_json
       EXPORTING
         compress         = abap_true
-        pretty_name      = z_ui2_json=>pretty_mode-camel_case
+        pretty_name      = pretty_mode-camel_case
         assoc_arrays     = abap_true
         assoc_arrays_opt = abap_true
         ts_as_iso8601    = abap_false
@@ -3045,226 +3077,152 @@ CLASS abap_unit_testclass IMPLEMENTATION.
         conversion_exits = abap_false.
 
     TRY.
-        serializer->deserialize_int(
-          EXPORTING
-            json             = '{"tab1":true,"string1":"u__u"}'
-          CHANGING
-            data             = s_test2
-        ).
+        lo_json->deserialize_int( EXPORTING json = '{"tab1":true,"string1":"u__u"}' CHANGING data = ls_test ).
         cl_abap_unit_assert=>fail( ).
       CATCH cx_sy_move_cast_error INTO lx_move.
-        cl_abap_unit_assert=>assert_equals(
-            exp = `$.tab1`
-            act = lx_move->source_typename
-             ).
-        cl_abap_unit_assert=>assert_equals(
-            exp = `table`
-            act = lx_move->target_typename
-             ).
-        cl_abap_unit_assert=>assert_equals(
-            exp = `Source type $.tab1 is not compatible, for the purposes of assignment, with target type table`
-            act = lx_move->get_text( )
-             ).
+        cl_abap_unit_assert=>assert_equals( exp = `$.tab1` act = lx_move->source_typename ).
+        cl_abap_unit_assert=>assert_equals( exp = `TABLE` act = lx_move->target_typename ).
+        cl_abap_unit_assert=>assert_equals( exp = `Source type $.tab1 is not compatible, for the purposes of assignment, with target type TABLE` act = lx_move->get_text( ) ).
     ENDTRY.
 
     TRY.
-        serializer->deserialize_int(
-          EXPORTING
-            json             = '{"tab1":"hugo","string1":"u__u"}'
-          CHANGING
-            data             = s_test2
-        ).
+        lo_json->deserialize_int( EXPORTING json = '{"tab1":"hugo","string1":"u__u"}' CHANGING data = ls_test ).
         cl_abap_unit_assert=>fail( ).
       CATCH cx_sy_move_cast_error INTO lx_move.
-        cl_abap_unit_assert=>assert_equals(
-            exp = `$.tab1`
-            act = lx_move->source_typename
-             ).
+        cl_abap_unit_assert=>assert_equals( exp = `$.tab1` act = lx_move->source_typename ).
     ENDTRY.
 
     TRY.
-        serializer->deserialize_int(
-          EXPORTING
-            json             = '{"tab1":["hugo",?]}'
-          CHANGING
-            data             = s_test2
-        ).
+        lo_json->deserialize_int( EXPORTING json = '{"tab1":["hugo",?]}' CHANGING data = ls_test ).
         cl_abap_unit_assert=>fail( ).
       CATCH cx_sy_move_cast_error INTO lx_move.
-        cl_abap_unit_assert=>assert_equals(
-            exp = `$.tab1[2]`
-            act = lx_move->source_typename
-             ).
+        cl_abap_unit_assert=>assert_equals( exp = `$.tab1[2]` act = lx_move->source_typename ).
     ENDTRY.
 
     TRY.
-        serializer->deserialize_int(
-          EXPORTING
-            json             = '{"tab2":[{"intP2":1 },{"intP2":"illegal int"}]}'
-          CHANGING
-            data             = s_test2
-        ).
+        lo_json->deserialize_int( EXPORTING json = '{"tab2":[{"intP2":1 },{"intP2":"illegal int"}]}' CHANGING data = ls_test ).
         cl_abap_unit_assert=>fail( ).
       CATCH cx_sy_move_cast_error INTO lx_move.
-        cl_abap_unit_assert=>assert_equals(
-            exp = `$.tab2[2].intP2`
-            act = lx_move->source_typename
-             ).
+        cl_abap_unit_assert=>assert_equals( exp = `$.tab2[2].intP2` act = lx_move->source_typename ).
+    ENDTRY.
+
+    TRY.
+        lo_json->deserialize_int( EXPORTING json = '{"tab3":[[1,2],["str1","str2"]]}' CHANGING data = ls_test ).
+        cl_abap_unit_assert=>fail( ).
+      CATCH cx_sy_move_cast_error INTO lx_move.
+        cl_abap_unit_assert=>assert_equals( exp = `$.tab3[2][1]` act = lx_move->source_typename ).
+    ENDTRY.
+
+    TRY.
+        lo_json->deserialize_int( EXPORTING json = '{"tab4":[[{"intP2":1}],[{"intP2":"illegal int"}]]}' CHANGING data = ls_test ).
+        cl_abap_unit_assert=>fail( ).
+      CATCH cx_sy_move_cast_error INTO lx_move.
+        cl_abap_unit_assert=>assert_equals( exp = `$.tab4[2][1].intP2` act = lx_move->source_typename ).
     ENDTRY.
 
   ENDMETHOD.
 
   METHOD deser_structure_invalid_value.
 
-    TYPES: BEGIN OF ty_test2,
+    TYPES: BEGIN OF ty_test,
              tab1    TYPE STANDARD TABLE OF string WITH DEFAULT KEY,
              BEGIN OF struc1,
                field1 TYPE string,
              END OF struc1,
              string1 TYPE string,
-           END OF ty_test2.
+           END OF ty_test.
 
-    DATA: s_test2    TYPE ty_test2,
-          serializer TYPE REF TO z_ui2_json,
-          lx_move    TYPE REF TO cx_sy_move_cast_error
-          .
+    DATA: ls_test    TYPE ty_test,
+          lo_json    TYPE t_json,
+          lx_move    TYPE REF TO cx_sy_move_cast_error.
 
-    CREATE OBJECT serializer
+    CREATE OBJECT lo_json
       EXPORTING
-            compress         = abap_true
-            pretty_name      = z_ui2_json=>pretty_mode-camel_case
-            assoc_arrays     = abap_true
-            assoc_arrays_opt = abap_true
-            ts_as_iso8601    = abap_false
-            expand_includes  = abap_true
-            strict_mode      = abap_true " raise sometimes an exception in error case
-            numc_as_string   = abap_false
-            conversion_exits = abap_false
-        .
+        compress         = abap_true
+        pretty_name      = pretty_mode-camel_case
+        assoc_arrays     = abap_true
+        assoc_arrays_opt = abap_true
+        ts_as_iso8601    = abap_false
+        expand_includes  = abap_true
+        strict_mode      = abap_true " raise sometimes an exception in error case
+        numc_as_string   = abap_false
+        conversion_exits = abap_false.
 
     TRY.
-        serializer->deserialize_int(
-          EXPORTING
-            json             = '{"struc1":true,"string1":"u__u"}'
-          CHANGING
-            data             = s_test2
-        ).
+        lo_json->deserialize_int( EXPORTING json = '{"struc1":true,"string1":"u__u"}' CHANGING data = ls_test ).
         cl_abap_unit_assert=>fail( ).
       CATCH cx_sy_move_cast_error INTO lx_move.
-        cl_abap_unit_assert=>assert_equals(
-            exp = `$.struc1`
-            act = lx_move->source_typename
-             ).
-        cl_abap_unit_assert=>assert_equals(
-            exp = `structure`
-            act = lx_move->target_typename
-             ).
-        cl_abap_unit_assert=>assert_equals(
-            exp = `Source type $.struc1 is not compatible, for the purposes of assignment, with target type structure`
-            act = lx_move->get_text( )
-             ).
+        cl_abap_unit_assert=>assert_equals( exp = `$.struc1` act = lx_move->source_typename ).
+        cl_abap_unit_assert=>assert_equals( exp = `STRUCTURE` act = lx_move->target_typename ).
+        cl_abap_unit_assert=>assert_equals( exp = `Source type $.struc1 is not compatible, for the purposes of assignment, with target type STRUCTURE` act = lx_move->get_text( ) ).
     ENDTRY.
 
     TRY.
-        serializer->deserialize_int(
-          EXPORTING
-            json             = '{"struc1":"hugo","string1":"u__u"}'
-          CHANGING
-            data             = s_test2
-        ).
+        lo_json->deserialize_int( EXPORTING json = '{"struc1":"hugo","string1":"u__u"}' CHANGING data = ls_test ).
         cl_abap_unit_assert=>fail( ).
       CATCH cx_sy_move_cast_error INTO lx_move.
-        cl_abap_unit_assert=>assert_equals(
-            exp = `$.struc1`
-            act = lx_move->source_typename
-             ).
+        cl_abap_unit_assert=>assert_equals( exp = `$.struc1` act = lx_move->source_typename ).
     ENDTRY.
   ENDMETHOD.
 
   METHOD deser_field_invalid_value.
 
-    TYPES: BEGIN OF ty_test2,
+    TYPES: BEGIN OF ty_test,
              tab1    TYPE STANDARD TABLE OF string WITH DEFAULT KEY,
              BEGIN OF struc1,
                field1 TYPE string,
              END OF struc1,
              string1 TYPE string,
-           END OF ty_test2.
+           END OF ty_test.
 
-    DATA: s_test2    TYPE ty_test2,
-          serializer TYPE REF TO z_ui2_json,
-          lx_move    TYPE REF TO cx_sy_move_cast_error
-          .
+    DATA: ls_test   TYPE ty_test,
+          lo_json   TYPE t_json,
+          lx_move   TYPE REF TO cx_sy_move_cast_error.
 
-    CREATE OBJECT serializer
+    CREATE OBJECT lo_json
       EXPORTING
-            compress         = abap_true
-            pretty_name      = z_ui2_json=>pretty_mode-camel_case
-            assoc_arrays     = abap_true
-            assoc_arrays_opt = abap_true
-            ts_as_iso8601    = abap_false
-            expand_includes  = abap_true
-            strict_mode      = abap_true " raise sometimes an exception in error case
-            numc_as_string   = abap_false
-            conversion_exits = abap_false
-        .
+        compress         = abap_true
+        pretty_name      = pretty_mode-camel_case
+        assoc_arrays     = abap_true
+        assoc_arrays_opt = abap_true
+        ts_as_iso8601    = abap_false
+        expand_includes  = abap_true
+        strict_mode      = abap_true " raise sometimes an exception in error case
+        numc_as_string   = abap_false
+        conversion_exits = abap_false.
 
     TRY.
-        serializer->deserialize_int(
-          EXPORTING
-            json             = '{"struc1":{"field1":?}}'
-          CHANGING
-            data             = s_test2
-        ).
+        lo_json->deserialize_int( EXPORTING json = '{"struc1":{"field1":?}}' CHANGING data = ls_test ).
         cl_abap_unit_assert=>fail( ).
       CATCH cx_sy_move_cast_error INTO lx_move.
-        cl_abap_unit_assert=>assert_equals(
-            exp = `$.struc1.field1`
-            act = lx_move->source_typename
-             ).
-        cl_abap_unit_assert=>assert_equals(
-            exp = `\TYPE=STRING`
-            act = lx_move->target_typename
-             ).
+        cl_abap_unit_assert=>assert_equals( exp = `$.struc1.field1` act = lx_move->source_typename ).
+        cl_abap_unit_assert=>assert_equals( exp = `STRING` act = lx_move->target_typename ).
     ENDTRY.
 
 
   ENDMETHOD.
 
   METHOD serialize_time_stamp.
-    DATA test_xsd_tms TYPE xsddatetime_z.
-
-    GET TIME STAMP FIELD DATA(tms_t).
-    test_xsd_tms = '19370101120027' .
-    DATA(ser_tms) = NEW Z_UI2_JSON( ts_as_iso8601 = abap_true )->serialize_int( test_xsd_tms ).
-    cl_abap_unit_assert=>assert_equals(
-      exp = '"1937-01-01T12:00:27Z"'
-      act = ser_tms ).
-
-    deserialize(
-        EXPORTING  json = '"1937-01-01T12:00:27"'
-        CHANGING data = test_xsd_tms
-        ).
-    cl_abap_unit_assert=>assert_equals(
-      exp = '19370101120027'
-      act = test_xsd_tms ).
-
 
     TYPES ty_tms TYPE xsddatetime_z.
-    DATA test_xsd_tms2 TYPE ty_tms.
-    test_xsd_tms2 = '19370101120027' .
-    DATA(ser_tms2) = NEW Z_UI2_JSON( ts_as_iso8601 = abap_true )->serialize_int( test_xsd_tms2 ).
-    cl_abap_unit_assert=>assert_equals(
-      exp = '"1937-01-01T12:00:27Z"'
-      act = ser_tms2 ).
 
-    deserialize(
-        EXPORTING  json = '"1937-01-01T12:00:27"'
-        CHANGING data = test_xsd_tms2
-        ).
-    cl_abap_unit_assert=>assert_equals(
-      exp = '19370101120027'
-      act = test_xsd_tms2 ).
+    DATA: lv_xsd_tms  TYPE xsddatetime_z,
+          lv_xsd_tms2 TYPE ty_tms,
+          lv_act      TYPE json.
+
+    lv_xsd_tms = '19370101120027' .
+    lv_act = serialize( ts_as_iso8601 = abap_true data = lv_xsd_tms ).
+    cl_abap_unit_assert=>assert_equals( exp = '"1937-01-01T12:00:27Z"' act = lv_act ).
+
+    deserialize( EXPORTING  json = '"1937-01-01T12:00:27"' CHANGING data = lv_xsd_tms ).
+    cl_abap_unit_assert=>assert_equals( exp = '19370101120027' act = lv_xsd_tms ).
+
+    lv_xsd_tms2 = '19370101120027' .
+    lv_act = serialize( ts_as_iso8601 = abap_true data = lv_xsd_tms2 ).
+    cl_abap_unit_assert=>assert_equals( exp = '"1937-01-01T12:00:27Z"' act = lv_act ).
+
+    deserialize( EXPORTING  json = '"1937-01-01T12:00:27"' CHANGING data = lv_xsd_tms2 ).
+    cl_abap_unit_assert=>assert_equals( exp = '19370101120027' act = lv_xsd_tms2 ).
 
   ENDMETHOD.
 

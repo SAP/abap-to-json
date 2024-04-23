@@ -3,31 +3,31 @@
 *----------------------------------------------------------------------*
 *
 *----------------------------------------------------------------------*
-class Z_UI2_JSON definition
-  public
-  create public .
+CLASS z_ui2_json DEFINITION
+  PUBLIC
+  CREATE PUBLIC .
 
-public section.
-  type-pools ABAP .
-  class CL_ABAP_TSTMP definition load .
-  class CX_SY_CONVERSION_ERROR definition load .
+  PUBLIC SECTION.
+    TYPE-POOLS abap .
+    CLASS cl_abap_tstmp DEFINITION LOAD .
+    CLASS cx_sy_conversion_error DEFINITION LOAD .
 
-  types JSON type STRING .
-  types:
-    BEGIN OF name_mapping,
+    TYPES json TYPE string .
+    TYPES:
+      BEGIN OF name_mapping,
         abap TYPE abap_compname,
         json TYPE string,
       END OF name_mapping .
-  types:
-    name_mappings    TYPE HASHED TABLE OF name_mapping WITH UNIQUE KEY abap .
-  types:
-    ref_tab          TYPE STANDARD TABLE OF REF TO data WITH DEFAULT KEY .
-  types BOOL type CHAR1 .
-  types TRIBOOL type CHAR1 .
-  types PRETTY_NAME_MODE type CHAR1 .
+    TYPES:
+      name_mappings    TYPE HASHED TABLE OF name_mapping WITH UNIQUE KEY abap .
+    TYPES:
+      ref_tab          TYPE STANDARD TABLE OF REF TO data WITH DEFAULT KEY .
+    TYPES bool TYPE char1 .
+    TYPES tribool TYPE char1 .
+    TYPES pretty_name_mode TYPE char1 .
 
-  constants:
-    BEGIN OF pretty_mode,
+    CONSTANTS:
+      BEGIN OF pretty_mode,
         none          TYPE char1  VALUE ``,
         low_case      TYPE char1  VALUE 'L',
         camel_case    TYPE char1  VALUE 'X',
@@ -35,153 +35,153 @@ public section.
         user          TYPE char1  VALUE 'U',
         user_low_case TYPE char1  VALUE 'C',
       END OF  pretty_mode .
-  constants:
-    BEGIN OF c_bool,
+    CONSTANTS:
+      BEGIN OF c_bool,
         true  TYPE bool  VALUE 'X',
         false TYPE bool  VALUE '',
       END OF  c_bool .
-  constants:
-    BEGIN OF c_tribool,
+    CONSTANTS:
+      BEGIN OF c_tribool,
         true      TYPE tribool  VALUE c_bool-true,
         false     TYPE tribool  VALUE '-',
         undefined TYPE tribool  VALUE ``,
       END OF  c_tribool .
-  class-data SV_WHITE_SPACE type STRING read-only .
-  constants MC_KEY_SEPARATOR type STRING value `-` ##NO_TEXT.
-  class-data MC_BOOL_TYPES type STRING read-only value `\TYPE-POOL=ABAP\TYPE=ABAP_BOOL\TYPE=BOOLEAN\TYPE=BOOLE_D\TYPE=XFELD\TYPE=XSDBOOLEAN\TYPE=WDY_BOOLEAN` ##NO_TEXT.
-  class-data MC_BOOL_3STATE type STRING read-only value `\TYPE=BOOLEAN` ##NO_TEXT.
-  constants VERSION type I value 19 ##NO_TEXT.
-  class-data MC_JSON_TYPE type STRING read-only .
+    CLASS-DATA sv_white_space TYPE string READ-ONLY .
+    CONSTANTS mc_key_separator TYPE string VALUE `-` ##NO_TEXT.
+    CLASS-DATA mc_bool_types TYPE string READ-ONLY VALUE `\TYPE-POOL=ABAP\TYPE=ABAP_BOOL\TYPE=BOOLEAN\TYPE=BOOLE_D\TYPE=XFELD\TYPE=XSDBOOLEAN\TYPE=WDY_BOOLEAN` ##NO_TEXT.
+    CLASS-DATA mc_bool_3state TYPE string READ-ONLY VALUE `\TYPE=BOOLEAN` ##NO_TEXT.
+    CONSTANTS version TYPE i VALUE 19 ##NO_TEXT.
+    CLASS-DATA mc_json_type TYPE string READ-ONLY .
 
-  class-methods CLASS_CONSTRUCTOR .
-  class-methods STRING_TO_XSTRING
-    importing
-      !IN type STRING
-    changing
-      value(OUT) type ANY .
-  class-methods XSTRING_TO_STRING
-    importing
-      !IN type ANY
-    returning
-      value(OUT) type STRING .
-  class-methods RAW_TO_STRING
-    importing
-      !IV_XSTRING type XSTRING
-      !IV_ENCODING type ABAP_ENCODING optional
-    returning
-      value(RV_STRING) type STRING .
-  class-methods STRING_TO_RAW
-    importing
-      !IV_STRING type STRING
-      !IV_ENCODING type ABAP_ENCODING optional
-    returning
-      value(RV_XSTRING) type XSTRING .
-  class-methods DUMP
-    importing
-      !DATA type DATA
-      !COMPRESS type BOOL default C_BOOL-FALSE
-      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR optional
-      !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
-      !ASSOC_ARRAYS type BOOL default C_BOOL-FALSE
-      !TS_AS_ISO8601 type BOOL default C_BOOL-FALSE
-    returning
-      value(R_JSON) type JSON .
-  class-methods DESERIALIZE
-    importing
-      !JSON type JSON optional
-      !JSONX type XSTRING optional
-      !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
-      !ASSOC_ARRAYS type BOOL default C_BOOL-FALSE
-      !ASSOC_ARRAYS_OPT type BOOL default C_BOOL-FALSE
-      !NAME_MAPPINGS type NAME_MAPPINGS optional
-      !CONVERSION_EXITS type BOOL default C_BOOL-FALSE
-      !HEX_AS_BASE64 type BOOL default C_BOOL-TRUE
-    changing
-      !DATA type DATA .
-  class-methods SERIALIZE
-    importing
-      !DATA type DATA
-      !COMPRESS type BOOL default C_BOOL-FALSE
-      !NAME type STRING optional
-      !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
-      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR optional
-      !ASSOC_ARRAYS type BOOL default C_BOOL-FALSE
-      !TS_AS_ISO8601 type BOOL default C_BOOL-FALSE
-      !EXPAND_INCLUDES type BOOL default C_BOOL-TRUE
-      !ASSOC_ARRAYS_OPT type BOOL default C_BOOL-FALSE
-      !NUMC_AS_STRING type BOOL default C_BOOL-FALSE
-      !NAME_MAPPINGS type NAME_MAPPINGS optional
-      !CONVERSION_EXITS type BOOL default C_BOOL-FALSE
-      !FORMAT_OUTPUT type BOOL default C_BOOL-FALSE
-      !HEX_AS_BASE64 type BOOL default C_BOOL-TRUE
-    returning
-      value(R_JSON) type JSON .
-  methods DESERIALIZE_INT
-    importing
-      !JSON type JSON optional
-      !JSONX type XSTRING optional
-    changing
-      !DATA type DATA
-    raising
-      CX_SY_MOVE_CAST_ERROR .
-  class-methods GENERATE
-    importing
-      !JSON type JSON optional
-      !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
-      !NAME_MAPPINGS type NAME_MAPPINGS optional
-      !JSONX type XSTRING optional
-    preferred parameter JSON
-    returning
-      value(RR_DATA) type ref to DATA .
-  methods SERIALIZE_INT
-    importing
-      !DATA type DATA
-      !NAME type STRING optional
-      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR optional
-    returning
-      value(R_JSON) type JSON .
-  methods GENERATE_INT
-    importing
-      !JSON type JSON
-      value(LENGTH) type I optional
-    changing
-      !DATA type ref to DATA
-      !OFFSET type I default 0
-    raising
-      CX_SY_MOVE_CAST_ERROR .
-  methods CONSTRUCTOR
-    importing
-      !COMPRESS type BOOL default C_BOOL-FALSE
-      !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
-      !ASSOC_ARRAYS type BOOL default C_BOOL-FALSE
-      !TS_AS_ISO8601 type BOOL default C_BOOL-FALSE
-      !EXPAND_INCLUDES type BOOL default C_BOOL-TRUE
-      !ASSOC_ARRAYS_OPT type BOOL default C_BOOL-FALSE
-      !STRICT_MODE type BOOL default C_BOOL-FALSE
-      !NUMC_AS_STRING type BOOL default C_BOOL-FALSE
-      !NAME_MAPPINGS type NAME_MAPPINGS optional
-      !CONVERSION_EXITS type BOOL default C_BOOL-FALSE
-      !FORMAT_OUTPUT type BOOL default C_BOOL-FALSE
-      !HEX_AS_BASE64 type BOOL default C_BOOL-TRUE
-      !BOOL_TYPES type STRING default MC_BOOL_TYPES
-      !BOOL_3STATE type STRING default MC_BOOL_3STATE
-      !INITIAL_TS type STRING default `""`
-      !INITIAL_DATE type STRING default `""`
-      !INITIAL_TIME type STRING default `""` .
-  class-methods BOOL_TO_TRIBOOL
-    importing
-      !IV_BOOL type BOOL
-    returning
-      value(RV_TRIBOOL) type TRIBOOL .
-  class-methods TRIBOOL_TO_BOOL
-    importing
-      !IV_TRIBOOL type TRIBOOL
-    returning
-      value(RV_BOOL) type BOOL .
-protected section.
+    CLASS-METHODS class_constructor .
+    CLASS-METHODS string_to_xstring
+      IMPORTING
+        !in        TYPE string
+      CHANGING
+        VALUE(out) TYPE any .
+    CLASS-METHODS xstring_to_string
+      IMPORTING
+        !in        TYPE any
+      RETURNING
+        VALUE(out) TYPE string .
+    CLASS-METHODS raw_to_string
+      IMPORTING
+        !iv_xstring      TYPE xstring
+        !iv_encoding     TYPE abap_encoding OPTIONAL
+      RETURNING
+        VALUE(rv_string) TYPE string .
+    CLASS-METHODS string_to_raw
+      IMPORTING
+        !iv_string        TYPE string
+        !iv_encoding      TYPE abap_encoding OPTIONAL
+      RETURNING
+        VALUE(rv_xstring) TYPE xstring .
+    CLASS-METHODS dump
+      IMPORTING
+        !data          TYPE data
+        !compress      TYPE bool DEFAULT c_bool-false
+        !type_descr    TYPE REF TO cl_abap_typedescr OPTIONAL
+        !pretty_name   TYPE pretty_name_mode DEFAULT pretty_mode-none
+        !assoc_arrays  TYPE bool DEFAULT c_bool-false
+        !ts_as_iso8601 TYPE bool DEFAULT c_bool-false
+      RETURNING
+        VALUE(r_json)  TYPE json .
+    CLASS-METHODS deserialize
+      IMPORTING
+        !json             TYPE json OPTIONAL
+        !jsonx            TYPE xstring OPTIONAL
+        !pretty_name      TYPE pretty_name_mode DEFAULT pretty_mode-none
+        !assoc_arrays     TYPE bool DEFAULT c_bool-false
+        !assoc_arrays_opt TYPE bool DEFAULT c_bool-false
+        !name_mappings    TYPE name_mappings OPTIONAL
+        !conversion_exits TYPE bool DEFAULT c_bool-false
+        !hex_as_base64    TYPE bool DEFAULT c_bool-true
+      CHANGING
+        !data             TYPE data .
+    CLASS-METHODS serialize
+      IMPORTING
+        !data             TYPE data
+        !compress         TYPE bool DEFAULT c_bool-false
+        !name             TYPE string OPTIONAL
+        !pretty_name      TYPE pretty_name_mode DEFAULT pretty_mode-none
+        !type_descr       TYPE REF TO cl_abap_typedescr OPTIONAL
+        !assoc_arrays     TYPE bool DEFAULT c_bool-false
+        !ts_as_iso8601    TYPE bool DEFAULT c_bool-false
+        !expand_includes  TYPE bool DEFAULT c_bool-true
+        !assoc_arrays_opt TYPE bool DEFAULT c_bool-false
+        !numc_as_string   TYPE bool DEFAULT c_bool-false
+        !name_mappings    TYPE name_mappings OPTIONAL
+        !conversion_exits TYPE bool DEFAULT c_bool-false
+        !format_output    TYPE bool DEFAULT c_bool-false
+        !hex_as_base64    TYPE bool DEFAULT c_bool-true
+      RETURNING
+        VALUE(r_json)     TYPE json .
+    METHODS deserialize_int
+      IMPORTING
+        !json  TYPE json OPTIONAL
+        !jsonx TYPE xstring OPTIONAL
+      CHANGING
+        !data  TYPE data
+      RAISING
+        cx_sy_move_cast_error .
+    CLASS-METHODS generate
+      IMPORTING
+        !json          TYPE json OPTIONAL
+        !pretty_name   TYPE pretty_name_mode DEFAULT pretty_mode-none
+        !name_mappings TYPE name_mappings OPTIONAL
+        !jsonx         TYPE xstring OPTIONAL
+          PREFERRED PARAMETER json
+      RETURNING
+        VALUE(rr_data) TYPE REF TO data .
+    METHODS serialize_int
+      IMPORTING
+        !data         TYPE data
+        !name         TYPE string OPTIONAL
+        !type_descr   TYPE REF TO cl_abap_typedescr OPTIONAL
+      RETURNING
+        VALUE(r_json) TYPE json .
+    METHODS generate_int
+      IMPORTING
+        !json         TYPE json
+        VALUE(length) TYPE i OPTIONAL
+      CHANGING
+        !data         TYPE REF TO data
+        !offset       TYPE i DEFAULT 0
+      RAISING
+        cx_sy_move_cast_error .
+    METHODS constructor
+      IMPORTING
+        !compress         TYPE bool DEFAULT c_bool-false
+        !pretty_name      TYPE pretty_name_mode DEFAULT pretty_mode-none
+        !assoc_arrays     TYPE bool DEFAULT c_bool-false
+        !ts_as_iso8601    TYPE bool DEFAULT c_bool-false
+        !expand_includes  TYPE bool DEFAULT c_bool-true
+        !assoc_arrays_opt TYPE bool DEFAULT c_bool-false
+        !strict_mode      TYPE bool DEFAULT c_bool-false
+        !numc_as_string   TYPE bool DEFAULT c_bool-false
+        !name_mappings    TYPE name_mappings OPTIONAL
+        !conversion_exits TYPE bool DEFAULT c_bool-false
+        !format_output    TYPE bool DEFAULT c_bool-false
+        !hex_as_base64    TYPE bool DEFAULT c_bool-true
+        !bool_types       TYPE string DEFAULT mc_bool_types
+        !bool_3state      TYPE string DEFAULT mc_bool_3state
+        !initial_ts       TYPE string DEFAULT `""`
+        !initial_date     TYPE string DEFAULT `""`
+        !initial_time     TYPE string DEFAULT `""` .
+    CLASS-METHODS bool_to_tribool
+      IMPORTING
+        !iv_bool          TYPE bool
+      RETURNING
+        VALUE(rv_tribool) TYPE tribool .
+    CLASS-METHODS tribool_to_bool
+      IMPORTING
+        !iv_tribool    TYPE tribool
+      RETURNING
+        VALUE(rv_bool) TYPE bool .
+  PROTECTED SECTION.
 
-  types:
-    BEGIN OF t_s_field_cache,
+    TYPES:
+      BEGIN OF t_s_field_cache,
         name         TYPE string,
         type         TYPE REF TO cl_abap_datadescr,
         elem_type    TYPE REF TO cl_abap_elemdescr,
@@ -190,275 +190,275 @@ protected section.
         convexit_in  TYPE string,
         value        TYPE REF TO data,
       END OF t_s_field_cache .
-  types:
-    BEGIN OF t_s_symbol,
+    TYPES:
+      BEGIN OF t_s_symbol,
         header       TYPE string,
         compressable TYPE abap_bool,
         read_only    TYPE abap_bool.
         INCLUDE TYPE t_s_field_cache.
-      TYPES: END OF t_s_symbol .
-  types:
-    t_t_symbol TYPE STANDARD TABLE OF t_s_symbol WITH DEFAULT KEY .
-  types:
-    t_t_field_cache  TYPE HASHED TABLE OF t_s_field_cache WITH UNIQUE KEY name .
-  types:
-    name_mappings_ex TYPE HASHED TABLE OF name_mapping WITH UNIQUE KEY json .
-  types:
-    BEGIN OF t_s_name_value,
+    TYPES: END OF t_s_symbol .
+    TYPES:
+      t_t_symbol TYPE STANDARD TABLE OF t_s_symbol WITH DEFAULT KEY .
+    TYPES:
+      t_t_field_cache  TYPE HASHED TABLE OF t_s_field_cache WITH UNIQUE KEY name .
+    TYPES:
+      name_mappings_ex TYPE HASHED TABLE OF name_mapping WITH UNIQUE KEY json .
+    TYPES:
+      BEGIN OF t_s_name_value,
         name  TYPE string,
         value TYPE json,
       END OF t_s_name_value .
-  types:
-    t_t_name_value TYPE SORTED TABLE OF t_s_name_value WITH UNIQUE KEY name .
-  types:
-    t_t_json TYPE STANDARD TABLE OF json WITH DEFAULT KEY .
-  types:
-    BEGIN OF t_s_struct_type,
+    TYPES:
+      t_t_name_value TYPE SORTED TABLE OF t_s_name_value WITH UNIQUE KEY name .
+    TYPES:
+      t_t_json TYPE STANDARD TABLE OF json WITH DEFAULT KEY .
+    TYPES:
+      BEGIN OF t_s_struct_type,
         keys TYPE string,
         type TYPE REF TO cl_abap_datadescr,
       END OF t_s_struct_type .
-  types:
-    t_t_struct_type TYPE SORTED TABLE OF t_s_struct_type WITH UNIQUE KEY keys .
-  types:
-    BEGIN OF t_s_struct_cache_res,
+    TYPES:
+      t_t_struct_type TYPE SORTED TABLE OF t_s_struct_type WITH UNIQUE KEY keys .
+    TYPES:
+      BEGIN OF t_s_struct_cache_res,
         data    TYPE REF TO data,
         symbols TYPE t_t_symbol,
       END OF t_s_struct_cache_res .
-  types:
-    BEGIN OF t_s_struct_cache,
+    TYPES:
+      BEGIN OF t_s_struct_cache,
         type_descr      TYPE REF TO cl_abap_structdescr,
         include_aliases	TYPE abap_bool,
         level           TYPE i,
         result          TYPE t_s_struct_cache_res,
       END OF t_s_struct_cache .
-  types:
-    t_t_struct_cache TYPE HASHED TABLE OF t_s_struct_cache WITH UNIQUE KEY type_descr include_aliases level .
+    TYPES:
+      t_t_struct_cache TYPE HASHED TABLE OF t_s_struct_cache WITH UNIQUE KEY type_descr include_aliases level .
 
-  data MV_BOOL_TYPES type STRING .
-  data MV_BOOL_3STATE type STRING .
-  data MV_INITIAL_TS type STRING value `""` ##NO_TEXT.
-  data MV_INITIAL_DATE type STRING value `""` ##NO_TEXT.
-  data MV_INITIAL_TIME type STRING value `""` ##NO_TEXT.
-  data MV_COMPRESS type BOOL .
-  data MV_PRETTY_NAME type PRETTY_NAME_MODE .
-  data MV_ASSOC_ARRAYS type BOOL .
-  data MV_TS_AS_ISO8601 type BOOL .
-  data MV_EXPAND_INCLUDES type BOOL .
-  data MV_ASSOC_ARRAYS_OPT type BOOL .
-  data MV_STRICT_MODE type BOOL .
-  data MV_NUMC_AS_STRING type BOOL .
-  data MV_FORMAT_OUTPUT type BOOL .
-  data MV_CONVERSION_EXITS type BOOL .
-  data MV_HEX_AS_BASE64 type BOOL .
-  data MT_NAME_MAPPINGS type NAME_MAPPINGS .
-  data MT_NAME_MAPPINGS_EX type NAME_MAPPINGS_EX .
-  data MT_STRUCT_TYPE type T_T_STRUCT_TYPE .
-  data MT_STRUCT_CACHE type T_T_STRUCT_CACHE .
-  data:
-    mt_ref_dump_idx type sorted table of ref to data with UNIQUE DEFAULT KEY .
-  data:
-    mt_obj_dump_idx type sorted table of ref to object with UNIQUE DEFAULT KEY .
-  class-data MC_NAME_SYMBOLS_MAP type STRING value ` _/_\_:_;_~_._,_-_+_=_>_<_|_(_)_[_]_{_}_@_+_*_?_!_&_$_#_%_^_'_` ##NO_TEXT.
-  constants MC_DEFAULT_INDENT type STRING value `  ` ##NO_TEXT.
-  constants MC_TYPEKIND_UTCLONG type ABAP_TYPEKIND value 'p' ##NO_TEXT. " CL_ABAP_TYPEDESCR=>TYPEKIND_UTCLONG -> 'p' only from 7.54
-  constants MC_TYPEKIND_INT8 type ABAP_TYPEKIND value '8' ##NO_TEXT. " TYPEKIND_INT8 -> '8' only from 7.40
-  class-data SO_TYPE_S type ref to CL_ABAP_ELEMDESCR .
-  class-data SO_TYPE_F type ref to CL_ABAP_ELEMDESCR .
-  class-data SO_TYPE_P type ref to CL_ABAP_ELEMDESCR .
-  class-data SO_TYPE_I type ref to CL_ABAP_ELEMDESCR .
-  class-data SO_TYPE_B type ref to CL_ABAP_ELEMDESCR .
-  class-data SO_TYPE_T_JSON type ref to CL_ABAP_TABLEDESCR .
-  class-data SO_TYPE_T_NAME_VALUE type ref to CL_ABAP_TABLEDESCR .
-  constants:
-    BEGIN OF e_typekind,
-      " new extended pseudo typekind, hack and can clash with standard if new enums come...
-      " always check for duplicates !!!
-      convexit    TYPE abap_typekind VALUE '1' ##NO_TEXT,
-      ts_iso8601  TYPE abap_typekind VALUE '2' ##NO_TEXT,
-      tsl_iso8601 TYPE abap_typekind VALUE '3' ##NO_TEXT,
-      numc_string TYPE abap_typekind VALUE '4' ##NO_TEXT,
-      json        TYPE abap_typekind VALUE '5' ##NO_TEXT,
-      bool        TYPE abap_typekind VALUE '6' ##NO_TEXT,
-      tribool     TYPE abap_typekind VALUE '7' ##NO_TEXT,
+    DATA mv_bool_types TYPE string .
+    DATA mv_bool_3state TYPE string .
+    DATA mv_initial_ts TYPE string VALUE `""` ##NO_TEXT.
+    DATA mv_initial_date TYPE string VALUE `""` ##NO_TEXT.
+    DATA mv_initial_time TYPE string VALUE `""` ##NO_TEXT.
+    DATA mv_compress TYPE bool .
+    DATA mv_pretty_name TYPE pretty_name_mode .
+    DATA mv_assoc_arrays TYPE bool .
+    DATA mv_ts_as_iso8601 TYPE bool .
+    DATA mv_expand_includes TYPE bool .
+    DATA mv_assoc_arrays_opt TYPE bool .
+    DATA mv_strict_mode TYPE bool .
+    DATA mv_numc_as_string TYPE bool .
+    DATA mv_format_output TYPE bool .
+    DATA mv_conversion_exits TYPE bool .
+    DATA mv_hex_as_base64 TYPE bool .
+    DATA mt_name_mappings TYPE name_mappings .
+    DATA mt_name_mappings_ex TYPE name_mappings_ex .
+    DATA mt_struct_type TYPE t_t_struct_type .
+    DATA mt_struct_cache TYPE t_t_struct_cache .
+    DATA:
+      mt_ref_dump_idx TYPE SORTED TABLE OF REF TO data WITH UNIQUE DEFAULT KEY .
+    DATA:
+      mt_obj_dump_idx TYPE SORTED TABLE OF REF TO object WITH UNIQUE DEFAULT KEY .
+    CLASS-DATA mc_name_symbols_map TYPE string VALUE ` _/_\_:_;_~_._,_-_+_=_>_<_|_(_)_[_]_{_}_@_+_*_?_!_&_$_#_%_^_'_` ##NO_TEXT.
+    CONSTANTS mc_default_indent TYPE string VALUE `  ` ##NO_TEXT.
+    CONSTANTS mc_typekind_utclong TYPE abap_typekind VALUE 'p' ##NO_TEXT. " CL_ABAP_TYPEDESCR=>TYPEKIND_UTCLONG -> 'p' only from 7.54
+    CONSTANTS mc_typekind_int8 TYPE abap_typekind VALUE '8' ##NO_TEXT. " TYPEKIND_INT8 -> '8' only from 7.40
+    CLASS-DATA so_type_s TYPE REF TO cl_abap_elemdescr .
+    CLASS-DATA so_type_f TYPE REF TO cl_abap_elemdescr .
+    CLASS-DATA so_type_p TYPE REF TO cl_abap_elemdescr .
+    CLASS-DATA so_type_i TYPE REF TO cl_abap_elemdescr .
+    CLASS-DATA so_type_b TYPE REF TO cl_abap_elemdescr .
+    CLASS-DATA so_type_t_json TYPE REF TO cl_abap_tabledescr .
+    CLASS-DATA so_type_t_name_value TYPE REF TO cl_abap_tabledescr .
+    CONSTANTS:
+      BEGIN OF e_typekind,
+        " new extended pseudo typekind, hack and can clash with standard if new enums come...
+        " always check for duplicates !!!
+        convexit    TYPE abap_typekind VALUE '1' ##NO_TEXT,
+        ts_iso8601  TYPE abap_typekind VALUE '2' ##NO_TEXT,
+        tsl_iso8601 TYPE abap_typekind VALUE '3' ##NO_TEXT,
+        numc_string TYPE abap_typekind VALUE '4' ##NO_TEXT,
+        json        TYPE abap_typekind VALUE '5' ##NO_TEXT,
+        bool        TYPE abap_typekind VALUE '6' ##NO_TEXT,
+        tribool     TYPE abap_typekind VALUE '7' ##NO_TEXT,
 
-      " redefine for existing typekeinds for lower releases
-      utclong     TYPE abap_typekind VALUE 'p' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_UTCLONG -> 'p' only from 7.54
-      int8        TYPE abap_typekind VALUE '8' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_INT8 -> '8' only from 7.40
-      enum        TYPE abap_typekind VALUE 'k' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_ENUM -> 'k'
+        " redefine for existing typekeinds for lower releases
+        utclong     TYPE abap_typekind VALUE 'p' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_UTCLONG -> 'p' only from 7.54
+        int8        TYPE abap_typekind VALUE '8' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_INT8 -> '8' only from 7.40
+        enum        TYPE abap_typekind VALUE 'k' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_ENUM -> 'k'
 
-      " just aliasing
-      float       TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_float,
-      int         TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_int,
-      int1        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_int1,
-      int2        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_int2,
-      packed      TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_packed,
-      num         TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_num,
-      string      TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_string,
-      csequence   TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_csequence,
-      clike       TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_clike,
-      char        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_char,
-      date        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_date,
-      time        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_time,
-      xstring     TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_xstring,
-      hex         TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_hex,
+        " just aliasing
+        float       TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_float,
+        int         TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_int,
+        int1        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_int1,
+        int2        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_int2,
+        packed      TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_packed,
+        num         TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_num,
+        string      TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_string,
+        csequence   TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_csequence,
+        clike       TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_clike,
+        char        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_char,
+        date        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_date,
+        time        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_time,
+        xstring     TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_xstring,
+        hex         TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_hex,
 
-    END OF e_typekind .
+      END OF e_typekind .
 
-  class-methods UNESCAPE
-    importing
-      !OFFSET type I default 0
-      !ESCAPED type STRING
-    returning
-      value(UNESCAPED) type STRING .
-  class-methods GET_CONVEXIT_FUNC
-    importing
-      !ELEM_DESCR type ref to CL_ABAP_ELEMDESCR
-      !INPUT type ABAP_BOOL optional
-    returning
-      value(RV_FUNC) type STRING .
-  methods DUMP_SYMBOLS
-  final
-    importing
-      !IT_SYMBOLS type T_T_SYMBOL
-      !OPT_ARRAY type BOOL optional
-      !FORMAT_SCOPE type BOOL default ABAP_TRUE
-      !LEVEL type I
-    returning
-      value(R_JSON) type JSON .
-  methods GET_SYMBOLS_STRUCT
-  final
-    importing
-      !TYPE_DESCR type ref to CL_ABAP_STRUCTDESCR
-      !INCLUDE_ALIASES type ABAP_BOOL default ABAP_FALSE
-      !DATA type ref to DATA optional
-      !LEVEL type I default 0
-    returning
-      value(RESULT) type T_S_STRUCT_CACHE_RES .
-  methods GET_SYMBOLS_CLASS
-  final
-    importing
-      !TYPE_DESCR type ref to CL_ABAP_CLASSDESCR
-      !OBJECT type ref to OBJECT optional
-    returning
-      value(RESULT) type T_T_SYMBOL .
-  methods GET_SYMBOLS
-  final
-    importing
-      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR
-      !DATA type ref to DATA optional
-      !OBJECT type ref to OBJECT optional
-      !INCLUDE_ALIASES type ABAP_BOOL default ABAP_FALSE
-    returning
-      value(RESULT) type T_T_SYMBOL .
-  methods GET_FIELDS
-  final
-    importing
-      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR
-      !DATA type ref to DATA optional
-      !OBJECT type ref to OBJECT optional
-    returning
-      value(RT_FIELDS) type T_T_FIELD_CACHE .
-  methods DUMP_INT
-    importing
-      !DATA type DATA
-      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR optional
-      !CONVEXIT type STRING optional
-      !LEVEL type I default 0
-    returning
-      value(R_JSON) type JSON .
-  methods IS_COMPRESSABLE
-    importing
-      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR   ##NEEDED
-      !NAME type CSEQUENCE   ##NEEDED
-    returning
-      value(RV_COMPRESS) type ABAP_BOOL .
-  methods RESTORE
-    importing
-      !JSON type JSON
-      !LENGTH type I
-      value(TYPE_DESCR) type ref to CL_ABAP_TYPEDESCR optional
-      !FIELD_CACHE type T_T_FIELD_CACHE optional
-    changing
-      !DATA type DATA optional
-      !OFFSET type I default 0
-    raising
-      CX_SY_MOVE_CAST_ERROR .
-  methods RESTORE_TYPE
-    importing
-      !JSON type JSON
-      !LENGTH type I
-      value(TYPE_DESCR) type ref to CL_ABAP_TYPEDESCR optional
-      !FIELD_CACHE type T_T_FIELD_CACHE optional
-      !CONVEXIT type STRING optional
-    changing
-      !DATA type DATA optional
-      !OFFSET type I default 0
-    raising
-      CX_SY_MOVE_CAST_ERROR .
-  methods DUMP_TYPE
-    importing
-      !DATA type DATA
-      !TYPE_DESCR type ref to CL_ABAP_ELEMDESCR
-      !CONVEXIT type STRING
-      !TYPEKIND type ABAP_TYPEKIND optional
-    returning
-      value(R_JSON) type JSON .
-  methods DETECT_TYPEKIND
-  final
-    importing
-      !TYPE_DESCR type ref to CL_ABAP_ELEMDESCR
-      !CONVEXIT type STRING
-    returning
-      value(RV_TYPE) type ABAP_TYPEKIND .
-  methods DUMP_TYPE_EX
-    importing
-      !DATA type DATA
-    returning
-      value(R_JSON) type JSON .
-  methods PRETTY_NAME_EX
-    importing
-      !IN type CSEQUENCE
-    returning
-      value(OUT) type STRING .
-  methods GENERATE_INT_EX
-  final
-    importing
-      !JSON type JSON
-      !LENGTH type I
-    changing
-      !DATA type DATA
-      !OFFSET type I .
-  methods PRETTY_NAME
-    importing
-      !IN type CSEQUENCE
-    returning
-      value(OUT) type STRING .
-  class-methods EDM_DATETIME_TO_TS
-    importing
-      !TICKS type STRING
-      !OFFSET type STRING optional
-      !TYPEKIND type ABAP_TYPEKIND
-    returning
-      value(R_DATA) type STRING .
-  class-methods GET_INDENT
-    importing
-      !LEVEL type I default 0
-    returning
-      value(INDENT) type STRING .
-  methods GENERATE_STRUCT
-    changing
-      !FIELDS type T_T_NAME_VALUE
-      !DATA type ref to DATA .
-  class-methods ESCAPE
-    importing
-      !IN type ANY
-    returning
-      value(OUT) type STRING .
-private section.
+    CLASS-METHODS unescape
+      IMPORTING
+        !offset          TYPE i DEFAULT 0
+        !escaped         TYPE string
+      RETURNING
+        VALUE(unescaped) TYPE string .
+    CLASS-METHODS get_convexit_func
+      IMPORTING
+        !elem_descr    TYPE REF TO cl_abap_elemdescr
+        !input         TYPE abap_bool OPTIONAL
+      RETURNING
+        VALUE(rv_func) TYPE string .
+    METHODS dump_symbols
+      FINAL
+      IMPORTING
+        !it_symbols   TYPE t_t_symbol
+        !opt_array    TYPE bool OPTIONAL
+        !format_scope TYPE bool DEFAULT abap_true
+        !level        TYPE i
+      RETURNING
+        VALUE(r_json) TYPE json .
+    METHODS get_symbols_struct
+      FINAL
+      IMPORTING
+        !type_descr      TYPE REF TO cl_abap_structdescr
+        !include_aliases TYPE abap_bool DEFAULT abap_false
+        !data            TYPE REF TO data OPTIONAL
+        !level           TYPE i DEFAULT 0
+      RETURNING
+        VALUE(result)    TYPE t_s_struct_cache_res .
+    METHODS get_symbols_class
+      FINAL
+      IMPORTING
+        !type_descr   TYPE REF TO cl_abap_classdescr
+        !object       TYPE REF TO object OPTIONAL
+      RETURNING
+        VALUE(result) TYPE t_t_symbol .
+    METHODS get_symbols
+      FINAL
+      IMPORTING
+        !type_descr      TYPE REF TO cl_abap_typedescr
+        !data            TYPE REF TO data OPTIONAL
+        !object          TYPE REF TO object OPTIONAL
+        !include_aliases TYPE abap_bool DEFAULT abap_false
+      RETURNING
+        VALUE(result)    TYPE t_t_symbol .
+    METHODS get_fields
+      FINAL
+      IMPORTING
+        !type_descr      TYPE REF TO cl_abap_typedescr
+        !data            TYPE REF TO data OPTIONAL
+        !object          TYPE REF TO object OPTIONAL
+      RETURNING
+        VALUE(rt_fields) TYPE t_t_field_cache .
+    METHODS dump_int
+      IMPORTING
+        !data         TYPE data
+        !type_descr   TYPE REF TO cl_abap_typedescr OPTIONAL
+        !convexit     TYPE string OPTIONAL
+        !level        TYPE i DEFAULT 0
+      RETURNING
+        VALUE(r_json) TYPE json .
+    METHODS is_compressable
+      IMPORTING
+        !type_descr        TYPE REF TO cl_abap_typedescr   ##NEEDED
+        !name              TYPE csequence   ##NEEDED
+      RETURNING
+        VALUE(rv_compress) TYPE abap_bool .
+    METHODS restore
+      IMPORTING
+        !json             TYPE json
+        !length           TYPE i
+        VALUE(type_descr) TYPE REF TO cl_abap_typedescr OPTIONAL
+        !field_cache      TYPE t_t_field_cache OPTIONAL
+      CHANGING
+        !data             TYPE data OPTIONAL
+        !offset           TYPE i DEFAULT 0
+      RAISING
+        cx_sy_move_cast_error .
+    METHODS restore_type
+      IMPORTING
+        !json             TYPE json
+        !length           TYPE i
+        VALUE(type_descr) TYPE REF TO cl_abap_typedescr OPTIONAL
+        !field_cache      TYPE t_t_field_cache OPTIONAL
+        !convexit         TYPE string OPTIONAL
+      CHANGING
+        !data             TYPE data OPTIONAL
+        !offset           TYPE i DEFAULT 0
+      RAISING
+        cx_sy_move_cast_error .
+    METHODS dump_type
+      IMPORTING
+        !data         TYPE data
+        !type_descr   TYPE REF TO cl_abap_elemdescr
+        !convexit     TYPE string
+        !typekind     TYPE abap_typekind OPTIONAL
+      RETURNING
+        VALUE(r_json) TYPE json .
+    METHODS detect_typekind
+      FINAL
+      IMPORTING
+        !type_descr    TYPE REF TO cl_abap_elemdescr
+        !convexit      TYPE string
+      RETURNING
+        VALUE(rv_type) TYPE abap_typekind .
+    METHODS dump_type_ex
+      IMPORTING
+        !data         TYPE data
+      RETURNING
+        VALUE(r_json) TYPE json .
+    METHODS pretty_name_ex
+      IMPORTING
+        !in        TYPE csequence
+      RETURNING
+        VALUE(out) TYPE string .
+    METHODS generate_int_ex
+      FINAL
+      IMPORTING
+        !json   TYPE json
+        !length TYPE i
+      CHANGING
+        !data   TYPE data
+        !offset TYPE i .
+    METHODS pretty_name
+      IMPORTING
+        !in        TYPE csequence
+      RETURNING
+        VALUE(out) TYPE string .
+    CLASS-METHODS edm_datetime_to_ts
+      IMPORTING
+        !ticks        TYPE string
+        !offset       TYPE string OPTIONAL
+        !typekind     TYPE abap_typekind
+      RETURNING
+        VALUE(r_data) TYPE string .
+    CLASS-METHODS get_indent
+      IMPORTING
+        !level        TYPE i DEFAULT 0
+      RETURNING
+        VALUE(indent) TYPE string .
+    METHODS generate_struct
+      CHANGING
+        !fields TYPE t_t_name_value
+        !data   TYPE REF TO data .
+    CLASS-METHODS escape
+      IMPORTING
+        !in        TYPE any
+      RETURNING
+        VALUE(out) TYPE string .
+  PRIVATE SECTION.
 
-  data MV_EXTENDED type BOOL .
-  class-data MC_COV_ERROR type C .
-  class-data MC_ME_TYPE type STRING .
+    DATA mv_extended TYPE bool .
+    CLASS-DATA mc_cov_error TYPE c .
+    CLASS-DATA mc_me_type TYPE string .
 *"* private components of class Z_UI2_JSON
 *"* do not include other source files here!!!
 ENDCLASS.
@@ -523,8 +523,8 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
   METHOD constructor.
 
-    DATA: rtti  TYPE REF TO cl_abap_classdescr,
-          pair  LIKE LINE OF name_mappings.
+    DATA: rtti TYPE REF TO cl_abap_classdescr,
+          pair LIKE LINE OF name_mappings.
 
     mv_compress         = compress.
     mv_pretty_name      = pretty_name.
@@ -597,11 +597,11 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
       TRY .
           CALL METHOD lo_json->(lc_method)
-          EXPORTING
-            json = json
-            jsonx = jsonx
-          CHANGING
-            data = data.
+            EXPORTING
+              json  = json
+              jsonx = jsonx
+            CHANGING
+              data  = data.
         CATCH cx_sy_move_cast_error.                    "#EC NO_HANDLER
       ENDTRY.
 
@@ -612,9 +612,9 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
   METHOD deserialize_int.
 
-    DATA: length    TYPE i,
-          offset    TYPE i,
-          lv_json   LIKE json.
+    DATA: length  TYPE i,
+          offset  TYPE i,
+          lv_json LIKE json.
 
     " **********************************************************************
     " Usage examples and documentation can be found on GitHub:
@@ -634,9 +634,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     while_offset_not_cs '"{[aeflnrstu0123456789+-eE.' lv_json.
 
     TRY.
-
         restore_type( EXPORTING json = lv_json length = length CHANGING data = data offset = offset ).
-
       CATCH cx_sy_move_cast_error INTO DATA(lx_move).
         RAISE EXCEPTION TYPE cx_sy_move_cast_error
           EXPORTING
@@ -648,27 +646,27 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
   ENDMETHOD.                    "deserialize
 
 
-METHOD dump.
+  METHOD dump.
 
-  CONSTANTS: lc_method TYPE string VALUE `DUMP_INT`.
+    CONSTANTS: lc_method TYPE string VALUE `DUMP_INT`.
 
-  DATA: lo_json TYPE REF TO object.
+    DATA: lo_json TYPE REF TO object.
 
-  CREATE OBJECT lo_json TYPE (mc_me_type)
-    EXPORTING
-      compress      = compress
-      pretty_name   = pretty_name
-      assoc_arrays  = assoc_arrays
-      ts_as_iso8601 = ts_as_iso8601.
+    CREATE OBJECT lo_json TYPE (mc_me_type)
+      EXPORTING
+        compress      = compress
+        pretty_name   = pretty_name
+        assoc_arrays  = assoc_arrays
+        ts_as_iso8601 = ts_as_iso8601.
 
-  CALL METHOD lo_json->(lc_method)
-    EXPORTING
-      data       = data
-      type_descr = type_descr
-    RECEIVING
-      r_json     = r_json.
+    CALL METHOD lo_json->(lc_method)
+      EXPORTING
+        data       = data
+        type_descr = type_descr
+      RECEIVING
+        r_json     = r_json.
 
-ENDMETHOD.                    "dump
+  ENDMETHOD.                    "dump
 
 
   METHOD dump_int.
@@ -927,10 +925,10 @@ ENDMETHOD.                    "dump
 
   METHOD dump_type.
 
-    DATA: lv_ts         TYPE c LENGTH 15,
-          lv_tsl        TYPE c LENGTH 23,
-          lv_utcl       TYPE c LENGTH 27,
-          lv_typekind   LIKE typekind.
+    DATA: lv_ts       TYPE c LENGTH 15,
+          lv_tsl      TYPE c LENGTH 23,
+          lv_utcl     TYPE c LENGTH 27,
+          lv_typekind LIKE typekind.
 
     ""!!! the fallback code for missing typekind is only for the method but not used in macro
     IF typekind IS INITIAL.
@@ -1134,84 +1132,84 @@ ENDMETHOD.                    "dump
   ENDMETHOD.
 
 
-METHOD generate_int.
+  METHOD generate_int.
 
-  DATA: lt_json   TYPE t_t_json,
-        mark      LIKE offset,
-        match     LIKE offset,
-        lt_fields TYPE t_t_name_value.
+    DATA: lt_json   TYPE t_t_json,
+          mark      LIKE offset,
+          match     LIKE offset,
+          lt_fields TYPE t_t_name_value.
 
-  FIELD-SYMBOLS: <data>   TYPE data,
-                 <struct> TYPE data,
-                 <json>   LIKE LINE OF lt_json,
-                 <field>  LIKE LINE OF lt_fields,
-                 <table>  TYPE STANDARD TABLE.
+    FIELD-SYMBOLS: <data>   TYPE data,
+                   <struct> TYPE data,
+                   <json>   LIKE LINE OF lt_json,
+                   <field>  LIKE LINE OF lt_fields,
+                   <table>  TYPE STANDARD TABLE.
 
-  IF length IS NOT SUPPLIED.
-    length = strlen( json ).
-  ENDIF.
+    IF length IS NOT SUPPLIED.
+      length = strlen( json ).
+    ENDIF.
 
-  eat_white.
+    eat_white.
 
-  CASE json+offset(1).
-    WHEN '{'."result must be a structure
-      restore_type( EXPORTING json = json length = length type_descr = so_type_t_name_value CHANGING offset = offset data = lt_fields ).
-      generate_struct( CHANGING fields = lt_fields data = data ).
-      IF data IS BOUND.
-        ASSIGN data->* TO <struct>.
-        LOOP AT lt_fields ASSIGNING <field>.
-          ASSIGN COMPONENT sy-tabix OF STRUCTURE <struct> TO <data>.
-          generate_int( EXPORTING json = <field>-value CHANGING data = <data> ).
+    CASE json+offset(1).
+      WHEN '{'."result must be a structure
+        restore_type( EXPORTING json = json length = length type_descr = so_type_t_name_value CHANGING offset = offset data = lt_fields ).
+        generate_struct( CHANGING fields = lt_fields data = data ).
+        IF data IS BOUND.
+          ASSIGN data->* TO <struct>.
+          LOOP AT lt_fields ASSIGNING <field>.
+            ASSIGN COMPONENT sy-tabix OF STRUCTURE <struct> TO <data>.
+            generate_int( EXPORTING json = <field>-value CHANGING data = <data> ).
+          ENDLOOP.
+        ENDIF.
+      WHEN '['."result must be a table of ref
+        restore_type( EXPORTING json = json length = length type_descr = so_type_t_json CHANGING offset = offset data = lt_json ).
+        CREATE DATA data TYPE ref_tab.
+        ASSIGN data->* TO <table>.
+        LOOP AT lt_json ASSIGNING <json>.
+          APPEND INITIAL LINE TO <table> ASSIGNING <data>.
+          generate_int( EXPORTING json = <json> CHANGING data = <data> ).
         ENDLOOP.
-      ENDIF.
-    WHEN '['."result must be a table of ref
-      restore_type( EXPORTING json = json length = length type_descr = so_type_t_json CHANGING offset = offset data = lt_json ).
-      CREATE DATA data TYPE ref_tab.
-      ASSIGN data->* TO <table>.
-      LOOP AT lt_json ASSIGNING <json>.
-        APPEND INITIAL LINE TO <table> ASSIGNING <data>.
-        generate_int( EXPORTING json = <json> CHANGING data = <data> ).
-      ENDLOOP.
-    WHEN '"'."string
-      restore_reference so_type_s.
-    WHEN '-' OR '0' OR '1' OR '2' OR '3' OR '4' OR '5' OR '6' OR '7' OR '8' OR '9'. " number
-      IF json+offset CA '.Ee'.
-        restore_reference so_type_f.
-      ELSEIF length GT 9.
-        restore_reference so_type_p.
-      ELSE.
-        restore_reference so_type_i.
-      ENDIF.
-    WHEN OTHERS.
-      eat_bool_string.
-      IF json+mark(match) EQ 'true' OR json+mark(match) EQ 'false'. "#EC NOTEXT
-        offset = mark. "need to restore after eat_bool_string
-        restore_reference so_type_b.
-      ELSE. "null or no match
-        CLEAR data.
-      ENDIF.
-  ENDCASE.
+      WHEN '"'."string
+        restore_reference so_type_s.
+      WHEN '-' OR '0' OR '1' OR '2' OR '3' OR '4' OR '5' OR '6' OR '7' OR '8' OR '9'. " number
+        IF json+offset CA '.Ee'.
+          restore_reference so_type_f.
+        ELSEIF length GT 9.
+          restore_reference so_type_p.
+        ELSE.
+          restore_reference so_type_i.
+        ENDIF.
+      WHEN OTHERS.
+        eat_bool_string.
+        IF json+mark(match) EQ 'true' OR json+mark(match) EQ 'false'. "#EC NOTEXT
+          offset = mark. "need to restore after eat_bool_string
+          restore_reference so_type_b.
+        ELSE. "null or no match
+          CLEAR data.
+        ENDIF.
+    ENDCASE.
 
-ENDMETHOD.
+  ENDMETHOD.
 
 
-METHOD generate_int_ex.
+  METHOD generate_int_ex.
 
-  DATA: lv_assoc_arrays     LIKE mv_assoc_arrays,
-        lv_assoc_arrays_opt LIKE mv_assoc_arrays_opt.
+    DATA: lv_assoc_arrays     LIKE mv_assoc_arrays,
+          lv_assoc_arrays_opt LIKE mv_assoc_arrays_opt.
 
-  lv_assoc_arrays     = mv_assoc_arrays.
-  lv_assoc_arrays_opt = mv_assoc_arrays_opt.
+    lv_assoc_arrays     = mv_assoc_arrays.
+    lv_assoc_arrays_opt = mv_assoc_arrays_opt.
 
-  mv_assoc_arrays     = abap_true.
-  mv_assoc_arrays_opt = abap_true.
+    mv_assoc_arrays     = abap_true.
+    mv_assoc_arrays_opt = abap_true.
 
-  generate_int( EXPORTING json = json length = length CHANGING offset = offset data = data ).
+    generate_int( EXPORTING json = json length = length CHANGING offset = offset data = data ).
 
-  mv_assoc_arrays = lv_assoc_arrays.
-  mv_assoc_arrays_opt = lv_assoc_arrays_opt.
+    mv_assoc_arrays = lv_assoc_arrays.
+    mv_assoc_arrays_opt = lv_assoc_arrays_opt.
 
-ENDMETHOD.
+  ENDMETHOD.
 
 
   METHOD generate_struct.
@@ -1347,25 +1345,25 @@ ENDMETHOD.
   ENDMETHOD.
 
 
-METHOD get_indent.
+  METHOD get_indent.
 
-  STATICS: st_indent TYPE STANDARD TABLE OF string WITH DEFAULT KEY.
+    STATICS: st_indent TYPE STANDARD TABLE OF string WITH DEFAULT KEY.
 
-  DATA: lv_filled TYPE i.
+    DATA: lv_filled TYPE i.
 
-  READ TABLE st_indent INDEX level INTO indent.
-  IF sy-subrc IS NOT INITIAL.
-    lv_filled = lines( st_indent ).
-    indent = cl_abap_char_utilities=>cr_lf.
-    DO level TIMES.
-      CONCATENATE indent mc_default_indent INTO indent.
-      IF sy-index GT lv_filled.
-        APPEND indent TO st_indent.
-      ENDIF.
-    ENDDO.
-  ENDIF.
+    READ TABLE st_indent INDEX level INTO indent.
+    IF sy-subrc IS NOT INITIAL.
+      lv_filled = lines( st_indent ).
+      indent = cl_abap_char_utilities=>cr_lf.
+      DO level TIMES.
+        CONCATENATE indent mc_default_indent INTO indent.
+        IF sy-index GT lv_filled.
+          APPEND indent TO st_indent.
+        ENDIF.
+      ENDDO.
+    ENDIF.
 
-ENDMETHOD.
+  ENDMETHOD.
 
 
   METHOD get_symbols.
@@ -1651,18 +1649,18 @@ ENDMETHOD.
 
   METHOD restore.
 
-    DATA: mark       LIKE offset,
-          match      LIKE offset,
-          pos        LIKE offset,
-          ref_descr  TYPE REF TO cl_abap_refdescr,
-          data_descr TYPE REF TO cl_abap_datadescr,
-          data_ref   TYPE REF TO data,
-          object_ref TYPE REF TO object,
-          fields     LIKE field_cache,
-          name_json  TYPE string,
+    DATA: mark               LIKE offset,
+          match              LIKE offset,
+          pos                LIKE offset,
+          ref_descr          TYPE REF TO cl_abap_refdescr,
+          data_descr         TYPE REF TO cl_abap_datadescr,
+          data_ref           TYPE REF TO data,
+          object_ref         TYPE REF TO object,
+          fields             LIKE field_cache,
+          name_json          TYPE string,
           lo_move_cast_error TYPE REF TO cx_sy_move_cast_error,
-          source_typename type string,
-          target_typename type string.
+          source_typename    TYPE string,
+          target_typename    TYPE string.
 
     FIELD-SYMBOLS: <value>       TYPE any,
                    <field_cache> LIKE LINE OF field_cache.
@@ -1738,25 +1736,25 @@ ENDMETHOD.
           ENDIF.
 
         CATCH cx_sy_move_cast_error INTO lo_move_cast_error.
-            IF lo_move_cast_error->source_typename IS NOT INITIAL AND lo_move_cast_error->source_typename(1) <> `[`.
-              source_typename = name_json && |.| && lo_move_cast_error->source_typename.
-            ELSE.
-              source_typename = name_json && lo_move_cast_error->source_typename.
-            ENDIF.
+          IF lo_move_cast_error->source_typename IS NOT INITIAL AND lo_move_cast_error->source_typename(1) <> `[`.
+            source_typename = name_json && |.| && lo_move_cast_error->source_typename.
+          ELSE.
+            source_typename = name_json && lo_move_cast_error->source_typename.
+          ENDIF.
 
-            IF lo_move_cast_error->target_typename IS NOT INITIAL.
-              target_typename = lo_move_cast_error->target_typename.
-            ELSEIF <field_cache> IS ASSIGNED.
-              target_typename = |{ <field_cache>-elem_type->absolute_name }|.
-            ELSE.
-              target_typename = `?`.
-            ENDIF.
+          IF lo_move_cast_error->target_typename IS NOT INITIAL.
+            target_typename = lo_move_cast_error->target_typename.
+          ELSEIF <field_cache> IS ASSIGNED.
+            target_typename = lcl_util=>describe_type( <field_cache>-type ).
+          ELSE.
+            target_typename = `?`.
+          ENDIF.
 
-            RAISE EXCEPTION TYPE cx_sy_move_cast_error
-              EXPORTING
-                previous        = lo_move_cast_error
-                source_typename = source_typename
-                target_typename = target_typename.
+          RAISE EXCEPTION TYPE cx_sy_move_cast_error
+            EXPORTING
+              previous        = lo_move_cast_error
+              source_typename = source_typename
+              target_typename = target_typename.
       ENDTRY.
 
     ENDWHILE.
@@ -2221,23 +2219,7 @@ ENDMETHOD.
           IF lo_move_cast_error->target_typename IS NOT INITIAL.
             target_typename = lo_move_cast_error->target_typename.
           ELSEIF type_descr IS BOUND.
-            CASE type_descr->kind.
-              WHEN cl_abap_typedescr=>kind_table.
-                target_typename = `table`.
-              WHEN cl_abap_typedescr=>kind_struct.
-                target_typename = `structure`.
-              WHEN cl_abap_typedescr=>kind_class.
-                target_typename = `class`.
-              WHEN cl_abap_typedescr=>kind_intf.
-                target_typename = `interface`.
-              WHEN cl_abap_typedescr=>kind_ref.
-                target_typename = `reference`.
-              WHEN cl_abap_typedescr=>kind_elem.
-                elem_descr ?= type_descr.
-                target_typename = elem_descr->absolute_name.
-              WHEN OTHERS.
-                target_typename = `?`.
-            ENDCASE.
+            target_typename = lcl_util=>describe_type( type_descr ).
           ELSE.
             target_typename = `?`.
           ENDIF.
@@ -2287,14 +2269,13 @@ ENDMETHOD.
 
     CALL METHOD lo_json->(lc_method)
       EXPORTING
-        name = name
-        data = data
+        name       = name
+        data       = data
         type_descr = type_descr
       RECEIVING
-        r_json = r_json.
+        r_json     = r_json.
 
   ENDMETHOD.                    "serialize
-
 
 
   METHOD serialize_int.
@@ -2376,72 +2357,109 @@ ENDMETHOD.
   ENDMETHOD.                    "TRIBOOL_TO_BOOL
 
 
-METHOD unescape.
+  METHOD unescape.
 
-  DATA: lv_offset          TYPE i,
-        lv_match           TYPE i,
-        lv_delta           TYPE i,
-        lv_length          TYPE i,
-        lv_offset_e        TYPE i,
-        lv_length_e        TYPE i,
-        lv_unicode_symb    TYPE c,
-        lv_unicode_escaped TYPE string,
-        lt_matches         TYPE match_result_tab.
+    DATA: lv_offset          TYPE i,
+          lv_match           TYPE i,
+          lv_delta           TYPE i,
+          lv_length          TYPE i,
+          lv_offset_e        TYPE i,
+          lv_length_e        TYPE i,
+          lv_unicode_symb    TYPE c,
+          lv_unicode_escaped TYPE string,
+          lt_matches         TYPE match_result_tab.
 
-  FIELD-SYMBOLS: <match> LIKE LINE OF lt_matches.
+    FIELD-SYMBOLS: <match> LIKE LINE OF lt_matches.
 
-  " see reference for escaping rules in JSON RFC
-  " https://www.ietf.org/rfc/rfc4627.txt
+    " see reference for escaping rules in JSON RFC
+    " https://www.ietf.org/rfc/rfc4627.txt
 
-  unescaped = escaped.
-  lv_offset = offset.
+    unescaped = escaped.
+    lv_offset = offset.
 
-  FIND FIRST OCCURRENCE OF REGEX '\\[rntfbu]' IN SECTION OFFSET lv_offset OF unescaped ##REGEX_POSIX.
-  IF sy-subrc IS INITIAL.
-    FIND ALL OCCURRENCES OF REGEX '\\.' IN unescaped RESULTS lt_matches ##REGEX_POSIX.
-    lv_length = strlen( unescaped ).
-    LOOP AT lt_matches ASSIGNING <match>.
-      lv_match  = <match>-offset - lv_delta.
-      lv_offset = lv_match + 1.
-      CASE unescaped+lv_offset(1).
-        WHEN 'r'.
-          REPLACE SECTION OFFSET lv_match LENGTH 2 OF unescaped WITH cl_abap_char_utilities=>cr_lf(1).
-          lv_delta = lv_delta + 1.
-        WHEN 'n'.
-          REPLACE SECTION OFFSET lv_match LENGTH 2 OF unescaped WITH cl_abap_char_utilities=>newline.
-          lv_delta = lv_delta + 1.
-        WHEN 't'.
-          REPLACE SECTION OFFSET lv_match LENGTH 2 OF unescaped WITH cl_abap_char_utilities=>horizontal_tab.
-          lv_delta = lv_delta + 1.
-        WHEN 'f'.
-          REPLACE SECTION OFFSET lv_match LENGTH 2 OF unescaped WITH cl_abap_char_utilities=>form_feed.
-          lv_delta = lv_delta + 1.
-        WHEN 'b'.
-          REPLACE SECTION OFFSET lv_match LENGTH 2 OF unescaped WITH cl_abap_char_utilities=>backspace.
-          lv_delta = lv_delta + 1.
-        WHEN 'u'.
-          lv_offset   = lv_offset + 1.
-          lv_offset_e = lv_offset + 4.
-          lv_length_e = lv_length + lv_delta.
-          IF lv_offset_e LE lv_length_e.
-            lv_unicode_escaped = unescaped+lv_offset(4).
-            TRANSLATE lv_unicode_escaped TO UPPER CASE.
-            lv_unicode_symb = cl_abap_conv_in_ce=>uccp( lv_unicode_escaped ).
-            IF lv_unicode_symb NE mc_cov_error OR lv_unicode_escaped EQ '0000'.
-              REPLACE SECTION OFFSET lv_match LENGTH 6 OF unescaped WITH lv_unicode_symb.
-              lv_delta = lv_delta + 5.
+    FIND FIRST OCCURRENCE OF '\\' IN unescaped+offset RESPECTING CASE.
+    IF sy-subrc IS INITIAL. " complex case - there are escaped "\"
+
+      FIND FIRST OCCURRENCE OF REGEX '\\[rntfbu]' IN SECTION OFFSET offset OF unescaped ##REGEX_POSIX.
+      IF sy-subrc IS INITIAL.
+        FIND ALL OCCURRENCES OF REGEX '\\.' IN unescaped RESULTS lt_matches ##REGEX_POSIX.
+        lv_length = strlen( unescaped ).
+        LOOP AT lt_matches ASSIGNING <match>.
+          lv_match  = <match>-offset - lv_delta.
+          lv_offset = lv_match + 1.
+          CASE unescaped+lv_offset(1).
+            WHEN 'r'.
+              REPLACE SECTION OFFSET lv_match LENGTH 2 OF unescaped WITH cl_abap_char_utilities=>cr_lf(1).
+              lv_delta = lv_delta + 1.
+            WHEN 'n'.
+              REPLACE SECTION OFFSET lv_match LENGTH 2 OF unescaped WITH cl_abap_char_utilities=>newline.
+              lv_delta = lv_delta + 1.
+            WHEN 't'.
+              REPLACE SECTION OFFSET lv_match LENGTH 2 OF unescaped WITH cl_abap_char_utilities=>horizontal_tab.
+              lv_delta = lv_delta + 1.
+            WHEN 'f'.
+              REPLACE SECTION OFFSET lv_match LENGTH 2 OF unescaped WITH cl_abap_char_utilities=>form_feed.
+              lv_delta = lv_delta + 1.
+            WHEN 'b'.
+              REPLACE SECTION OFFSET lv_match LENGTH 2 OF unescaped WITH cl_abap_char_utilities=>backspace.
+              lv_delta = lv_delta + 1.
+            WHEN 'u'.
+              lv_offset   = lv_offset + 1.
+              lv_offset_e = lv_offset + 4.
+              lv_length_e = lv_length + lv_delta.
+              IF lv_offset_e LE lv_length_e.
+                lv_unicode_escaped = unescaped+lv_offset(4).
+                TRANSLATE lv_unicode_escaped TO UPPER CASE.
+                lv_unicode_symb = cl_abap_conv_in_ce=>uccp( lv_unicode_escaped ).
+                IF lv_unicode_symb NE mc_cov_error OR lv_unicode_escaped EQ '0000'.
+                  REPLACE SECTION OFFSET lv_match LENGTH 6 OF unescaped WITH lv_unicode_symb.
+                  lv_delta = lv_delta + 5.
+                ENDIF.
+              ENDIF.
+          ENDCASE.
+        ENDLOOP.
+      ENDIF.
+
+    ELSE. " easy case, we can go with plain text replace
+
+      REPLACE ALL OCCURRENCES OF '\r' IN SECTION OFFSET offset OF unescaped WITH cl_abap_char_utilities=>cr_lf(1).
+      REPLACE ALL OCCURRENCES OF '\n' IN SECTION OFFSET offset OF unescaped WITH cl_abap_char_utilities=>newline.
+      REPLACE ALL OCCURRENCES OF '\t' IN SECTION OFFSET offset OF unescaped WITH cl_abap_char_utilities=>horizontal_tab.
+      REPLACE ALL OCCURRENCES OF '\f' IN SECTION OFFSET offset OF unescaped WITH cl_abap_char_utilities=>form_feed.
+      REPLACE ALL OCCURRENCES OF '\b' IN SECTION OFFSET offset OF unescaped WITH cl_abap_char_utilities=>backspace.
+
+      FIND FIRST OCCURRENCE OF '\u' IN SECTION OFFSET offset OF unescaped.
+      IF sy-subrc IS INITIAL.
+        FIND ALL OCCURRENCES OF REGEX '\\.' IN unescaped RESULTS lt_matches ##REGEX_POSIX.
+        lv_length = strlen( unescaped ).
+        LOOP AT lt_matches ASSIGNING <match>.
+          lv_match  = <match>-offset - lv_delta.
+          lv_offset = lv_match + 1.
+          IF unescaped+lv_offset(1) EQ 'u'.
+            lv_offset   = lv_offset + 1.
+            lv_offset_e = lv_offset + 4.
+            lv_length_e = lv_length + lv_delta.
+            IF lv_offset_e LE lv_length_e.
+              lv_unicode_escaped = unescaped+lv_offset(4).
+              TRANSLATE lv_unicode_escaped TO UPPER CASE.
+              lv_unicode_symb = cl_abap_conv_in_ce=>uccp( lv_unicode_escaped ).
+              IF lv_unicode_symb NE mc_cov_error OR lv_unicode_escaped EQ '0000'.
+                REPLACE SECTION OFFSET lv_match LENGTH 6 OF unescaped WITH lv_unicode_symb.
+                lv_delta = lv_delta + 5.
+              ENDIF.
             ENDIF.
           ENDIF.
-      ENDCASE.
-    ENDLOOP.
-  ENDIF.
+        ENDLOOP.
+      ENDIF.
 
-  " based on RFC mentioned above, _any_ character can be escaped, and so shall be unenscaped
-  " the only exception is Unicode symbols, that shall be kept untouched, while serializer does not handle them
-  " unescaped singe characters, e.g \\, \", \/ etc
-  REPLACE ALL OCCURRENCES OF REGEX '\\(.)' IN unescaped WITH '$1' ##REGEX_POSIX.
+    ENDIF.
 
-ENDMETHOD.
+    " based on RFC mentioned above, _any_ character can be escaped, and so shall be unenscaped
+    " the only exception is Unicode symbols, that shall be kept untouched, while serializer does not handle them
+    " unescaped singe characters, e.g \\, \", \/ etc
+    REPLACE ALL OCCURRENCES OF REGEX '\\(.)' IN SECTION OFFSET offset OF unescaped WITH '$1' ##REGEX_POSIX.
+
+  ENDMETHOD.
 
 
   METHOD xstring_to_string.
@@ -2466,49 +2484,50 @@ ENDMETHOD.
   ENDMETHOD.                    "xstring_to_string
 
 
-METHOD DETECT_TYPEKIND.
+  METHOD detect_typekind.
 
-  DATA: domain_name     TYPE domname,
-        inner_elemdescr TYPE REF TO cl_abap_elemdescr.
+    DATA: domain_name     TYPE domname,
+          inner_elemdescr TYPE REF TO cl_abap_elemdescr.
 
-  IF convexit IS NOT INITIAL.
-    rv_type = e_typekind-convexit.
-  ELSE.
-    rv_type = type_descr->type_kind.
-    IF rv_type EQ cl_abap_typedescr=>typekind_packed AND mv_ts_as_iso8601 EQ c_bool-true.
+    IF convexit IS NOT INITIAL.
+      rv_type = e_typekind-convexit.
+    ELSE.
+      rv_type = type_descr->type_kind.
+      IF rv_type EQ cl_abap_typedescr=>typekind_packed AND mv_ts_as_iso8601 EQ c_bool-true.
 
-      IF type_descr->help_id IS NOT INITIAL AND NOT contains( val = type_descr->absolute_name end = type_descr->help_id ).
-        TRY.
-            inner_elemdescr ?= cl_abap_elemdescr=>describe_by_name( type_descr->help_id ).
-            IF inner_elemdescr->is_ddic_type( ).
-              domain_name = inner_elemdescr->get_ddic_field( )-domname.
-            ENDIF.
-          CATCH cx_root.
-            domain_name = ''.
-        ENDTRY.
-      ELSE.
-        IF type_descr->is_ddic_type( ).
-          domain_name = type_descr->get_ddic_field( )-domname.
+        IF type_descr->help_id IS NOT INITIAL AND NOT contains( val = type_descr->absolute_name end = type_descr->help_id ).
+          TRY.
+              inner_elemdescr ?= cl_abap_elemdescr=>describe_by_name( type_descr->help_id ).
+              IF inner_elemdescr->is_ddic_type( ).
+                domain_name = inner_elemdescr->get_ddic_field( )-domname.
+              ENDIF.
+            CATCH cx_root.
+              domain_name = ''.
+          ENDTRY.
+        ELSE.
+          IF type_descr->is_ddic_type( ).
+            domain_name = type_descr->get_ddic_field( )-domname.
+          ENDIF.
+        ENDIF.
+
+        IF domain_name EQ 'TZNTSTMPS' OR domain_name EQ 'XSDDATETIME_Z'. " domain of TIMESTAMP is TZNTSTMPS
+          rv_type = e_typekind-ts_iso8601.
+        ELSEIF domain_name EQ 'TZNTSTMPL' OR domain_name EQ 'XSDDATETIME_LONG_Z'.
+          rv_type = e_typekind-tsl_iso8601.
+        ENDIF.
+
+      ELSEIF rv_type EQ cl_abap_typedescr=>typekind_num AND mv_numc_as_string EQ abap_true.
+        rv_type = e_typekind-numc_string.
+      ELSEIF rv_type EQ cl_abap_typedescr=>typekind_string AND type_descr->absolute_name EQ mc_json_type.
+        rv_type = e_typekind-json.
+      ELSEIF rv_type EQ cl_abap_typedescr=>typekind_char AND type_descr->output_length EQ 1 AND mv_bool_types CS type_descr->absolute_name.
+        IF mv_bool_3state CS type_descr->absolute_name.
+          rv_type = e_typekind-tribool.
+        ELSE.
+          rv_type = e_typekind-bool.
         ENDIF.
       ENDIF.
-
-      IF domain_name EQ 'TZNTSTMPS' OR domain_name EQ 'XSDDATETIME_Z'. " domain of TIMESTAMP is TZNTSTMPS
-        rv_type = e_typekind-ts_iso8601.
-      ELSEIF domain_name EQ 'TZNTSTMPL' OR domain_name EQ 'XSDDATETIME_LONG_Z'.
-        rv_type = e_typekind-tsl_iso8601.
-      ENDIF.
-    ELSEIF rv_type EQ cl_abap_typedescr=>typekind_num AND mv_numc_as_string EQ abap_true.
-      rv_type = e_typekind-numc_string.
-    ELSEIF rv_type EQ cl_abap_typedescr=>typekind_string AND type_descr->absolute_name EQ mc_json_type.
-      rv_type = e_typekind-json.
-    ELSEIF rv_type EQ cl_abap_typedescr=>typekind_char AND type_descr->output_length EQ 1 AND mv_bool_types CS type_descr->absolute_name.
-      IF mv_bool_3state CS type_descr->absolute_name.
-        rv_type = e_typekind-tribool.
-      ELSE.
-        rv_type = e_typekind-bool.
-      ENDIF.
     ENDIF.
-  ENDIF.
 
-ENDMETHOD.                    "DETECT_EXT_TYPE_KIND
+  ENDMETHOD.                    "DETECT_EXT_TYPE_KIND
 ENDCLASS.
