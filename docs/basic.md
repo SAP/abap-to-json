@@ -129,16 +129,16 @@ START-OF-SELECTION.
 ....
 ```
 # API description
-Two static methods are most interesting in common cases: SERIALIZE and DESERIALIZE. The rest of the public methods are done public only for reuse purposes if you would like to build/extend your own serialization/deserialization code. 
+Two static methods are most interesting in common cases: SERIALIZE and DESERIALIZE. The rest of the public methods are defined as public only for reuse purpose if you want to build/extend your own serialization/deserialization code. 
 
 ## SERIALIZE: Serialize ABAP object into JSON
 
 * \> **DATA** (any) - any ABAP object/structure/table/element to be serialized
 * \> **COMPRESS** (bool, default=false) - tells serializer to skip empty elements/objects during serialization. So, all of which IS INITIAL = TRUE. 
 * \> **NAME** (string, optional) - optional name of the serialized object. Will '"name" : {...}' instead of ' {...} ' if supplied.
-* \> **PRETTY_NAME** (enum, optional)- mode, controlling how ABAP field names are transformed in JSON attribute names. See the description below.  
-* \> **TYPE_DESCR** (ref to CL_ABAP_TYPEDESCR, optional) - if you know the object type already - pass it to improve performance. 
-* \> **ASSOC_ARRAYS** (bool, default = false) - controls how to serialize hash or sorted tables with unique keys. See below for details.
+* \> **PRETTY_NAME** (enum, optional)- mode controls how ABAP field names are transformed into JSON attribute names.  More can be found in the description below.
+* \> **TYPE_DESCR** (ref to CL_ABAP_TYPEDESCR, optional) - if you already know the object type, pass it to improve performance. 
+* \> **ASSOC_ARRAYS** (bool, default = false) - controls how to serialize hash or sorted tables with unique keys. More can be found in the description below.
 * \> **ASSOC_ARRAYS_OPT** (bool, default = false) - when set, the serializer will optimize the rendering of name-value associated arrays (hash maps) in JSON
 * \> **TS_AS_ISO8601** (bool, default = false) - says serializer to output timestamps using ISO8601 format.
 * \> **NUMC_AS_STRING** (bool, default = false) - Controls the way NUMC fields are serialized. If set to ABAP_TRUE, NUMC fields are serialized not as integers, but as strings, with all leading zeros. Deserialization works compatible with both ways of NUMC serialized data.
@@ -152,8 +152,8 @@ Two static methods are most interesting in common cases: SERIALIZE and DESERIALI
 
 * \> **JSON** (string) - input JSON object string to deserialize
 * \> **JSONX** (xstring) - input JSON object as a raw string to deserialize
-* \> **PRETTY_NAME** (enum, optional) - mode, controlling how JSON field names are mapped to ABAP component names. See the description below.  
-* \> **ASSOC_ARRAYS** (bool, default = false) -  controls how to deserialize JSON objects into hash or sorted tables with unique keys. See below for details.
+* \> **PRETTY_NAME** (enum, optional) - mode, controlling how JSON field names are mapped to ABAP component names. More can be found in  the description below.  
+* \> **ASSOC_ARRAYS** (bool, default = false) -  controls how to deserialize JSON objects into hash or sorted tables with unique keys. More can be found in the description below.
 * \> **ASSOC_ARRAYS_OPT** (bool, default = false) - when set, the deserializer will take into account the optimized rendering of associated arrays (properties) in JSON. 
 * \> **TS_AS_ISO8601** (bool, default = false) - says deserializer to read timestamps from strings into timestamps fields using ISO 8601 format.
 * \> **NAME_MAPPINGS** (table) - ABAP<->JSON Name Mapping Table
@@ -164,7 +164,7 @@ Two static methods are most interesting in common cases: SERIALIZE and DESERIALI
 ## GENERATE: Generates ABAP object from JSON
 
 * \> **JSON** (string) - input JSON object string to deserialize
-* \> **PRETTY_NAME** (enum, optional) - mode, controlling how JSON field names are mapped to ABAP component names. See the description below.  
+* \> **PRETTY_NAME** (enum, optional) - mode, controlling how JSON field names are mapped to ABAP component names. More can be found in the description below.  
 * \> **NAME_MAPPINGS** (table) - ABAP<->JSON Name Mapping Table
 * \< **RR_DATA** (REF TO DATA) - a reference to ABAP structure/table dynamically generated from JSON string.
 In addition to the explained methods, there are two options, that need a wider explanation:
@@ -174,7 +174,7 @@ In addition to the explained methods, there are two options, that need a wider e
 * **NONE** - ABAP component names are serialized as is (UPPERCASE).
 * **LOW_CASE** - ABAP component names serialized in low case 
 * **CAMEL_CASE** - ABAP component types serialized in CamelCase where symbol "\_" is treated as a word separator (and removed from the resulting name). 
-* **EXTENDED** - works the same way as CAMEL_CASE but also, has extended logic for encoding special characters, such as: ".", "@", "~", etc. It shall be used if you need JSON names with characters not allowed for ABAP data component names. Do not use it, if you do not have special characters in JSON names - the performance would be slower in comparison with CAMEL_CASE mode. Example: ABAP name '\_\_A\_\_SCHEMA' translates in JSON name '@schema'
+* **EXTENDED** - works the same way as CAMEL_CASE but also, has extended logic for encoding special characters, such as: ".", "@", "~", etc. It shall be used if you need JSON names with characters not allowed for ABAP data component names. Do not use it, if you do not have special characters in JSON names - the performance would be slower compared to CAMEL_CASE mode. Example: ABAP name '\_\_A\_\_SCHEMA' translates in JSON name '@schema'
 Encoding rules (ABAP name → JSON name):
   * '\_\_E\_\_' → '!'
   * '\_\_N\_\_' → '#'
