@@ -174,7 +174,7 @@ In addition to the explained methods, there are two options, that need a wider e
 * **NONE** - ABAP component names are serialized as is (UPPERCASE).
 * **LOW_CASE** - ABAP component names serialized in low case 
 * **CAMEL_CASE** - ABAP component types serialized in CamelCase where symbol "\_" is treated as a word separator (and removed from the resulting name). 
-* **EXTENDED** - works the same way as CAMEL_CASE but also, has extended logic for encoding special characters, such as: ".", "@", "~", etc. It shall be used if you need JSON names with characters not allowed for ABAP data component names. If you do not have special characters in JSON names, do not use it - the performance would be slower compared to CAMEL_CASE mode. Example: ABAP name '\_\_A\_\_SCHEMA' translates in JSON name '@schema'
+* **EXTENDED** - works the same way as CAMEL_CASE but also, has extended logic for encoding special characters, such as: ".", "@", "~", etc. It shall be used if you need JSON names with characters not allowed for ABAP data component names. If you do not have special characters in JSON names, do not use it - the performance would be slower than CAMEL_CASE mode. Example: ABAP name '\_\_A\_\_SCHEMA' translates in JSON name '@schema'
 Encoding rules (ABAP name → JSON name):
   * '\_\_E\_\_' → '!'
   * '\_\_N\_\_' → '#'
@@ -193,7 +193,7 @@ Encoding rules (ABAP name → JSON name):
 
 ## ASSOC_ARRAYS :
 
-This option controls how hashed or sorted tables with unique keys are serialized/deserialized. Normally, ABAP internal tables are serialized into JSON arrays. Still, in some cases, you will like to serialize them as associative arrays (JSON objects) where every row of the table shall be reflected as a separated property of the JSON object. This can be achieved by setting the *ASSOC_ARRAYS* parameter to TRUE. If set, the serializer checks for sorted/hashed tables with a UNIQUE key(s) and serialize them as an object. The JSON property name, reflecting row, constructed from values of fields, used in key separated by constant *MC_KEY_SEPARATOR* = '-'. If the table has only one field marked as key, the value of this single field becomes a property name and is REMOVED from the associated object (to eliminate redundancy). If TABLE_LINE is used as a unique key, all values of all fields construct key property names (separated by *MC_KEY_SEPARATOR*). During deserialization, logic works vice versa: if *ASSOC_ARRAYS* is set to TRUE, and the JSON object matches the internal hash or sorted table with the unique key, the object is transformed into the table, where every object property is reflected in a separated table row. If the ABAP table has only one key field, the property name is transformed into a value of this key field.
+This option controls how hashed or sorted tables with unique keys are serialized/deserialized. Normally, ABAP internal tables are serialized into JSON arrays. Still, in some cases, you will like to serialize them as associative arrays (JSON objects) where every table row shall be reflected as a separate property of the JSON object. This can be achieved by setting the *ASSOC_ARRAYS* parameter to TRUE. If set, the serializer checks for sorted/hashed tables with a UNIQUE key(s) and serialize them as an object. The JSON property name, reflecting row, constructed from values of fields, used in key separated by constant *MC_KEY_SEPARATOR* = '-'. If the table has only one field marked as key, the value of this single field becomes a property name and is REMOVED from the associated object (to eliminate redundancy). If TABLE_LINE is used as a unique key, all values of all fields construct key property names (separated by *MC_KEY_SEPARATOR*). During deserialization, logic works vice versa: if *ASSOC_ARRAYS* is set to TRUE, and the JSON object matches the internal hash or sorted table with the unique key, the object is transformed into the table, where every object property is reflected in a separated table row. If the ABAP table has only one key field, the property name is transformed into a value of this key field.
 
 ## ASSOC_ARRAYS_OPT:
 
@@ -229,7 +229,7 @@ Output JSON
     "KEY2": "VALUE2"
 }
 ```
-For deserialization, the flag is used to tell the deserializer that the value shall be placed in a non-key field of the structure.
+For deserialization, the flag tells the deserializer that the value shall be placed in a non-key field of the structure.
 
 # Supported SAP_BASIS releases
 The code was tested from SAP_BASIS 7.00 and higher, but I do not see the reasons why it cannot be downported on lower releases either. But if you plan to use it on SAP_BASIS 7.02 and higher (and do not need property name pretty-printing) better consider the standard solution for **ABAP**, using CALL TRANSFORMATION. It shall be faster, while implemented in the kernel. See the [blog of Horst Keller](http://scn.sap.com/community/abap/blog/2013/07/04/abap-news-for-release-740--abap-and-json) for details. Maybe the best will be, if you need support in lower SAP_BASIS releases as well as in 7.02 and higher, to modify provided a class in a way to generate the same **JSON** format as standard ABAP CALL TRANSFORMATION for JSON does and redirect flow to home-made code or built-in **ABAP** transformation depending on SAP_BASIS release.
