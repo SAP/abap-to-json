@@ -694,6 +694,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           lv_ts         TYPE c LENGTH 15,
           lv_tsl        TYPE c LENGTH 23,
           lv_utcl       TYPE c LENGTH 27,
+          text_buf      TYPE c LENGTH 256,
           lv_itemval    TYPE string,
           lv_property   TYPE string.
 
@@ -874,6 +875,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           lv_ts      TYPE c LENGTH 15,
           lv_tsl     TYPE c LENGTH 23,
           lv_utcl    TYPE c LENGTH 27,
+          text_buf   TYPE c LENGTH 256,
           lv_itemval TYPE string,
           lv_field   TYPE string.
 
@@ -928,6 +930,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     DATA: lv_ts       TYPE c LENGTH 15,
           lv_tsl      TYPE c LENGTH 23,
           lv_utcl     TYPE c LENGTH 27,
+          text_buf    TYPE c LENGTH 256,
           lv_typekind LIKE typekind.
 
     ""!!! the fallback code for missing typekind is only for the method but not used in macro
@@ -948,11 +951,11 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                 EXPORTING
                   input  = data
                 IMPORTING
-                  output = r_json
+                  output = text_buf
                 EXCEPTIONS
                   OTHERS = 1.
               IF sy-subrc IS INITIAL.
-                CONCATENATE '"' r_json '"' INTO r_json.
+                CONCATENATE '"' text_buf '"' INTO r_json.
               ENDIF.
             CATCH cx_root ##CATCH_ALL ##NO_HANDLER.
           ENDTRY.
@@ -1799,6 +1802,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           ref_descr          TYPE REF TO cl_abap_refdescr,
           data_descr         TYPE REF TO cl_abap_datadescr,
           array_index        TYPE i,
+          text_buf           TYPE c LENGTH 256,
           lo_move_cast_error TYPE REF TO cx_sy_move_cast_error,
           source_typename    TYPE string,
           target_typename    TYPE string.
@@ -2016,11 +2020,12 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                               EXPORTING
                                 input         = sdummy
                               IMPORTING
-                                output        = data
+                                output        = text_buf
                               EXCEPTIONS
                                 error_message = 2
                                 OTHERS        = 1.
                             IF sy-subrc IS INITIAL.
+                              data = text_buf.
                               RETURN.
                             ENDIF.
                           CATCH cx_root ##CATCH_ALL ##NO_HANDLER.
@@ -2154,11 +2159,12 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                           EXPORTING
                             input         = sdummy
                           IMPORTING
-                            output        = data
+                            output        = text_buf
                           EXCEPTIONS
                             error_message = 2
                             OTHERS        = 1.
                         IF sy-subrc IS INITIAL.
+                          data = text_buf.
                           RETURN.
                         ENDIF.
                       CATCH cx_root ##CATCH_ALL ##NO_HANDLER.

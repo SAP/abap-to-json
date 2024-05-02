@@ -77,11 +77,11 @@ DEFINE dump_type_int.
               EXPORTING
                 input  = &1
               IMPORTING
-                output = &3
+                output = text_buf
               EXCEPTIONS
                 OTHERS = 1.
             IF sy-subrc IS INITIAL.
-              CONCATENATE '"' &3 '"' INTO &3.
+              CONCATENATE '"' text_buf '"' INTO &3.
             ENDIF.
           CATCH cx_root ##CATCH_ALL ##NO_HANDLER.
         ENDTRY.
