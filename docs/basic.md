@@ -129,7 +129,7 @@ START-OF-SELECTION.
 ....
 ```
 # API description
-Two static methods are most interesting in common cases: SERIALIZE and DESERIALIZE. The rest of the public methods are defined as public only for reuse purpose if you want to build/extend your own serialization/deserialization code. 
+Two static methods are most interesting in common cases: SERIALIZE and DESERIALIZE. The rest of the public methods are defined as public only for reuse purposes if you want to build/extend your own serialization/deserialization code. 
 
 ## SERIALIZE: Serialize ABAP object into JSON
 
@@ -174,7 +174,7 @@ In addition to the explained methods, there are two options, that need a wider e
 * **NONE** - ABAP component names are serialized as is (UPPERCASE).
 * **LOW_CASE** - ABAP component names serialized in low case 
 * **CAMEL_CASE** - ABAP component types serialized in CamelCase where symbol "\_" is treated as a word separator (and removed from the resulting name). 
-* **EXTENDED** - works the same way as CAMEL_CASE but also, has extended logic for encoding special characters, such as: ".", "@", "~", etc. It shall be used if you need JSON names with characters not allowed for ABAP data component names. If you do not have special characters in JSON names, do not use it - the performance would be slower than CAMEL_CASE mode. Example: ABAP name '\_\_A\_\_SCHEMA' translates in JSON name '@schema'
+* **EXTENDED** - works the same way as CAMEL_CASE but also, has extended logic for encoding special characters, such as: ".", "@", "~", etc. It shall be used if you need JSON names with characters not allowed for ABAP data component names. If you do not have special characters in JSON names, do not use it - the performance will be slower than CAMEL_CASE mode. Example: ABAP name '\_\_A\_\_SCHEMA' translates in JSON name '@schema'
 Encoding rules (ABAP name → JSON name):
   * '\_\_E\_\_' → '!'
   * '\_\_N\_\_' → '#'
