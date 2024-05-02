@@ -1,7 +1,7 @@
 # Custom ABAP to JSON, JSON to ABAP name mapping
-By default, you control the way JSON names are formatted/mapped to ABAP names by selecting proper pretty_mode as a parameter for the SERIALIZE/DESERIALIZE/GENERATE method. But in some cases, the standard, hard-coded formatting, is not enough. For example, if you need special rules for name formatting (for using special characters) or because the JSON attribute name is too long and you can not map it to the ABAP name (which has a 30-character length limit). 
+By default, you control how JSON names are formatted/mapped to ABAP names by selecting proper pretty_mode as a parameter for the SERIALIZE/DESERIALIZE/GENERATE method. But sometimes, the standard, hard-coded formatting, is not enough. For example, if you need special rules for name formatting (for using special characters) or because the JSON attribute name is too long and can't be mapped to the ABAP name (which has a 30-character length limit). 
 
-The recommended way for custom mapping was an extension of the class and redefining methods PRETTY_NAME or PRETTY_NAME_EX, but since note [2526405](https://launchpad.support.sap.com/#/notes/2526405) there is an easier way, without the need for its class. If you have a static list of field mappings from ABAP to JSON you can pass the name mapping table as a parameter for the constructor/serialize/deserialize and control the way JSON names are formatted/mapped to ABAP names. 
+The recommended way for custom mapping was an extension of the class and redefining methods PRETTY_NAME or PRETTY_NAME_EX, but since note [2526405](https://launchpad.support.sap.com/#/notes/2526405) there is an easier way, without the need for its class. If you have a static list of field mappings from ABAP to JSON you can pass the name mapping table as a parameter for the constructor/serialize/deserialize and control how JSON names are formatted/mapped to ABAP names. 
 
 ## ABAP to JSON name mapping example
 ```abap
@@ -25,10 +25,10 @@ lv_json = /ui2/cl_json=>serialize( data = ls_exp name_mappings = lt_mapping ).
 ```
 
 # Custom formatting of values for serialization of ABAP into JSON
-In some cases, you need to have custom formatting for your ABAP data, when serializing it into JSON. Or another use case, you have some custom, DDIC-defined data types, that are not automatically recognized by standard code, and therefore no appropriate formatting is applied (for example custom boolean or timestamp type). 
+Sometimes you need custom formatting for your ABAP data when serializing it into JSON. In another use case, you have some custom, DDIC-defined data types, that are not automatically recognized by standard code, so no appropriate formatting is applied (for example custom boolean or timestamp type). 
 
-In this case, you have the following options:
-1. Extend the class and overwrite the method DUMP_TYPE. See an example in the section regarding the [class extension](class-extension.md).
+In such cases, you have the following options:
+1. Extend the class and overwrite the method DUMP_TYPE. You can check an example in the section [class extension](class-extension.md).
 2. Add conversion exits for your custom type and apply formatting as part of the conversion exit.
 3. Create an alternative structure, with your custom types replaced by supported types, only for serialization, and do the move of data before the serialization.
 
@@ -54,13 +54,13 @@ CREATE DATA lr_data.
 lr_data->id = 2.
 APPEND lr_data TO ls_data-children.
 ```
-Such a way is more or less straightforward and will work, but leads to losing type information for data persisted in the children's table. That will mean that you will need to cast data when you access it. In addition to that, it blocks you from being able to deserialize such data from JSON, while the parser will not be able to deduce the type of data that needs to be created in the children's table. But serialization will work fine:
+Such a way is more or less straightforward and will work, but leads to losing type information for data stored in the children's table. That means you will need to cast data when you access it. In addition, it blocks you from deserializing such data from JSON, while the parser will not be able to deduce the type of data that needs to be created in the children's table. But serialization will work fine:
 ```abap
 lv_exp = '{"ID":1,"CHILDREN":[{"ID":2,"CHILDREN":[]}]}'.
 lv_act = /ui2/cl_json=>serialize( data = ls_data ).
 cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization of recursive data structure fails' ).
 ```
-The better way to model hierarchical data in ABAP is with the help of objects, while objects are always processed as references and ABAP allows you to create nested data structures, referring to objects of the same type:
+The better way to model hierarchical data in ABAP is with the help of objects. In contrast, objects are always processed as references and ABAP allows you to create nested data structures, referring to objects of the same type:
 ```abap
 CLASS lcl_test DEFINITION FINAL.
   PUBLIC SECTION.
