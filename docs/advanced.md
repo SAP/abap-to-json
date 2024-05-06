@@ -54,7 +54,7 @@ CREATE DATA lr_data.
 lr_data->id = 2.
 APPEND lr_data TO ls_data-children.
 ```
-Such a way is more or less straightforward and will work, but leads to losing type information for data stored in the children's table. That means you will need to cast data when you access it. In addition, it blocks you from deserializing such data from JSON, while the parser will not be able to deduce the type of data that needs to be created in the children's table. But serialization will work fine:
+Such a way is more or less straightforward and will work, but it leads to losing type information for data stored in the children's table. That means you will need to cast data when you access it. In addition, it blocks you from deserializing such data from JSON, while the parser cannot deduce the type of data that needs to be created in the children's table. But serialization will work fine:
 ```abap
 lv_exp = '{"ID":1,"CHILDREN":[{"ID":2,"CHILDREN":[]}]}'.
 lv_act = /ui2/cl_json=>serialize( data = ls_data ).
@@ -194,7 +194,7 @@ O000001ZZ_TRANSIENT_TEST_A  {"columns":{"ABTNR":{"bVisible":false},"CITY1":{"bVi
 ```
 
 # Deserialization of an untyped (unknown) JSON object
-If you need to deserialize a JSON object with an unknown structure, or you do not have a passing data type on the ABAP side, or the data type of the resulting object may vary, you can generate an ABAP object on the fly, using the corresponding GENERATE method. The method has some limitations compared to standard deserialization:
+Suppose you need to deserialize a JSON object with an unknown structure, or you do not have a passing data type on the ABAP side, or the data type of the resulting object may vary. In that case, you can generate an ABAP object on the fly, using the corresponding GENERATE method. The method has some limitations compared to standard deserialization:
 
 * All fields are generated as a reference (even elementary types)
 * you can not control how deserialized arrays or timestamps
