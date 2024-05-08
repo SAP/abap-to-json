@@ -88,22 +88,22 @@ ui2/cl_json=>deserialize( EXPORTING json = lv_json CHANGING data =  lo_act ).
 ```
 Remark: There are some constraints for data design that exist regarding the deserialization of objects:
 * You cannot use constructors with obligatory parameters
-* References to interfaces will be not deserialized
+* References to interfaces will not be deserialized
 
 ## Serializing of protected and private attributes
-If you do the serialization from outside of your class, you can access only the public attributes of that class. To serialize all types of attributes (private+protected) you need to allow JSON serializer class access to them. This can be done by defining the serializer class as a friend of your class. In this way, you do not disrupt your encapsulation for other classes but enable the serializer class to access all data of your class.
+If you do the serialization from outside of your class, you can access only the public attributes of that class. To serialize all types of attributes (private+protected) you need to allow the JSON serializer class to access them. This can be done by defining the serializer class as a friend of your class. In this way, you do not disrupt your encapsulation for other classes but enable the serializer class to access all data of your class.
 
-If you do not own a class you want to serialize, you probably can inherit it from your class and add friends there. In this case, you can access at least protected attributes.
+If you do not own a class you want to serialize, you can inherit it from your class and add friends there. In this case, you can access at least protected attributes.
 
 # Partial serialization/deserialization
 When it is needed:
 * You deserialize JSON to ABAP but would like some known parts to be deserialized as JSON string, while you do not know the nesting JSON structure.
-* You deserialize a collection (array/associative array) that has objects with heterogeneous structures (for example the same field has a different type depending on object type). Using partial deserialization, you can restore such a type as JSON string in ABAP and apply later additional deserialization based on the object type.  
-* You serialize ABAP to JSON and have some ready JSON pieces (strings) that you would like to mix in. 
+* You deserialize a collection (array/associative array) having objects with heterogeneous structures (for example the same field has a different type depending on object type). Using partial deserialization, you can restore such a type as JSON string in ABAP and apply additional deserialization based on the object type later.  
+* You serialize ABAP to JSON and have some ready JSON pieces (strings) you want to mix in. 
 
-The solution /UI2/CL_JSON has for this type /UI2/CL_JSON=>JSON (alias for built-in type string). ABAP fields declared with this type will be serialized/deserialized as JSON pieces. Be aware that during serialization from ABAP to JSON, the content of such JSON piece is not validated for correctness, so if you pass an invalid JSON block, it may destroy the whole resulting JSON string at the end.
+The solution /UI2/CL_JSON has for this type /UI2/CL_JSON=>JSON (alias for built-in type string). ABAP fields declared with this type will be serialized/deserialized as JSON pieces. Just to let you know, during serialization from ABAP to JSON, the content of such JSON piece is not validated for correctness, so if you pass an invalid JSON block, it may destroy the complete resulting JSON string at the end.
 
-Below you can find examples of partial serialization/deserialization.
+I've included examples of partial serialization/deserialization below.
 
 Serialization:
 ```abap
@@ -242,7 +242,7 @@ WRITE: lv_val.
 ```
 
 # Implicit generation of ABAP objects on deserialization
-In addition to the explicit generation of the ABAP data objects from the JSON string, the deserializer supports an implicit way of generation, during DESERIALIZE(INT) call. To trigger generation, your output data structure shall contain a field with the type REF TO DATA, and the name of the field shall match the JSON attribute (pretty name rules are considered). Depending on the value of the field, the behavior may differ:
+In addition to the explicit generation of the ABAP data objects from the JSON string, the deserializer supports an implicit way of generation, during DESERIALIZE(INT) call. To trigger generation, your output data structure shall contain a field with the type REF TO DATA, and the field name shall match the JSON attribute (pretty name rules are considered). Depending on the value of the field, the behavior may differ:
 * The value is not bound (initial): deserialize will use generation rules when creating corresponding data types of the referenced value
 * The value is bound (but may be empty): the deserializer will create a new referenced value based on the referenced type.
 
@@ -284,7 +284,7 @@ CREATE DATA ls_data-data TYPE ts_dyn_data2.
 # JSON/ABAP serialization/deserialization with runtime type information
 Automatic deserialization of the JSON into the appropriate ABAP structure is not supported. The default implementation assumes that you need to know the target data structure (or at least partial structure, it will also work) to deserialize JSON in ABAP and then work with typed data. 
 
-But if for some reason one needs the ability to deserialize JSON in source ABAP structure in a generic way, he can extend both serialize/deserialize methods and wrap outputs/inputs of /UI2/CL_JSON data by technical metadata describing source ABAP structure and use this information during deserialization (or use GENERATE method). Of course, you need to ensure that the source ABAP data type is known in the deserialization scope (global and local types are "visible").
+But if for some reason one needs the ability to deserialize JSON in source ABAP structure in a generic way, he can extend both serialize/deserialize methods and wrap outputs/inputs of /UI2/CL_JSON data by technical metadata describing source ABAP structure and use this information during deserialization (or use GENERATE method). Of course, you must ensure that the source ABAP data type is known in the deserialization scope (global and local types are "visible").
 
 See the example below:
 ```abap
