@@ -38,7 +38,7 @@
   * Transformation of **JSON** structures into ABAP class instances is NOT supported.
 * Support of conversion exits on deserialization
 
-The parser for serializing/deserializing uses single-pass parsing and is optimized to provide the best possible performance in ABAP in a release-independent way. But for time-critical applications, which have kernel version 7.20 and higher, it is recommended to use built-in **JSON** to **ABAP** transformations (CALL TRANSFORMATION). If transformation for some reason does not work, please assist with the following notes: [1650141](http://service.sap.com/sap/support/notes/2368774) and [1648418](http://service.sap.com/sap/support/notes/2368774).
+The parser for serializing/deserializing uses single-pass parsing and is optimized to provide the best possible performance in ABAP in a release-independent way. But for time-critical applications, which have kernel version 7.20 and higher, it is recommended to use built-in [**JSON** to **ABAP** transformations (CALL TRANSFORMATION)](advanced.md#json-to-abap-transformation-with-the-use-of-call-transformation). If transformation for some reason does not work, please assist with the following notes: [1650141](http://service.sap.com/sap/support/notes/2368774) and [1648418](http://service.sap.com/sap/support/notes/2368774).
 
 # Usage example
 ## ABAP to JSON usage example
