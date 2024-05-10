@@ -1,5 +1,14 @@
 # FAQ
 
+* [GENERATE or DESERIALIZE into REF TO DATA vs. DESERIALIZE into a typed data structure](#generate-or-deserialize-into-ref-to-data-vs-deserialize-into-a-typed-data-structure)
+* [Serialize huge data objects into JSON and short dumps](#serialize-huge-data-objects-into-json-and-short-dumps)
+* [Encoding of Unicode characters (for example Chinese)](#encoding-of-unicode-characters-for-example-chinese)
+* [Incompatible change for initial date/time fields serializing with PL16](#incompatible-change-for-initial-datetime-fields-serializing-with-pl16)
+* [Is there a way to deserialize objects that have references to Interface?](#is-there-a-way-to-deserialize-objects-that-have-references-to-interface)
+* [Is it possible to have a defined order of fields in ABAP structures generated when deserializing into REF TO DATA fields? Is it possible to have the fields in the generated structure in the same order as in the JSON file?](#is-it-possible-to-have-a-defined-order-of-fields-in-abap-structures-generated-when-deserializing-into-ref-to-data-fields-is-it-possible-to-have-the-fields-in-the-generated-structure-in-the-same-order-as-in-the-json-file)
+* [Is it possible to display the currency amount (CURR fields) formatted in the JSON output based on the related currency (CUKY field)?](#is-it-possible-to-display-the-currency-amount-curr-fields-formatted-in-the-json-output-based-on-the-related-currency-cuky-field)
+* [My fields are/NOT serialized as true/false instead and serialized like 'X' or ''! E.g. how to control ABAP/JSON Boolean conversion?](#my-fields-arenot-serialized-as-truefalse-instead-and-serialized-like-x-or-eg-how-to-control-abapjson-boolean-conversion)
+
 ## GENERATE or DESERIALIZE into REF TO DATA vs. DESERIALIZE into a typed data structure
 It is always better to deserialize into explicit data structure but not into anonymous reference:
 
