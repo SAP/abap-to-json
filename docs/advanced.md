@@ -101,7 +101,7 @@ When it is needed:
 * You deserialize a collection (array/associative array) having objects with heterogeneous structures (for example the same field has a different type depending on object type). Using partial deserialization, you can restore such a type as JSON string in ABAP and apply additional deserialization based on the object type later.  
 * You serialize ABAP to JSON and have some ready JSON pieces (strings) you want to mix in. 
 
-The solution /UI2/CL_JSON has for this type /UI2/CL_JSON=>JSON (alias for built-in type string). ABAP fields declared with this type will be serialized/deserialized as JSON pieces. Just to let you know, during serialization from ABAP to JSON, the content of such JSON piece is not validated for correctness, so if you pass an invalid JSON block, it may destroy the complete resulting JSON string at the end.
+The solution /UI2/CL_JSON has for this type /UI2/CL_JSON=>JSON (alias for built-in type string). ABAP fields declared with this type will be serialized/deserialized as JSON pieces. During serialization from ABAP to JSON, the content of such JSON piece is not validated for correctness, so if you pass an invalid JSON block, it may destroy the complete resulting JSON string at the end.
 
 I've included examples of partial serialization/deserialization below.
 
@@ -324,10 +324,10 @@ ENDIF.
 # Exception Handling in /UI2/CL_JSON
 By default, /UI2/CL_JSON tries to hide from consumer-thrown exceptions (that may happen during deserialization) catching them at all levels. In some cases, it will result in missing attributes, in other cases, when an error is critical and the parser can not restore, you will get an empty object back. The main TRY/CATCH block, not letting exceptions out is in DESERIALIZE method.
 
-If you want to get a report in case of error, you shall use the instance method DESERIALIZE_INT which may fire CX_SY_MOVE_CAST_ERROR. The reporting is rather limited - all errors are translated into CX_SY_MOVE_CAST_ERROR and no additional information is available.
+If you want to get a report in case of error, use the instance method DESERIALIZE_INT which may fire CX_SY_MOVE_CAST_ERROR. The reporting is rather limited - all errors are translated into CX_SY_MOVE_CAST_ERROR and no additional information is available.
 
 # JSON to ABAP transformation with the use of CALL TRANSFORMATION
-Below is a small example of CALL TRANSFORMATION usage to produce JSON from ABAP structures. Do not ask me for details - I do not know them. (smile) Was just a small test of me.
+Below is a small example of CALL TRANSFORMATION usage to produce JSON from ABAP structures. Don't ask me for details - I do not know them. (smile) It was just a small test of me.
 ```abap
 DATA: lt_flight TYPE STANDARD TABLE OF sflight.
 SELECT * FROM sflight INTO TABLE lt_flight.
@@ -341,7 +341,7 @@ DATA(lv_json) = /ui2/cl_json=>raw_to_string( lv_jsonx ).
  * JSON to ABAP
  CALL TRANSFORMATION id SOURCE XML lv_jsonx RESULT text = lt_flight.
 ```
-The transformation above uses the built-in ID transformation, that produces "ABAP JSON" output. If you want to have your custom transformation rules you can use [this project](https://github.com/timostark/abap-json-serialization) to create an XSLT transformation for your data structure.
+The transformation above uses the built-in ID transformation, that produces "ABAP JSON" output. If you want your custom transformation rules you can use [this project](https://github.com/timostark/abap-json-serialization) to create an XSLT transformation for your data structure.
 
 # Continue reading
 * [Basic usage of the class](basic.md)
