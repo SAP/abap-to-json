@@ -5,9 +5,9 @@ If standard class functionality does not fit your requirements there are two way
 * Use a local copy of the class /UI2/CL_JSON and modify logic directly, by the change of original code.
 * Inherit from class /UI2/CL_JSON and override methods where another logic is required. 
 
-The advantage of the first approach is that you are completely free in what you may change and have full control of the class lifecycle. The disadvantage, you will probably need to merge your changes with /UI2/CL_JSON updates. 
+The advantage of the first approach is that you are completely free in what you may change and have full control of the class lifecycle. The disadvantage is that you will need to merge your changes with /UI2/CL_JSON updates. 
 
-For the second approach you can use /UI2/CL_JSON directly (the prerequisite is the latest version of note 2330592), do not need to care about the merge but can override only some methods. The methods are:
+For the second approach you can use /UI2/CL_JSON directly (the prerequisite is the latest version of note 2330592), you do not need to care about the merge but can override only some methods. The methods are:
 
 ## IS_COMPRESSIBLE 
 IS_COMPRESSIBLE is called to check, if the given type output may be suppressed during ABAP to JSON serialization when a value is initial. 
