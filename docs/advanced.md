@@ -1,3 +1,14 @@
+# Overview
+- [Custom ABAP to JSON, JSON to ABAP name mapping](#custom-abap-to-json-json-to-abap-name-mapping)
+- [Custom formatting of values for serialization of ABAP into JSON](#custom-formatting-of-values-for-serialization-of-abap-into-json)
+- [Serialization/deserialization of hierarchical/recursive data](#serializationdeserialization-of-hierarchicalrecursive-data)
+- [Partial serialization/deserialization](#partial-serializationdeserialization)
+- [Deserialization of an untyped (unknown) JSON object](#deserialization-of-an-untyped-unknown-json-object)
+- [Implicit generation of ABAP objects on deserialization](#implicit-generation-of-abap-objects-on-deserialization)
+- [JSON/ABAP serialization/deserialization with runtime type information](#jsonabap-serializationdeserialization-with-runtime-type-information)
+- [Exception Handling in /UI2/CL_JSON](#exception-handling-in-ui2cl_json)
+- [JSON to ABAP transformation with the use of CALL TRANSFORMATION](#json-to-abap-transformation-with-the-use-of-call-transformation)
+
 # Custom ABAP to JSON, JSON to ABAP name mapping
 By default, you control how JSON names are formatted/mapped to ABAP names by selecting proper pretty_mode as a parameter for the SERIALIZE/DESERIALIZE/GENERATE method. But sometimes, the standard, hard-coded formatting, is not enough. For example, if you need special rules for name formatting (for using special characters) or because the JSON attribute name is too long and can't be mapped to the ABAP name (which has a 30-character length limit). 
 
