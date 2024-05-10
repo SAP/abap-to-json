@@ -342,6 +342,7 @@ DATA(lv_json) = /ui2/cl_json=>raw_to_string( lv_jsonx ).
  CALL TRANSFORMATION id SOURCE XML lv_jsonx RESULT text = lt_flight.
 ```
 The transformation above uses the built-in ID transformation, that produces "ABAP JSON" output. If you want your custom transformation rules you can use [this project](https://github.com/timostark/abap-json-serialization) to create an XSLT transformation for your data structure.
+If transformation for some reason does not work, please assist with the following notes: [1650141](http://service.sap.com/sap/support/notes/2368774) and [1648418](http://service.sap.com/sap/support/notes/2368774).
 
 # Continue reading
 * [Basic usage of the class](basic.md)
