@@ -343,6 +343,7 @@ DATA(lv_json) = /ui2/cl_json=>raw_to_string( lv_jsonx ).
 ```
 The transformation above uses the built-in ID transformation, that produces "ABAP JSON" output. If you want your custom transformation rules you can use [this project](https://github.com/timostark/abap-json-serialization) to create an XSLT transformation for your data structure.
 If transformation for some reason does not work, please assist with the following notes: [1650141](http://service.sap.com/sap/support/notes/2368774) and [1648418](http://service.sap.com/sap/support/notes/2368774).
+See also the [blog of Horst Keller](http://scn.sap.com/community/abap/blog/2013/07/04/abap-news-for-release-740--abap-and-json) for more details. 
 
 # Continue reading
 * [Basic usage of the class](basic.md)
