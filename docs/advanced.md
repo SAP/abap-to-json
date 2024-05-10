@@ -322,9 +322,9 @@ ENDIF.
 ```
 
 # Exception Handling in /UI2/CL_JSON
-By default, /UI2/CL_JSON tries to hide from consumer-thrown exceptions (that may happen during deserialization) catching them at all levels. In some cases, it will result in missing attributes, in other cases, when an error is critical and the parser can not restore, you will get an empty object back. The main TRY/CATCH block, not letting exceptions out is in DESERIALIZE method.
+By default, /UI2/CL_JSON tries to hide from consumer-thrown exceptions (that may happen during deserialization) catching them at all levels. In some cases, it will result in missing attributes, in other cases, when an error is critical and the parser can not restore, you will get an empty object back. The main TRY/CATCH block not letting exceptions out from the DESERIALIZE method.
 
-If you want to get a report in case of error, use the instance method DESERIALIZE_INT which may fire CX_SY_MOVE_CAST_ERROR. The reporting is rather limited - all errors are translated into CX_SY_MOVE_CAST_ERROR and no additional information is available.
+If you want to get a report in case of error, use the instance method DESERIALIZE_INT which may fire CX_SY_MOVE_CAST_ERROR. The reporting is rather limited - all errors are translated into CX_SY_MOVE_CAST_ERROR and no additional information is available. But from PL19 you will also get additional details reported in the target (ABAP) and source (JSON) fields, as the type of ABAP field, that is not filled and the JSON node leading to the error. More details can be found in [this issue](https://github.com/SAP/abap-to-json/pull/8).
 
 # JSON to ABAP transformation with the use of CALL TRANSFORMATION
 Below is a small example of CALL TRANSFORMATION usage to produce JSON from ABAP structures. Don't ask me for details - I do not know them. (smile) It was just a small test of me.
