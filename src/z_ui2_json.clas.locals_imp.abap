@@ -61,7 +61,7 @@ DEFINE format_list_output.
     CONCATENATE &1 lv_indent &4 indent &3 INTO &4.
   ELSE.
     CONCATENATE LINES OF &2 INTO &4 SEPARATED BY ','.
-    CONCATENATE &1 &4 &3 INTO &4.
+    &4 = &1 && &4 && &3.
   ENDIF.
 END-OF-DEFINITION. " format_list_output
 
@@ -73,15 +73,16 @@ DEFINE dump_type_int.
         &3 = `""`.
       ELSE.
         TRY.
+            DATA: char128 TYPE c LENGTH 128.
             CALL FUNCTION &4
               EXPORTING
                 input  = &1
               IMPORTING
-                output = text_buf
+                output = char128
               EXCEPTIONS
                 OTHERS = 1.
             IF sy-subrc IS INITIAL.
-              CONCATENATE '"' text_buf '"' INTO &3.
+              &3 = '"' && char128 && '"'.
             ENDIF.
           CATCH cx_root ##CATCH_ALL ##NO_HANDLER.
         ENDTRY.
@@ -90,31 +91,31 @@ DEFINE dump_type_int.
       IF &1 IS INITIAL.
         &3 = mv_initial_ts.
       ELSE.
-        lv_utcl = &1.
-        CONCATENATE '"' lv_utcl(10) 'T' lv_utcl+11(16) 'Z"'  INTO &3.
+        DATA: utcl TYPE c LENGTH 27.
+        utcl = &1.
+        &3 = '"' && utcl(10) && 'T' && utcl+11(16) && 'Z"'.
       ENDIF.
     WHEN e_typekind-ts_iso8601.
       IF &1 IS INITIAL.
         &3 = mv_initial_ts.
       ELSE.
-        lv_ts = &1.
-        CONCATENATE '"' lv_ts(4) '-' lv_ts+4(2) '-' lv_ts+6(2) 'T' lv_ts+8(2) ':' lv_ts+10(2) ':' lv_ts+12(2) 'Z"'  INTO &3.
+        DATA: ts TYPE c LENGTH 14.
+        ts = &1.
+        &3 = '"' && ts(4) && '-' && ts+4(2) && '-' && ts+6(2) && 'T' && ts+8(2) && ':' && ts+10(2) && ':' && ts+12(2) && 'Z"'.
       ENDIF.
     WHEN e_typekind-tsl_iso8601.
       IF &1 IS INITIAL.
         &3 = mv_initial_ts.
       ELSE.
-        lv_tsl = &1.
-        CONCATENATE '"' lv_tsl(4) '-' lv_tsl+4(2) '-' lv_tsl+6(2) 'T' lv_tsl+8(2) ':' lv_tsl+10(2) ':' lv_tsl+12(2) '.' lv_tsl+15(7) 'Z"'  INTO &3.
+        DATA: tsl TYPE c LENGTH 22.
+        tsl = &1.
+        &3 = '"' && tsl(4) && '-' && tsl+4(2) && '-' && tsl+6(2) && 'T' && tsl+8(2) && ':' && tsl+10(2) && ':' && tsl+12(2) && '.' && tsl+15(7) && 'Z"'.
       ENDIF.
     WHEN e_typekind-float.
       IF &1 IS INITIAL.
         &3 = `0`.
       ELSE.
         &3 = &1.
-        IF &1 GT 0.
-          CONDENSE &3.
-        ENDIF.
       ENDIF.
     WHEN e_typekind-int OR e_typekind-int1 OR e_typekind-int2 OR e_typekind-packed OR e_typekind-int8.
       IF &1 IS INITIAL.
@@ -126,18 +127,19 @@ DEFINE dump_type_int.
         ELSE.
           CONDENSE &3.
         ENDIF.
-      ENDIF.
+     ENDIF.
     WHEN e_typekind-numc_string.
       IF &1 IS INITIAL.
         &3 = `""`.
       ELSE.
-        CONCATENATE '"' &1 '"' INTO &3.
+        &3 = '"' && &1 && '"'.
       ENDIF.
     WHEN e_typekind-num.
-      &3 = &1.
-      SHIFT &3 LEFT DELETING LEADING ' 0'.
-      IF &3 IS INITIAL.
+      IF &1 IS INITIAL.
         &3 = `0`.
+      ELSE.
+        &3 = &1.
+        SHIFT &3 LEFT DELETING LEADING '0'.
       ENDIF.
     WHEN e_typekind-json.
       &3 = &1.
@@ -146,41 +148,41 @@ DEFINE dump_type_int.
         &3 = `""`.
       ELSE.
         escape_json &1 &3.
-        CONCATENATE '"' &3 '"' INTO &3.
+        &3 = '"' && &3 && '"'.
       ENDIF.
     WHEN cl_abap_typedescr=>typekind_xstring OR cl_abap_typedescr=>typekind_hex.
       IF &1 IS INITIAL.
         &3 = `""`.
       ELSE.
         xstring_to_string_int &1 &3.
-        CONCATENATE '"' &3 '"' INTO &3.
+        &3 = '"' && &3 && '"'.
       ENDIF.
     WHEN e_typekind-bool OR e_typekind-tribool.
       IF &1 EQ c_bool-true.
-        &3 = `true`.                                          "#EC NOTEXT
+        &3 = `true`.                                        "#EC NOTEXT
       ELSEIF &1 IS INITIAL AND &2 EQ e_typekind-tribool.
-        &3 = `null`.                                          "#EC NOTEXT
+        &3 = `null`.                                        "#EC NOTEXT
       ELSE.
-        &3 = `false`.                                         "#EC NOTEXT
+        &3 = `false`.                                       "#EC NOTEXT
       ENDIF.
     WHEN e_typekind-date.
       IF &1 IS INITIAL.
         &3 = mv_initial_date.
       ELSE.
-        CONCATENATE '"' &1(4) '-' &1+4(2) '-' &1+6(2) '"' INTO &3.
+        &3 = '"' && &1(4) && '-' && &1+4(2) && '-' && &1+6(2) && '"'.
       ENDIF.
     WHEN e_typekind-time.
       IF &1 IS INITIAL.
         &3 = mv_initial_time.
       ELSE.
-        CONCATENATE '"' &1(2) ':' &1+2(2) ':' &1+4(2) '"' INTO &3.
+        &3 = '"' && &1(2) && ':' && &1+2(2) && ':' && &1+4(2) && '"'.
       ENDIF.
     WHEN e_typekind-enum.
       &3 = &1.
-      CONCATENATE '"' &3 '"' INTO &3.
+      &3 = '"' && &3 && '"'.
     WHEN OTHERS.
       IF &1 IS INITIAL.
-        &3 = `null`.                                          "#EC NOTEXT
+        &3 = `null`.                                        "#EC NOTEXT
       ELSE.
         &3 = &1.
       ENDIF.
@@ -224,19 +226,19 @@ DEFINE restore_reference.
 END-OF-DEFINITION.
 
 DEFINE restore_reference_ex. " &1 - data, &2 - type_descr
-    ref_descr ?= &2.
-    data_descr ?= ref_descr->get_referenced_type( ).
-    IF &1 IS INITIAL.
-      IF data_descr->type_kind EQ data_descr->typekind_data. " REF TO DATA
-        generate_int_ex( EXPORTING json = json length = length CHANGING offset = offset data = &1 ).
-        RETURN.
-      ELSE.
-        CREATE DATA &1 TYPE HANDLE data_descr.
-      ENDIF.
+  ref_descr ?= &2.
+  data_descr ?= ref_descr->get_referenced_type( ).
+  IF &1 IS INITIAL.
+    IF data_descr->type_kind EQ data_descr->typekind_data. " REF TO DATA
+      generate_int_ex( EXPORTING json = json length = length CHANGING offset = offset data = &1 ).
+      RETURN.
+    ELSE.
+      CREATE DATA &1 TYPE HANDLE data_descr.
     ENDIF.
-    data_ref ?= &1.
-    ASSIGN data_ref->* TO <data>.
-    restore_type( EXPORTING json = json length = length type_descr = data_descr CHANGING data = <data> offset = offset ).
+  ENDIF.
+  data_ref ?= &1.
+  ASSIGN data_ref->* TO <data>.
+  restore_type( EXPORTING json = json length = length type_descr = data_descr CHANGING data = <data> offset = offset ).
 END-OF-DEFINITION.
 
 DEFINE throw_error.
@@ -353,4 +355,19 @@ DEFINE eat_char.
   ELSE.
     throw_error.
   ENDIF.
+END-OF-DEFINITION.
+
+DEFINE create_regexp.
+  " first try PCRE
+  TRY.
+      CALL METHOD cl_abap_regex=>('CREATE_PCRE')
+        EXPORTING
+          pattern = &2
+        RECEIVING
+          regex   = &1.                                     "#EC NOTEXT
+    CATCH cx_sy_dyn_call_error.
+      CREATE OBJECT &1
+        EXPORTING
+          pattern = &2 ##REGEX_POSIX ##NO_TEXT.             "#EC NOTEXT
+  ENDTRY.
 END-OF-DEFINITION.

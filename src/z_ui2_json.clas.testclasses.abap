@@ -7,11 +7,19 @@
 
 CLASS lcl_util DEFINITION FINAL FRIENDS z_ui2_json.
 
+  PUBLIC SECTION.
+    CLASS-METHODS:
+      class_constructor.
+
   PRIVATE SECTION.
+    CLASS-DATA:
+      so_regex_iso8601 TYPE REF TO cl_abap_regex.
+
     CLASS-METHODS:
       _escape IMPORTING in TYPE data EXPORTING out TYPE string,
       to_md5  IMPORTING iv_value TYPE string RETURNING VALUE(rv_result) TYPE string,
       read_string IMPORTING json TYPE string mark TYPE i CHANGING offset TYPE i DEFAULT 0 text TYPE string RAISING cx_sy_move_cast_error,
+      read_iso8601 IMPORTING in TYPE string RETURNING VALUE(rv_tstm) TYPE timestampl,
       describe_type IMPORTING io_type_descr TYPE REF TO cl_abap_typedescr RETURNING VALUE(rv_typename) TYPE string.
 
 ENDCLASS.                    "lcl_util DEFINITION
@@ -23,10 +31,16 @@ ENDCLASS.                    "lcl_util DEFINITION
 *----------------------------------------------------------------------*
 CLASS lcl_util IMPLEMENTATION.
 
+  METHOD class_constructor.
+
+    " support for ISO8601 => https://en.wikipedia.org/wiki/ISO_8601
+    create_regexp so_regex_iso8601 '^(?:(\d{4})-?(\d{2})-?(\d{2}))?(?:T(\d{2}):?(\d{2})(?::?(\d{2}))?(?:[\.,](\d{0,7}))?(?:Z|(?:([+-])(\d{2})(?::?(\d{2}))?))?)?\s*$'.
+
+  ENDMETHOD.
+
   METHOD describe_type.
 
-    DATA: lo_elem_descr TYPE REF TO cl_abap_elemdescr,
-          lv_kind_name  TYPE string,
+    DATA: lv_kind_name  TYPE string,
           lv_pos        TYPE i.
 
     rv_typename = `?`.
@@ -98,6 +112,36 @@ CLASS lcl_util IMPLEMENTATION.
     text = json+mark(match).
 
   ENDMETHOD.                    "read_string
+
+  METHOD read_iso8601.
+
+    DATA: offset_sign    TYPE c,
+          offset_hours   TYPE c LENGTH 2,
+          offset_minutes TYPE c LENGTH 2,
+          stimestmp      TYPE c LENGTH 22,
+          seconds        TYPE i.
+
+    FIND FIRST OCCURRENCE OF REGEX so_regex_iso8601 IN in SUBMATCHES stimestmp stimestmp+4 stimestmp+6 stimestmp+8 stimestmp+10 stimestmp+12 stimestmp+15 offset_sign offset_hours offset_minutes.
+    CHECK sy-subrc IS INITIAL.
+
+    IF stimestmp+15(1) IS NOT INITIAL. " msec provided
+      stimestmp+14(1) = '.'.
+    ELSEIF stimestmp(1) IS INITIAL. " timeonly, default to current date
+      stimestmp(8) = sy-datlo.
+    ENDIF.
+
+    rv_tstm = stimestmp.
+
+    IF offset_sign IS NOT INITIAL.
+      seconds = offset_hours * 3600 + offset_minutes * 60.
+      IF offset_sign EQ '+'.
+        rv_tstm = cl_abap_tstmp=>subtractsecs( tstmp = rv_tstm secs = seconds ).
+      ELSE.
+        rv_tstm = cl_abap_tstmp=>add( tstmp = rv_tstm secs = seconds ).
+      ENDIF.
+    ENDIF.
+
+  ENDMETHOD.
 
   " Creates MD5 hash from string
   METHOD to_md5.
@@ -634,6 +678,16 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     deserialize( EXPORTING json = lv_act CHANGING  data = ls_test_act ).
 
     cl_aunit_assert=>assert_equals( act = ls_test_act exp = ls_test msg = 'Negative test for deserialization of ISO8601 fails' ).
+
+    DATA: lv_act_tsmp TYPE timestamp,
+          lv_exp_tsmp LIKE lv_act_tsmp.
+
+    lv_act = `"2024-02-01T00:00:00+01:00"`.
+
+    deserialize( EXPORTING json = lv_act CHANGING data = lv_act_tsmp ).
+    lv_exp_tsmp = '20240131230000'.
+
+    cl_aunit_assert=>assert_equals( act = lv_act_tsmp exp = lv_exp_tsmp msg = 'Deserialization of of ISO8601 field with time offset (+1:00) fails' ).
 
   ENDMETHOD.                    "serialize_types
 
@@ -3047,7 +3101,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
       BEGIN OF ty_test,
         int_p2 TYPE i,
       END OF ty_test,
-      ty_tab TYPE STANDARD TABLE OF i WITH DEFAULT KEY,
+      ty_tab   TYPE STANDARD TABLE OF i WITH DEFAULT KEY,
       ty_s_tab TYPE STANDARD TABLE OF ty_test WITH DEFAULT KEY,
       BEGIN OF ty_test2,
         tab1    TYPE STANDARD TABLE OF string WITH DEFAULT KEY,
@@ -3060,9 +3114,9 @@ CLASS abap_unit_testclass IMPLEMENTATION.
         tab4    TYPE STANDARD TABLE OF ty_s_tab WITH DEFAULT KEY,
       END OF ty_test2.
 
-    DATA: ls_test    TYPE ty_test2,
-          lo_json    TYPE t_json,
-          lx_move    TYPE REF TO cx_sy_move_cast_error.
+    DATA: ls_test TYPE ty_test2,
+          lo_json TYPE t_json,
+          lx_move TYPE REF TO cx_sy_move_cast_error.
 
     CREATE OBJECT lo_json
       EXPORTING
@@ -3132,9 +3186,9 @@ CLASS abap_unit_testclass IMPLEMENTATION.
              string1 TYPE string,
            END OF ty_test.
 
-    DATA: ls_test    TYPE ty_test,
-          lo_json    TYPE t_json,
-          lx_move    TYPE REF TO cx_sy_move_cast_error.
+    DATA: ls_test TYPE ty_test,
+          lo_json TYPE t_json,
+          lx_move TYPE REF TO cx_sy_move_cast_error.
 
     CREATE OBJECT lo_json
       EXPORTING
@@ -3175,9 +3229,9 @@ CLASS abap_unit_testclass IMPLEMENTATION.
              string1 TYPE string,
            END OF ty_test.
 
-    DATA: ls_test   TYPE ty_test,
-          lo_json   TYPE t_json,
-          lx_move   TYPE REF TO cx_sy_move_cast_error.
+    DATA: ls_test TYPE ty_test,
+          lo_json TYPE t_json,
+          lx_move TYPE REF TO cx_sy_move_cast_error.
 
     CREATE OBJECT lo_json
       EXPORTING

@@ -269,6 +269,12 @@ CLASS z_ui2_json DEFINITION
     CLASS-DATA so_type_b TYPE REF TO cl_abap_elemdescr .
     CLASS-DATA so_type_t_json TYPE REF TO cl_abap_tabledescr .
     CLASS-DATA so_type_t_name_value TYPE REF TO cl_abap_tabledescr .
+    CLASS-DATA so_regex_date TYPE REF TO cl_abap_regex.
+    CLASS-DATA so_regex_time TYPE REF TO cl_abap_regex.
+    CLASS-DATA so_regex_guid TYPE REF TO cl_abap_regex.
+    CLASS-DATA so_regex_edm_date_time TYPE REF TO cl_abap_regex.
+    CLASS-DATA so_regex_edm_time TYPE REF TO cl_abap_regex.
+
     CONSTANTS:
       BEGIN OF e_typekind,
         " new extended pseudo typekind, hack and can clash with standard if new enums come...
@@ -518,6 +524,14 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     so_type_t_json ?= cl_abap_typedescr=>describe_by_name( 'T_T_JSON' ).
     so_type_t_name_value ?= cl_abap_typedescr=>describe_by_name( 'T_T_NAME_VALUE' ).
 
+    create_regexp so_regex_date '^(\d{4})-(\d{2})-(\d{2})'.
+    create_regexp so_regex_time '^(\d{2}):(\d{2}):(\d{2})'.
+    create_regexp so_regex_guid '^([0-9A-Fa-f]{8})-([0-9A-Fa-f]{4})-([0-9A-Fa-f]{4})-([0-9A-Fa-f]{4})-([0-9A-Fa-f]{12})\s*$'. " support for Edm.Guid
+    " support for Edm.DateTime => http://www.odata.org/documentation/odata-version-2-0/json-format/
+    create_regexp so_regex_edm_date_time '^\/[Dd][Aa][Tt][Ee]\((-?\d+)([+-]\d{1,4})?\)\/\s*$'.
+    " support for Edm.Time => https://www.w3.org/TR/xmlschema11-2/#nt-durationRep
+    create_regexp so_regex_edm_time '^-?P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)(?:\.(\d+))?S)?)?\s*$'.
+
   ENDMETHOD.                    "class_constructor
 
 
@@ -614,6 +628,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
     DATA: length  TYPE i,
           offset  TYPE i,
+          lx_move TYPE REF TO cx_sy_move_cast_error,
           lv_json LIKE json.
 
     " **********************************************************************
@@ -635,7 +650,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
     TRY.
         restore_type( EXPORTING json = lv_json length = length CHANGING data = data offset = offset ).
-      CATCH cx_sy_move_cast_error INTO DATA(lx_move).
+      CATCH cx_sy_move_cast_error INTO lx_move.
         RAISE EXCEPTION TYPE cx_sy_move_cast_error
           EXPORTING
             previous        = lx_move
@@ -691,10 +706,6 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           lv_prop_name  TYPE string,
           lv_keyval     TYPE string,
           lv_typekind   TYPE abap_typekind,
-          lv_ts         TYPE c LENGTH 15,
-          lv_tsl        TYPE c LENGTH 23,
-          lv_utcl       TYPE c LENGTH 27,
-          text_buf      TYPE c LENGTH 256,
           lv_itemval    TYPE string,
           lv_property   TYPE string.
 
@@ -872,10 +883,6 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     DATA: lt_fields  TYPE STANDARD TABLE OF string,
           lv_indent  TYPE string,
           lv_level   LIKE level,
-          lv_ts      TYPE c LENGTH 15,
-          lv_tsl     TYPE c LENGTH 23,
-          lv_utcl    TYPE c LENGTH 27,
-          text_buf   TYPE c LENGTH 256,
           lv_itemval TYPE string,
           lv_field   TYPE string.
 
@@ -899,9 +906,9 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
       ENDIF.
       IF opt_array EQ abap_false.
         IF mv_format_output EQ abap_true.
-          CONCATENATE lv_indent <symbol>-header lv_itemval INTO lv_field.
+          lv_field = lv_indent && <symbol>-header && lv_itemval.
         ELSE.
-          CONCATENATE <symbol>-header lv_itemval INTO lv_field.
+          lv_field = <symbol>-header && lv_itemval.
         ENDIF.
       ELSE.
         lv_field = lv_itemval.
@@ -916,9 +923,9 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
         r_json = `{}`.
       ELSEIF mv_format_output EQ abap_true.
         lv_indent = get_indent( level ).
-        CONCATENATE '{' r_json lv_indent '}' INTO r_json.
+        r_json = '{' && r_json && lv_indent && '}'.
       ELSE.
-        CONCATENATE '{' r_json '}' INTO r_json.
+        r_json = '{' && r_json && '}'.
       ENDIF.
     ENDIF.
 
@@ -927,11 +934,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
   METHOD dump_type.
 
-    DATA: lv_ts       TYPE c LENGTH 15,
-          lv_tsl      TYPE c LENGTH 23,
-          lv_utcl     TYPE c LENGTH 27,
-          text_buf    TYPE c LENGTH 256,
-          lv_typekind LIKE typekind.
+    DATA: lv_typekind LIKE typekind.
 
     ""!!! the fallback code for missing typekind is only for the method but not used in macro
     IF typekind IS INITIAL.
@@ -947,15 +950,16 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           r_json = `""`.
         ELSE.
           TRY.
+              DATA: char128 TYPE c LENGTH 128.
               CALL FUNCTION convexit
                 EXPORTING
                   input  = data
                 IMPORTING
-                  output = text_buf
+                  output = char128
                 EXCEPTIONS
                   OTHERS = 1.
               IF sy-subrc IS INITIAL.
-                CONCATENATE '"' text_buf '"' INTO r_json.
+                CONCATENATE '"' char128 '"' INTO r_json.
               ENDIF.
             CATCH cx_root ##CATCH_ALL ##NO_HANDLER.
           ENDTRY.
@@ -964,31 +968,31 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
         IF data IS INITIAL.
           r_json = mv_initial_ts.
         ELSE.
-          lv_utcl = data.
-          CONCATENATE '"' lv_utcl(10) 'T' lv_utcl+11(16) 'Z"'  INTO r_json.
+          DATA: utcl TYPE c LENGTH 27.
+          utcl = data.
+          CONCATENATE '"' utcl(10) 'T' utcl+11(16) 'Z"'  INTO r_json.
         ENDIF.
       WHEN e_typekind-ts_iso8601.
         IF data IS INITIAL.
           r_json = mv_initial_ts.
         ELSE.
-          lv_ts = data.
-          CONCATENATE '"' lv_ts(4) '-' lv_ts+4(2) '-' lv_ts+6(2) 'T' lv_ts+8(2) ':' lv_ts+10(2) ':' lv_ts+12(2) 'Z"'  INTO r_json.
+          DATA: ts TYPE c LENGTH 14.
+          ts = data.
+          CONCATENATE '"' ts(4) '-' ts+4(2) '-' ts+6(2) 'T' ts+8(2) ':' ts+10(2) ':' ts+12(2) 'Z"'  INTO r_json.
         ENDIF.
       WHEN e_typekind-tsl_iso8601.
         IF data IS INITIAL.
           r_json = mv_initial_ts.
         ELSE.
-          lv_tsl = data.
-          CONCATENATE '"' lv_tsl(4) '-' lv_tsl+4(2) '-' lv_tsl+6(2) 'T' lv_tsl+8(2) ':' lv_tsl+10(2) ':' lv_tsl+12(2) '.' lv_tsl+15(7) 'Z"'  INTO r_json.
+          DATA: tsl TYPE c LENGTH 22.
+          tsl = data.
+          CONCATENATE '"' tsl(4) '-' tsl+4(2) '-' tsl+6(2) 'T' tsl+8(2) ':' tsl+10(2) ':' tsl+12(2) '.' tsl+15(7) 'Z"'  INTO r_json.
         ENDIF.
       WHEN e_typekind-float.
         IF data IS INITIAL.
           r_json = `0`.
         ELSE.
           r_json = data.
-          IF data GT 0.
-            CONDENSE r_json.
-          ENDIF.
         ENDIF.
       WHEN e_typekind-int OR e_typekind-int1 OR e_typekind-int2 OR e_typekind-packed OR e_typekind-int8.
         IF data IS INITIAL.
@@ -1008,10 +1012,11 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           CONCATENATE '"' data '"' INTO r_json.
         ENDIF.
       WHEN e_typekind-num.
-        r_json = data.
-        SHIFT r_json LEFT DELETING LEADING ' 0'.
-        IF r_json IS INITIAL.
+        IF data IS INITIAL.
           r_json = `0`.
+        ELSE.
+          r_json = data.
+          SHIFT r_json LEFT DELETING LEADING '0'.
         ENDIF.
       WHEN e_typekind-json.
         r_json = data.
@@ -1769,17 +1774,6 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
   METHOD restore_type.
 
-    CONSTANTS:
-      " support for ISO8601 => https://en.wikipedia.org/wiki/ISO_8601
-      lc_iso8601_regexp       TYPE string VALUE `^(?:(\d{4})-?(\d{2})-?(\d{2}))?(?:T(\d{2}):?(\d{2})(?::?(\d{2}))?(?:[\.,](\d{0,7}))?(?:Z|(?:[+-]?\d{2}(?::?\d{2})?))?)?\s*$`, "#EC NOTEXT
-      " support for Edm.Guid
-      lc_edm_guid_regexp      TYPE string VALUE `^([0-9A-F]{8})-([0-9A-F]{4})-([0-9A-F]{4})-([0-9A-F]{4})-([0-9A-F]{12})\s*$`, "#EC NOTEXT
-      " support for Edm.DateTime => http://www.odata.org/documentation/odata-version-2-0/json-format/
-      lc_edm_date_time_regexp TYPE string VALUE `^\/Date\((-?\d+)([+-]\d{1,4})?\)\/\s*$`, "#EC NOTEXT
-      " support for Edm.Time => https://www.w3.org/TR/xmlschema11-2/#nt-durationRep
-      lc_edm_time_regexp      TYPE string VALUE `^-?P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)(?:\.(\d+))?S)?)?\s*$`. "#EC NOTEXT
-
-
     DATA: mark               LIKE offset,
           match              LIKE offset,
           sdummy             TYPE string,                   "#EC NEEDED
@@ -1802,7 +1796,11 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           ref_descr          TYPE REF TO cl_abap_refdescr,
           data_descr         TYPE REF TO cl_abap_datadescr,
           array_index        TYPE i,
-          text_buf           TYPE c LENGTH 256,
+          text_buf           TYPE c LENGTH 128,
+          tstml              TYPE timestampl,
+          date               TYPE c LENGTH 8,
+          time               TYPE c LENGTH 6,
+          guid               TYPE c LENGTH 32,
           lo_move_cast_error TYPE REF TO cx_sy_move_cast_error,
           source_typename    TYPE string,
           target_typename    TYPE string.
@@ -2048,31 +2046,30 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                           RETURN.
                         WHEN cl_abap_typedescr=>typekind_hex.
                           " support for Edm.Guid
-                          REPLACE FIRST OCCURRENCE OF REGEX lc_edm_guid_regexp IN sdummy ##REGEX_POSIX
-                          WITH '$1$2$3$4$5' REPLACEMENT LENGTH match IGNORING CASE.
+                          FIND FIRST OCCURRENCE OF REGEX so_regex_guid IN sdummy SUBMATCHES guid guid+8 guid+12 guid+16 guid+20.
                           IF sy-subrc EQ 0.
-                            sdummy = sdummy(match).
-                            TRANSLATE sdummy TO UPPER CASE.
-                            data = sdummy.
+                            TRANSLATE guid TO UPPER CASE.
+                            data = guid.
                           ELSE.
                             string_to_xstring_int sdummy data.
                           ENDIF.
                           RETURN.
                         WHEN cl_abap_typedescr=>typekind_date.
-                          REPLACE FIRST OCCURRENCE OF REGEX '^(\d{4})-(\d{2})-(\d{2})' IN sdummy WITH '$1$2$3' ##REGEX_POSIX
-                          REPLACEMENT LENGTH match.
+                          FIND FIRST OCCURRENCE OF REGEX so_regex_date IN sdummy SUBMATCHES date date+4 date+6.
                           IF sy-subrc EQ 0. " => ABAP standard
-                            sdummy = sdummy(match).
+                            data = date.
+                            RETURN.
                           ELSE.
-                            REPLACE FIRST OCCURRENCE OF REGEX lc_iso8601_regexp IN sdummy WITH '$1$2$3' REPLACEMENT LENGTH match ##REGEX_POSIX.
-                            IF sy-subrc EQ 0. " => ISO8601
-                              sdummy = sdummy(match).
+                            tstml = lcl_util=>read_iso8601( sdummy ).
+                            IF tstml IS NOT INITIAL.
+                              CONVERT TIME STAMP tstml TIME ZONE sy-zonlo INTO DATE data.
+                              RETURN.
                             ELSE.
-                              FIND FIRST OCCURRENCE OF REGEX lc_edm_date_time_regexp IN sdummy SUBMATCHES lv_ticks lv_offset IGNORING CASE ##REGEX_POSIX.
+                              FIND FIRST OCCURRENCE OF REGEX so_regex_edm_date_time IN sdummy SUBMATCHES lv_ticks lv_offset.
                               IF sy-subrc EQ 0. " => Edm.DateTime
                                 sdummy = edm_datetime_to_ts( ticks = lv_ticks offset = lv_offset typekind = type_descr->type_kind ).
                               ELSE.
-                                REPLACE FIRST OCCURRENCE OF REGEX lc_edm_time_regexp IN sdummy WITH '$1$2$3' REPLACEMENT LENGTH match ##REGEX_POSIX.
+                                REPLACE FIRST OCCURRENCE OF REGEX so_regex_edm_time IN sdummy WITH '$1$2$3' REPLACEMENT LENGTH match.
                                 IF sy-subrc EQ 0. " => Edm.Time
                                   sdummy = sdummy(match).
                                 ENDIF.
@@ -2080,20 +2077,21 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                             ENDIF.
                           ENDIF.
                         WHEN cl_abap_typedescr=>typekind_time.
-                          REPLACE FIRST OCCURRENCE OF REGEX '^(\d{2}):(\d{2}):(\d{2})' IN sdummy WITH '$1$2$3' ##REGEX_POSIX
-                          REPLACEMENT LENGTH match.         "#EC NOTEXT
+                          FIND FIRST OCCURRENCE OF REGEX so_regex_time IN sdummy SUBMATCHES time time+2 time+4.
                           IF sy-subrc EQ 0. " => ABAP standard
-                            sdummy = sdummy(match).
+                            data = time.
+                            RETURN.
                           ELSE.
-                            REPLACE FIRST OCCURRENCE OF REGEX lc_iso8601_regexp IN sdummy WITH '$4$5$6' REPLACEMENT LENGTH match ##REGEX_POSIX.
-                            IF sy-subrc EQ 0. " => ISO8601
-                              sdummy = sdummy(match).
+                            tstml = lcl_util=>read_iso8601( sdummy ).
+                            IF tstml IS NOT INITIAL.
+                              CONVERT TIME STAMP tstml TIME ZONE sy-zonlo INTO TIME data.
+                              RETURN.
                             ELSE.
-                              FIND FIRST OCCURRENCE OF REGEX lc_edm_date_time_regexp IN sdummy SUBMATCHES lv_ticks lv_offset IGNORING CASE ##REGEX_POSIX.
+                              FIND FIRST OCCURRENCE OF REGEX so_regex_edm_date_time IN sdummy SUBMATCHES lv_ticks lv_offset.
                               IF sy-subrc EQ 0. " => Edm.DateTime
                                 sdummy = edm_datetime_to_ts( ticks = lv_ticks offset = lv_offset typekind = type_descr->type_kind ).
                               ELSE.
-                                REPLACE FIRST OCCURRENCE OF REGEX lc_edm_time_regexp IN sdummy WITH '$4$5$6' REPLACEMENT LENGTH match ##REGEX_POSIX.
+                                REPLACE FIRST OCCURRENCE OF REGEX so_regex_edm_time IN sdummy WITH '$4$5$6' REPLACEMENT LENGTH match.
                                 IF sy-subrc EQ 0. " => Edm.Time
                                   sdummy = sdummy(match).
                                 ENDIF.
@@ -2101,22 +2099,32 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                             ENDIF.
                           ENDIF.
                         WHEN mc_typekind_utclong.
-                          REPLACE FIRST OCCURRENCE OF REGEX lc_iso8601_regexp IN sdummy WITH '$1-$2-$3 $4:$5:$6.$7' REPLACEMENT LENGTH match ##REGEX_POSIX.
-                          IF sy-subrc EQ 0.
-                            sdummy = sdummy(match).
+                          tstml = lcl_util=>read_iso8601( sdummy ).
+                          IF tstml IS NOT INITIAL.
+                            TRY.
+                                CALL METHOD cl_abap_tstmp=>('TSTMP2UTCLONG')
+                                  EXPORTING
+                                    timestamp = tstml
+                                  RECEIVING
+                                    utclong   = data.
+                                RETURN.
+                              CATCH cx_sy_dyn_call_error.
+                                throw_error. " Deserialization of UTCLONG is not supported
+                            ENDTRY.
                           ELSE.
                             throw_error. " Wrong ISO8601 format
                           ENDIF.
                         WHEN cl_abap_typedescr=>typekind_packed.
-                          REPLACE FIRST OCCURRENCE OF REGEX lc_iso8601_regexp IN sdummy WITH '$1$2$3$4$5$6.$7' REPLACEMENT LENGTH match ##REGEX_POSIX.
-                          IF sy-subrc EQ 0.
-                            sdummy = sdummy(match).
+                          tstml = lcl_util=>read_iso8601( sdummy ).
+                          IF tstml IS NOT INITIAL.
+                            data = tstml.
+                            RETURN.
                           ELSE.
-                            FIND FIRST OCCURRENCE OF REGEX lc_edm_date_time_regexp IN sdummy SUBMATCHES lv_ticks lv_offset IGNORING CASE ##REGEX_POSIX.
+                            FIND FIRST OCCURRENCE OF REGEX so_regex_edm_date_time IN sdummy SUBMATCHES lv_ticks lv_offset.
                             IF sy-subrc EQ 0. " => Edm.DateTime
                               sdummy = edm_datetime_to_ts( ticks = lv_ticks offset = lv_offset typekind = type_descr->type_kind ).
                             ELSE.
-                              REPLACE FIRST OCCURRENCE OF REGEX lc_edm_time_regexp IN sdummy WITH '$1$2$3$4$5$6.$7' REPLACEMENT LENGTH match ##REGEX_POSIX.
+                              REPLACE FIRST OCCURRENCE OF REGEX so_regex_edm_time IN sdummy WITH '$1$2$3$4$5$6.$7' REPLACEMENT LENGTH match.
                               IF sy-subrc EQ 0. " => Edm.Time
                                 sdummy = sdummy(match).
                               ENDIF.
@@ -2504,14 +2512,14 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
         IF type_descr->help_id IS NOT INITIAL AND NOT contains( val = type_descr->absolute_name end = type_descr->help_id ).
           TRY.
               inner_elemdescr ?= cl_abap_elemdescr=>describe_by_name( type_descr->help_id ).
-              IF inner_elemdescr->is_ddic_type( ).
+              IF inner_elemdescr->is_ddic_type( ) EQ abap_true.
                 domain_name = inner_elemdescr->get_ddic_field( )-domname.
               ENDIF.
-            CATCH cx_root.
+            CATCH cx_root. "#EC CATCH_ALL
               domain_name = ''.
           ENDTRY.
         ELSE.
-          IF type_descr->is_ddic_type( ).
+          IF type_descr->is_ddic_type( ) EQ abap_true.
             domain_name = type_descr->get_ddic_field( )-domname.
           ENDIF.
         ENDIF.
