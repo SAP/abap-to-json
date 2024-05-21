@@ -27,7 +27,8 @@
 * Fixed: deserialization of JSON 'null' into complex, not reference ABAP fields does not lead to exception in strict mode ([details](https://github.com/SAP/abap-to-json/pull/5))
 * Fixed: Added support for ABAP_BOOLEAN type.
 * Fixed: performance optimization for deserializing strings with escaped line breaks and special characters. When you have escaped "\", e.g. "\\" it is still slow.
-* Fixed: short dump in conversion exits routines on SERIALIZE/DESERIALIZE because of the wrong data type (OBJECTS_NOT_CHAR). 
+* Fixed: short dump in conversion exits routines on SERIALIZE/DESERIALIZE because of the wrong data type (OBJECTS_NOT_CHAR).
+* Fixed. Added support for the timezone offsets for ISO8601.
 * New: Information about the invalid field added to the exception data of move_cast_error ([details](https://github.com/SAP/abap-to-json/pull/8))
 * New: serialization now can detect "timestamps" defined with the help of data domains ([details](https://github.com/SAP/abap-to-json/pull/9))
 
