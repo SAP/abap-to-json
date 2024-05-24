@@ -15,7 +15,7 @@ It is always better to deserialize into explicit data structure but not into ano
 1. It is faster
 2. It is type-safe
 3. Processing deserialized results is much easier.
-Deserializing into REF TO data is the same as using the GENERATE method and results in generating real-time ABAP types, which is quite slow. You can not specify the resulting types for elements and the deserializer needs to guess. To process generated results, you need to always use dynamic programming by default slow (or /UI2/CL_DATA_ACCESS, which is more comfortable but still uses dynamic programming inside).
+Deserializing into REF TO data is the same as using the GENERATE method and results in generating real-time ABAP types, which is quite slow. You can not specify the resulting types for data elements and the deserializer needs to guess types. To process generated results, you always use dynamic programming, which is by default slow (or /UI2/CL_DATA_ACCESS, which is more comfortable but still uses dynamic programming inside).
 
 ## Serialize huge data objects into JSON and short dumps
 You are using the class to serialize your data into JSON. Unfortunately, sometimes you pass too big tables, which results in too long a JSON string (for example, longer than 1GB), and this leads to dumps like SYSTEM_NO_ROLL, STRING_SIZE_TOO_LARGE, MEMORY_NO_MORE_PAGING, while the system can not allocate such a big continuous memory chunk. Potentially this specific case can be solved by increasing the memory allocation limit, but you would still end up with an INT4 size limit for string length, which can not be more than 2GB size.
