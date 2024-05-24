@@ -61,7 +61,7 @@ DEFINE format_list_output.
     CONCATENATE &1 lv_indent &4 indent &3 INTO &4.
   ELSE.
     CONCATENATE LINES OF &2 INTO &4 SEPARATED BY ','.
-    &4 = &1 && &4 && &3.
+    CONCATENATE &1 &4 &3 INTO &4.
   ENDIF.
 END-OF-DEFINITION. " format_list_output
 
@@ -82,7 +82,7 @@ DEFINE dump_type_int.
               EXCEPTIONS
                 OTHERS = 1.
             IF sy-subrc IS INITIAL.
-              &3 = '"' && char128 && '"'.
+              CONCATENATE '"' char128 '"' INTO &3.
             ENDIF.
           CATCH cx_root ##CATCH_ALL ##NO_HANDLER.
         ENDTRY.
@@ -93,7 +93,7 @@ DEFINE dump_type_int.
       ELSE.
         DATA: utcl TYPE c LENGTH 27.
         utcl = &1.
-        &3 = '"' && utcl(10) && 'T' && utcl+11(16) && 'Z"'.
+        CONCATENATE '"' utcl(10) 'T' utcl+11(16) 'Z"'  INTO &3.
       ENDIF.
     WHEN e_typekind-ts_iso8601.
       IF &1 IS INITIAL.
@@ -101,7 +101,7 @@ DEFINE dump_type_int.
       ELSE.
         DATA: ts TYPE c LENGTH 14.
         ts = &1.
-        &3 = '"' && ts(4) && '-' && ts+4(2) && '-' && ts+6(2) && 'T' && ts+8(2) && ':' && ts+10(2) && ':' && ts+12(2) && 'Z"'.
+        CONCATENATE '"' ts(4) '-' ts+4(2) '-' ts+6(2) 'T' ts+8(2) ':' ts+10(2) ':' ts+12(2) 'Z"'  INTO &3.
       ENDIF.
     WHEN e_typekind-tsl_iso8601.
       IF &1 IS INITIAL.
@@ -109,7 +109,7 @@ DEFINE dump_type_int.
       ELSE.
         DATA: tsl TYPE c LENGTH 22.
         tsl = &1.
-        &3 = '"' && tsl(4) && '-' && tsl+4(2) && '-' && tsl+6(2) && 'T' && tsl+8(2) && ':' && tsl+10(2) && ':' && tsl+12(2) && '.' && tsl+15(7) && 'Z"'.
+        CONCATENATE '"' tsl(4) '-' tsl+4(2) '-' tsl+6(2) 'T' tsl+8(2) ':' tsl+10(2) ':' tsl+12(2) '.' tsl+15(7) 'Z"'  INTO &3.
       ENDIF.
     WHEN e_typekind-float.
       IF &1 IS INITIAL.
@@ -132,7 +132,7 @@ DEFINE dump_type_int.
       IF &1 IS INITIAL.
         &3 = `""`.
       ELSE.
-        &3 = '"' && &1 && '"'.
+        CONCATENATE '"' &1 '"' INTO &3.
       ENDIF.
     WHEN e_typekind-num.
       IF &1 IS INITIAL.
@@ -148,14 +148,14 @@ DEFINE dump_type_int.
         &3 = `""`.
       ELSE.
         escape_json &1 &3.
-        &3 = '"' && &3 && '"'.
+        CONCATENATE '"' &3 '"' INTO &3.
       ENDIF.
     WHEN cl_abap_typedescr=>typekind_xstring OR cl_abap_typedescr=>typekind_hex.
       IF &1 IS INITIAL.
         &3 = `""`.
       ELSE.
         xstring_to_string_int &1 &3.
-        &3 = '"' && &3 && '"'.
+        CONCATENATE '"' &3 '"' INTO &3.
       ENDIF.
     WHEN e_typekind-bool OR e_typekind-tribool.
       IF &1 EQ c_bool-true.
@@ -169,17 +169,17 @@ DEFINE dump_type_int.
       IF &1 IS INITIAL.
         &3 = mv_initial_date.
       ELSE.
-        &3 = '"' && &1(4) && '-' && &1+4(2) && '-' && &1+6(2) && '"'.
+        CONCATENATE '"' &1(4) '-' &1+4(2) '-' &1+6(2) '"' INTO &3.
       ENDIF.
     WHEN e_typekind-time.
       IF &1 IS INITIAL.
         &3 = mv_initial_time.
       ELSE.
-        &3 = '"' && &1(2) && ':' && &1+2(2) && ':' && &1+4(2) && '"'.
+        CONCATENATE '"' &1(2) ':' &1+2(2) ':' &1+4(2) '"' INTO &3.
       ENDIF.
     WHEN e_typekind-enum.
       &3 = &1.
-      &3 = '"' && &3 && '"'.
+      CONCATENATE '"' &3 '"' INTO &3.
     WHEN OTHERS.
       IF &1 IS INITIAL.
         &3 = `null`.                                        "#EC NOTEXT

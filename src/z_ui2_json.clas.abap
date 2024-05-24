@@ -3,31 +3,31 @@
 *----------------------------------------------------------------------*
 *
 *----------------------------------------------------------------------*
-CLASS z_ui2_json DEFINITION
-  PUBLIC
-  CREATE PUBLIC .
+class Z_UI2_JSON definition
+  public
+  create public .
 
-  PUBLIC SECTION.
-    TYPE-POOLS abap .
-    CLASS cl_abap_tstmp DEFINITION LOAD .
-    CLASS cx_sy_conversion_error DEFINITION LOAD .
+public section.
+  type-pools ABAP .
+  class CL_ABAP_TSTMP definition load .
+  class CX_SY_CONVERSION_ERROR definition load .
 
-    TYPES json TYPE string .
-    TYPES:
-      BEGIN OF name_mapping,
+  types JSON type STRING .
+  types:
+    BEGIN OF name_mapping,
         abap TYPE abap_compname,
         json TYPE string,
       END OF name_mapping .
-    TYPES:
-      name_mappings    TYPE HASHED TABLE OF name_mapping WITH UNIQUE KEY abap .
-    TYPES:
-      ref_tab          TYPE STANDARD TABLE OF REF TO data WITH DEFAULT KEY .
-    TYPES bool TYPE char1 .
-    TYPES tribool TYPE char1 .
-    TYPES pretty_name_mode TYPE char1 .
+  types:
+    name_mappings    TYPE HASHED TABLE OF name_mapping WITH UNIQUE KEY abap .
+  types:
+    ref_tab          TYPE STANDARD TABLE OF REF TO data WITH DEFAULT KEY .
+  types BOOL type CHAR1 .
+  types TRIBOOL type CHAR1 .
+  types PRETTY_NAME_MODE type CHAR1 .
 
-    CONSTANTS:
-      BEGIN OF pretty_mode,
+  constants:
+    BEGIN OF pretty_mode,
         none          TYPE char1  VALUE ``,
         low_case      TYPE char1  VALUE 'L',
         camel_case    TYPE char1  VALUE 'X',
@@ -35,149 +35,152 @@ CLASS z_ui2_json DEFINITION
         user          TYPE char1  VALUE 'U',
         user_low_case TYPE char1  VALUE 'C',
       END OF  pretty_mode .
-    CONSTANTS:
-      BEGIN OF c_bool,
+  constants:
+    BEGIN OF c_bool,
         true  TYPE bool  VALUE 'X',
         false TYPE bool  VALUE '',
       END OF  c_bool .
-    CONSTANTS:
-      BEGIN OF c_tribool,
+  constants:
+    BEGIN OF c_tribool,
         true      TYPE tribool  VALUE c_bool-true,
         false     TYPE tribool  VALUE '-',
         undefined TYPE tribool  VALUE ``,
       END OF  c_tribool .
-    CLASS-DATA sv_white_space TYPE string READ-ONLY .
-    CONSTANTS mc_key_separator TYPE string VALUE `-` ##NO_TEXT.
-    CLASS-DATA mc_bool_types TYPE string READ-ONLY VALUE `\TYPE-POOL=ABAP\TYPE=ABAP_BOOL\TYPE=BOOLEAN\TYPE=BOOLE_D\TYPE=XFELD\TYPE=XSDBOOLEAN\TYPE=WDY_BOOLEAN` ##NO_TEXT.
-    CLASS-DATA mc_bool_3state TYPE string READ-ONLY VALUE `\TYPE=BOOLEAN` ##NO_TEXT.
-    CONSTANTS version TYPE i VALUE 19 ##NO_TEXT.
-    CLASS-DATA mc_json_type TYPE string READ-ONLY .
+  class-data SV_WHITE_SPACE type STRING read-only .
+  constants MC_KEY_SEPARATOR type STRING value `-` ##NO_TEXT.
+  class-data MC_BOOL_TYPES type STRING read-only value `\TYPE-POOL=ABAP\TYPE=ABAP_BOOL\TYPE=BOOLEAN\TYPE=BOOLE_D\TYPE=XFELD\TYPE=XSDBOOLEAN\TYPE=WDY_BOOLEAN` ##NO_TEXT.
+  class-data MC_BOOL_3STATE type STRING read-only value `\TYPE=BOOLEAN` ##NO_TEXT.
+  constants VERSION type I value 19 ##NO_TEXT.
+  class-data MC_JSON_TYPE type STRING read-only .
 
-    CLASS-METHODS class_constructor .
-    CLASS-METHODS string_to_xstring
-      IMPORTING
-        !in        TYPE string
-      CHANGING
-        VALUE(out) TYPE any .
-    CLASS-METHODS xstring_to_string
-      IMPORTING
-        !in        TYPE any
-      RETURNING
-        VALUE(out) TYPE string .
-    CLASS-METHODS raw_to_string
-      IMPORTING
-        !iv_xstring      TYPE xstring
-        !iv_encoding     TYPE abap_encoding OPTIONAL
-      RETURNING
-        VALUE(rv_string) TYPE string .
-    CLASS-METHODS string_to_raw
-      IMPORTING
-        !iv_string        TYPE string
-        !iv_encoding      TYPE abap_encoding OPTIONAL
-      RETURNING
-        VALUE(rv_xstring) TYPE xstring .
-    CLASS-METHODS dump
-      IMPORTING
-        !data          TYPE data
-        !compress      TYPE bool DEFAULT c_bool-false
-        !type_descr    TYPE REF TO cl_abap_typedescr OPTIONAL
-        !pretty_name   TYPE pretty_name_mode DEFAULT pretty_mode-none
-        !assoc_arrays  TYPE bool DEFAULT c_bool-false
-        !ts_as_iso8601 TYPE bool DEFAULT c_bool-false
-      RETURNING
-        VALUE(r_json)  TYPE json .
-    CLASS-METHODS deserialize
-      IMPORTING
-        !json             TYPE json OPTIONAL
-        !jsonx            TYPE xstring OPTIONAL
-        !pretty_name      TYPE pretty_name_mode DEFAULT pretty_mode-none
-        !assoc_arrays     TYPE bool DEFAULT c_bool-false
-        !assoc_arrays_opt TYPE bool DEFAULT c_bool-false
-        !name_mappings    TYPE name_mappings OPTIONAL
-        !conversion_exits TYPE bool DEFAULT c_bool-false
-        !hex_as_base64    TYPE bool DEFAULT c_bool-true
-      CHANGING
-        !data             TYPE data .
-    CLASS-METHODS serialize
-      IMPORTING
-        !data             TYPE data
-        !compress         TYPE bool DEFAULT c_bool-false
-        !name             TYPE string OPTIONAL
-        !pretty_name      TYPE pretty_name_mode DEFAULT pretty_mode-none
-        !type_descr       TYPE REF TO cl_abap_typedescr OPTIONAL
-        !assoc_arrays     TYPE bool DEFAULT c_bool-false
-        !ts_as_iso8601    TYPE bool DEFAULT c_bool-false
-        !expand_includes  TYPE bool DEFAULT c_bool-true
-        !assoc_arrays_opt TYPE bool DEFAULT c_bool-false
-        !numc_as_string   TYPE bool DEFAULT c_bool-false
-        !name_mappings    TYPE name_mappings OPTIONAL
-        !conversion_exits TYPE bool DEFAULT c_bool-false
-        !format_output    TYPE bool DEFAULT c_bool-false
-        !hex_as_base64    TYPE bool DEFAULT c_bool-true
-      RETURNING
-        VALUE(r_json)     TYPE json .
-    METHODS deserialize_int
-      IMPORTING
-        !json  TYPE json OPTIONAL
-        !jsonx TYPE xstring OPTIONAL
-      CHANGING
-        !data  TYPE data
-      RAISING
-        cx_sy_move_cast_error .
-    CLASS-METHODS generate
-      IMPORTING
-        !json          TYPE json OPTIONAL
-        !pretty_name   TYPE pretty_name_mode DEFAULT pretty_mode-none
-        !name_mappings TYPE name_mappings OPTIONAL
-        !jsonx         TYPE xstring OPTIONAL
-          PREFERRED PARAMETER json
-      RETURNING
-        VALUE(rr_data) TYPE REF TO data .
-    METHODS serialize_int
-      IMPORTING
-        !data         TYPE data
-        !name         TYPE string OPTIONAL
-        !type_descr   TYPE REF TO cl_abap_typedescr OPTIONAL
-      RETURNING
-        VALUE(r_json) TYPE json .
-    METHODS generate_int
-      IMPORTING
-        !json         TYPE json
-        VALUE(length) TYPE i OPTIONAL
-      CHANGING
-        !data         TYPE REF TO data
-        !offset       TYPE i DEFAULT 0
-      RAISING
-        cx_sy_move_cast_error .
-    METHODS constructor
-      IMPORTING
-        !compress         TYPE bool DEFAULT c_bool-false
-        !pretty_name      TYPE pretty_name_mode DEFAULT pretty_mode-none
-        !assoc_arrays     TYPE bool DEFAULT c_bool-false
-        !ts_as_iso8601    TYPE bool DEFAULT c_bool-false
-        !expand_includes  TYPE bool DEFAULT c_bool-true
-        !assoc_arrays_opt TYPE bool DEFAULT c_bool-false
-        !strict_mode      TYPE bool DEFAULT c_bool-false
-        !numc_as_string   TYPE bool DEFAULT c_bool-false
-        !name_mappings    TYPE name_mappings OPTIONAL
-        !conversion_exits TYPE bool DEFAULT c_bool-false
-        !format_output    TYPE bool DEFAULT c_bool-false
-        !hex_as_base64    TYPE bool DEFAULT c_bool-true
-        !bool_types       TYPE string DEFAULT mc_bool_types
-        !bool_3state      TYPE string DEFAULT mc_bool_3state
-        !initial_ts       TYPE string DEFAULT `""`
-        !initial_date     TYPE string DEFAULT `""`
-        !initial_time     TYPE string DEFAULT `""` .
-    CLASS-METHODS bool_to_tribool
-      IMPORTING
-        !iv_bool          TYPE bool
-      RETURNING
-        VALUE(rv_tribool) TYPE tribool .
-    CLASS-METHODS tribool_to_bool
-      IMPORTING
-        !iv_tribool    TYPE tribool
-      RETURNING
-        VALUE(rv_bool) TYPE bool .
+  class-methods CLASS_CONSTRUCTOR .
+  class-methods STRING_TO_XSTRING
+    importing
+      !IN type STRING
+    changing
+      value(OUT) type ANY .
+  class-methods XSTRING_TO_STRING
+    importing
+      !IN type ANY
+    returning
+      value(OUT) type STRING .
+  class-methods RAW_TO_STRING
+    importing
+      !IV_XSTRING type XSTRING
+      !IV_ENCODING type ABAP_ENCODING optional
+    returning
+      value(RV_STRING) type STRING .
+  class-methods STRING_TO_RAW
+    importing
+      !IV_STRING type STRING
+      !IV_ENCODING type ABAP_ENCODING optional
+    returning
+      value(RV_XSTRING) type XSTRING .
+  class-methods DUMP
+    importing
+      !DATA type DATA
+      !COMPRESS type BOOL default C_BOOL-FALSE
+      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR optional
+      !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
+      !ASSOC_ARRAYS type BOOL default C_BOOL-FALSE
+      !TS_AS_ISO8601 type BOOL default C_BOOL-FALSE
+    returning
+      value(R_JSON) type JSON .
+  class-methods DESERIALIZE
+    importing
+      !JSON type JSON optional
+      !JSONX type XSTRING optional
+      !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
+      !ASSOC_ARRAYS type BOOL default C_BOOL-FALSE
+      !ASSOC_ARRAYS_OPT type BOOL default C_BOOL-FALSE
+      !NAME_MAPPINGS type NAME_MAPPINGS optional
+      !CONVERSION_EXITS type BOOL default C_BOOL-FALSE
+      !HEX_AS_BASE64 type BOOL default C_BOOL-TRUE
+      !GEN_OPTIMIZE type BOOL default C_BOOL-FALSE
+    changing
+      !DATA type DATA .
+  class-methods SERIALIZE
+    importing
+      !DATA type DATA
+      !COMPRESS type BOOL default C_BOOL-FALSE
+      !NAME type STRING optional
+      !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
+      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR optional
+      !ASSOC_ARRAYS type BOOL default C_BOOL-FALSE
+      !TS_AS_ISO8601 type BOOL default C_BOOL-FALSE
+      !EXPAND_INCLUDES type BOOL default C_BOOL-TRUE
+      !ASSOC_ARRAYS_OPT type BOOL default C_BOOL-FALSE
+      !NUMC_AS_STRING type BOOL default C_BOOL-FALSE
+      !NAME_MAPPINGS type NAME_MAPPINGS optional
+      !CONVERSION_EXITS type BOOL default C_BOOL-FALSE
+      !FORMAT_OUTPUT type BOOL default C_BOOL-FALSE
+      !HEX_AS_BASE64 type BOOL default C_BOOL-TRUE
+    returning
+      value(R_JSON) type JSON .
+  methods DESERIALIZE_INT
+    importing
+      !JSON type JSON optional
+      !JSONX type XSTRING optional
+    changing
+      !DATA type DATA
+    raising
+      CX_SY_MOVE_CAST_ERROR .
+  class-methods GENERATE
+    importing
+      !JSON type JSON optional
+      !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
+      !OPTIMIZE type BOOL default C_BOOL-FALSE
+      !NAME_MAPPINGS type NAME_MAPPINGS optional
+      !JSONX type XSTRING optional
+    preferred parameter JSON
+    returning
+      value(RR_DATA) type ref to DATA .
+  methods SERIALIZE_INT
+    importing
+      !DATA type DATA
+      !NAME type STRING optional
+      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR optional
+    returning
+      value(R_JSON) type JSON .
+  methods GENERATE_INT
+    importing
+      !JSON type JSON
+      value(LENGTH) type I optional
+    changing
+      !DATA type ref to DATA
+      !OFFSET type I default 0
+    raising
+      CX_SY_MOVE_CAST_ERROR .
+  methods CONSTRUCTOR
+    importing
+      !COMPRESS type BOOL default C_BOOL-FALSE
+      !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
+      !ASSOC_ARRAYS type BOOL default C_BOOL-FALSE
+      !TS_AS_ISO8601 type BOOL default C_BOOL-FALSE
+      !EXPAND_INCLUDES type BOOL default C_BOOL-TRUE
+      !ASSOC_ARRAYS_OPT type BOOL default C_BOOL-FALSE
+      !STRICT_MODE type BOOL default C_BOOL-FALSE
+      !NUMC_AS_STRING type BOOL default C_BOOL-FALSE
+      !NAME_MAPPINGS type NAME_MAPPINGS optional
+      !CONVERSION_EXITS type BOOL default C_BOOL-FALSE
+      !FORMAT_OUTPUT type BOOL default C_BOOL-FALSE
+      !HEX_AS_BASE64 type BOOL default C_BOOL-TRUE
+      !GEN_OPTIMIZE type BOOL default C_BOOL-FALSE
+      !BOOL_TYPES type STRING default MC_BOOL_TYPES
+      !BOOL_3STATE type STRING default MC_BOOL_3STATE
+      !INITIAL_TS type STRING default `""`
+      !INITIAL_DATE type STRING default `""`
+      !INITIAL_TIME type STRING default `""` .
+  class-methods BOOL_TO_TRIBOOL
+    importing
+      !IV_BOOL type BOOL
+    returning
+      value(RV_TRIBOOL) type TRIBOOL .
+  class-methods TRIBOOL_TO_BOOL
+    importing
+      !IV_TRIBOOL type TRIBOOL
+    returning
+      value(RV_BOOL) type BOOL .
   PROTECTED SECTION.
 
     TYPES:
@@ -207,6 +210,7 @@ CLASS z_ui2_json DEFINITION
       BEGIN OF t_s_name_value,
         name  TYPE string,
         value TYPE json,
+        data  TYPE REF TO data,
       END OF t_s_name_value .
     TYPES:
       t_t_name_value TYPE SORTED TABLE OF t_s_name_value WITH UNIQUE KEY name .
@@ -250,6 +254,7 @@ CLASS z_ui2_json DEFINITION
     DATA mv_format_output TYPE bool .
     DATA mv_conversion_exits TYPE bool .
     DATA mv_hex_as_base64 TYPE bool .
+    DATA mv_gen_optimize TYPE bool .
     DATA mt_name_mappings TYPE name_mappings .
     DATA mt_name_mappings_ex TYPE name_mappings_ex .
     DATA mt_struct_type TYPE t_t_struct_type .
@@ -274,6 +279,9 @@ CLASS z_ui2_json DEFINITION
     CLASS-DATA so_regex_guid TYPE REF TO cl_abap_regex.
     CLASS-DATA so_regex_edm_date_time TYPE REF TO cl_abap_regex.
     CLASS-DATA so_regex_edm_time TYPE REF TO cl_abap_regex.
+    CLASS-DATA so_regex_generate_normalize TYPE REF TO cl_abap_regex.
+    CLASS-DATA so_regex_generate_camel_case TYPE REF TO cl_abap_regex.
+    CLASS-DATA so_regex_unescape_spec_char TYPE REF TO cl_abap_regex.
 
     CONSTANTS:
       BEGIN OF e_typekind,
@@ -532,6 +540,11 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     " support for Edm.Time => https://www.w3.org/TR/xmlschema11-2/#nt-durationRep
     create_regexp so_regex_edm_time '^-?P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)(?:\.(\d+))?S)?)?\s*$'.
 
+    create_regexp so_regex_generate_normalize '[^0-9a-zA-Z_]{1,}'.
+    create_regexp so_regex_generate_camel_case '([a-z])([A-Z])'.
+
+    create_regexp so_regex_unescape_spec_char '\\[rntfbu\\]'.
+
   ENDMETHOD.                    "class_constructor
 
 
@@ -551,6 +564,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     mv_conversion_exits = conversion_exits.
     mv_format_output    = format_output.
     mv_hex_as_base64    = hex_as_base64.
+    mv_gen_optimize     = gen_optimize.
     mv_bool_types       = bool_types.
     mv_bool_3state      = bool_3state.
     mv_initial_ts       = initial_ts.
@@ -607,6 +621,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           assoc_arrays     = assoc_arrays
           conversion_exits = conversion_exits
           hex_as_base64    = hex_as_base64
+          gen_optimize     = gen_optimize
           assoc_arrays_opt = assoc_arrays_opt.
 
       TRY .
@@ -880,7 +895,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
   METHOD dump_symbols.
 
-    DATA: lt_fields  TYPE STANDARD TABLE OF string,
+    DATA: lt_fields  TYPE STANDARD TABLE OF string INITIAL SIZE 10000,
           lv_indent  TYPE string,
           lv_level   LIKE level,
           lv_itemval TYPE string,
@@ -906,9 +921,9 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
       ENDIF.
       IF opt_array EQ abap_false.
         IF mv_format_output EQ abap_true.
-          lv_field = lv_indent && <symbol>-header && lv_itemval.
+          CONCATENATE lv_indent <symbol>-header lv_itemval INTO lv_field.
         ELSE.
-          lv_field = <symbol>-header && lv_itemval.
+          CONCATENATE <symbol>-header lv_itemval INTO lv_field.
         ENDIF.
       ELSE.
         lv_field = lv_itemval.
@@ -923,9 +938,9 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
         r_json = `{}`.
       ELSEIF mv_format_output EQ abap_true.
         lv_indent = get_indent( level ).
-        r_json = '{' && r_json && lv_indent && '}'.
+        CONCATENATE '{' r_json lv_indent '}' INTO r_json.
       ELSE.
-        r_json = '{' && r_json && '}'.
+        CONCATENATE '{' r_json '}' INTO r_json.
       ENDIF.
     ENDIF.
 
@@ -1135,7 +1150,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
   METHOD generate.
 
-    deserialize( EXPORTING json = json jsonx = jsonx pretty_name = pretty_name name_mappings = name_mappings CHANGING data = rr_data ).
+    deserialize( EXPORTING json = json jsonx = jsonx  gen_optimize = optimize pretty_name = pretty_name name_mappings = name_mappings CHANGING data = rr_data ).
 
   ENDMETHOD.
 
@@ -1145,13 +1160,17 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     DATA: lt_json   TYPE t_t_json,
           mark      LIKE offset,
           match     LIKE offset,
+          data_opt  LIKE data,
+          lo_type   TYPE REF TO cl_abap_datadescr,
+          lt_types  TYPE SORTED TABLE OF REF TO cl_abap_datadescr WITH UNIQUE KEY table_line,
           lt_fields TYPE t_t_name_value.
 
-    FIELD-SYMBOLS: <data>   TYPE data,
-                   <struct> TYPE data,
-                   <json>   LIKE LINE OF lt_json,
-                   <field>  LIKE LINE OF lt_fields,
-                   <table>  TYPE STANDARD TABLE.
+    FIELD-SYMBOLS: <data>       TYPE data,
+                   <struct>     TYPE data,
+                   <json>       LIKE LINE OF lt_json,
+                   <field>      LIKE LINE OF lt_fields,
+                   <table>      TYPE STANDARD TABLE,
+                   <table_opt>  LIKE <table>.
 
     IF length IS NOT SUPPLIED.
       length = strlen( json ).
@@ -1162,13 +1181,28 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     CASE json+offset(1).
       WHEN '{'."result must be a structure
         restore_type( EXPORTING json = json length = length type_descr = so_type_t_name_value CHANGING offset = offset data = lt_fields ).
-        generate_struct( CHANGING fields = lt_fields data = data ).
-        IF data IS BOUND.
-          ASSIGN data->* TO <struct>.
+        IF mv_gen_optimize EQ abap_true.
           LOOP AT lt_fields ASSIGNING <field>.
-            ASSIGN COMPONENT sy-tabix OF STRUCTURE <struct> TO <data>.
-            generate_int( EXPORTING json = <field>-value CHANGING data = <data> ).
+            generate_int( EXPORTING json = <field>-value CHANGING data = <field>-data ).
           ENDLOOP.
+          generate_struct( CHANGING fields = lt_fields data = data ).
+          IF data IS BOUND.
+            ASSIGN data->* TO <struct>.
+            LOOP AT lt_fields ASSIGNING <field>.
+              ASSIGN COMPONENT sy-tabix OF STRUCTURE <struct> TO <data>.
+              CHECK <field>-data IS NOT INITIAL.
+              <data> = <field>-data->*.
+            ENDLOOP.
+          ENDIF.
+        ELSE.
+          generate_struct( CHANGING fields = lt_fields data = data ).
+          IF data IS BOUND.
+            ASSIGN data->* TO <struct>.
+            LOOP AT lt_fields ASSIGNING <field>.
+              ASSIGN COMPONENT sy-tabix OF STRUCTURE <struct> TO <data>.
+              generate_int( EXPORTING json = <field>-value CHANGING data = <data> ).
+            ENDLOOP.
+          ENDIF.
         ENDIF.
       WHEN '['."result must be a table of ref
         restore_type( EXPORTING json = json length = length type_descr = so_type_t_json CHANGING offset = offset data = lt_json ).
@@ -1177,7 +1211,20 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
         LOOP AT lt_json ASSIGNING <json>.
           APPEND INITIAL LINE TO <table> ASSIGNING <data>.
           generate_int( EXPORTING json = <json> CHANGING data = <data> ).
+          IF mv_gen_optimize EQ abap_true AND <data> IS NOT INITIAL.
+            lo_type ?= cl_abap_typedescr=>describe_by_data_ref( <data> ).
+            INSERT lo_type INTO TABLE lt_types.
+          ENDIF.
         ENDLOOP.
+        IF mv_gen_optimize EQ abap_true AND lines( lt_types ) EQ 1.
+          DATA(lo_table_type) = cl_abap_tabledescr=>get( p_line_type = lo_type ).
+          CREATE DATA data_opt TYPE HANDLE lo_table_type.
+          ASSIGN data_opt->* TO <table_opt>.
+          LOOP AT <table> ASSIGNING <data>.
+            APPEND <data>->* TO <table_opt>.
+          ENDLOOP.
+          data = data_opt.
+        ENDIF.
       WHEN '"'."string
         restore_reference so_type_s.
       WHEN '-' OR '0' OR '1' OR '2' OR '3' OR '4' OR '5' OR '6' OR '7' OR '8' OR '9'. " number
@@ -1228,6 +1275,8 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           lv_invalid   TYPE abap_bool,
           ls_type      LIKE LINE OF mt_struct_type,
           lt_names     TYPE HASHED TABLE OF string WITH UNIQUE KEY table_line,
+          lo_type      TYPE REF TO cl_abap_refdescr,
+          lo_data_type TYPE REF TO cl_abap_datadescr,
           cache        LIKE LINE OF mt_name_mappings_ex,
           ls_comp      LIKE LINE OF lt_comp.
 
@@ -1239,6 +1288,9 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     " prepare structure type key
     LOOP AT fields ASSIGNING <field>.
       APPEND <field>-name TO lt_keys.
+      CHECK <field>-data IS NOT INITIAL.
+      lo_data_type ?= cl_abap_typedescr=>describe_by_data_ref( <field>-data ).
+      APPEND lo_data_type->absolute_name TO lt_keys.
     ENDLOOP.
 
     CONCATENATE LINES OF lt_keys INTO ls_type-keys.
@@ -1246,23 +1298,32 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
     READ TABLE mt_struct_type WITH TABLE KEY keys = ls_type-keys INTO ls_type.
     IF sy-subrc IS NOT INITIAL.
-      ls_comp-type = cl_abap_refdescr=>get_ref_to_data( ).
 
       LOOP AT fields ASSIGNING <field>.
+
+        " create type name
         READ TABLE mt_name_mappings_ex WITH TABLE KEY json = <field>-name ASSIGNING <cache>.
         IF sy-subrc IS INITIAL.
           ls_comp-name = <cache>-abap.
         ELSE.
           cache-json = ls_comp-name = <field>-name.
           " remove characters not allowed in component names and condense
-          REPLACE ALL OCCURRENCES OF REGEX '[^0-9a-zA-Z_]{1,}' IN ls_comp-name WITH '_' ##REGEX_POSIX ##NO_TEXT.
+          REPLACE ALL OCCURRENCES OF REGEX so_regex_generate_normalize IN ls_comp-name WITH '_'.
           IF mv_pretty_name EQ pretty_mode-camel_case OR mv_pretty_name EQ pretty_mode-extended.
-            REPLACE ALL OCCURRENCES OF REGEX '([a-z])([A-Z])' IN ls_comp-name WITH '$1_$2' ##REGEX_POSIX ##NO_TEXT.
+            REPLACE ALL OCCURRENCES OF REGEX so_regex_generate_camel_case IN ls_comp-name WITH '$1_$2'.
           ENDIF.
           TRANSLATE ls_comp-name TO UPPER CASE.
           cache-abap = ls_comp-name = lv_comp_name = ls_comp-name. " truncate by allowed field name length
           INSERT cache INTO TABLE mt_name_mappings_ex.
         ENDIF.
+
+        " detect type
+        IF <field>-data IS INITIAL.
+          ls_comp-type = cl_abap_refdescr=>get_ref_to_data( ).
+        ELSE.
+          ls_comp-type ?= cl_abap_typedescr=>describe_by_data_ref( <field>-data ).
+        ENDIF.
+
         INSERT ls_comp-name INTO TABLE lt_names.
         IF sy-subrc IS INITIAL.
           APPEND ls_comp TO lt_comp.
@@ -1855,7 +1916,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                           struct_descr ?= data_descr.
                           ls_symbols = get_symbols_struct( type_descr = struct_descr data = line ).
                           DELETE ls_symbols-symbols WHERE name EQ key_name.
-                          IF lines( ls_symbols-symbols ) EQ 1.
+                          IF lines( ls_symbols-symbols ) GE 1.
                             READ TABLE ls_symbols-symbols INDEX 1 ASSIGNING <value_sym>.
                           ENDIF.
                         ENDIF.
@@ -2394,9 +2455,8 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     FIND FIRST OCCURRENCE OF '\\' IN unescaped+offset RESPECTING CASE.
     IF sy-subrc IS INITIAL. " complex case - there are escaped "\"
 
-      FIND FIRST OCCURRENCE OF REGEX '\\[rntfbu]' IN SECTION OFFSET offset OF unescaped ##REGEX_POSIX.
+      FIND FIRST OCCURRENCE OF REGEX so_regex_unescape_spec_char IN SECTION OFFSET offset OF unescaped RESULTS lt_matches.
       IF sy-subrc IS INITIAL.
-        FIND ALL OCCURRENCES OF REGEX '\\.' IN unescaped RESULTS lt_matches ##REGEX_POSIX.
         lv_length = strlen( unescaped ).
         LOOP AT lt_matches ASSIGNING <match>.
           lv_match  = <match>-offset - lv_delta.
@@ -2442,9 +2502,8 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
       REPLACE ALL OCCURRENCES OF '\f' IN SECTION OFFSET offset OF unescaped WITH cl_abap_char_utilities=>form_feed.
       REPLACE ALL OCCURRENCES OF '\b' IN SECTION OFFSET offset OF unescaped WITH cl_abap_char_utilities=>backspace.
 
-      FIND FIRST OCCURRENCE OF '\u' IN SECTION OFFSET offset OF unescaped.
+      FIND ALL OCCURRENCES OF '\u' IN SECTION OFFSET offset OF unescaped RESULTS lt_matches.
       IF sy-subrc IS INITIAL.
-        FIND ALL OCCURRENCES OF REGEX '\\.' IN unescaped RESULTS lt_matches ##REGEX_POSIX.
         lv_length = strlen( unescaped ).
         LOOP AT lt_matches ASSIGNING <match>.
           lv_match  = <match>-offset - lv_delta.
@@ -2471,7 +2530,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     " based on RFC mentioned above, _any_ character can be escaped, and so shall be unenscaped
     " the only exception is Unicode symbols, that shall be kept untouched, while serializer does not handle them
     " unescaped singe characters, e.g \\, \", \/ etc
-    REPLACE ALL OCCURRENCES OF REGEX '\\(.)' IN SECTION OFFSET offset OF unescaped WITH '$1' ##REGEX_POSIX.
+    REPLACE ALL OCCURRENCES OF REGEX '\\(.)' IN SECTION OFFSET offset OF unescaped WITH '$1' ##REGEX_POSIX ##NO_TEXT.
 
   ENDMETHOD.
 
