@@ -2,12 +2,12 @@
 
 If standard class functionality does not fit your requirements there are two ways how you can adapt it to your needs:
 
-* Use a local copy of the class /UI2/CL_JSON and modify logic directly, by the change of original code.
+* Use a local copy of the class /UI2/CL_JSON and modify logic directly by changing the original code.
 * Inherit from class /UI2/CL_JSON and override methods where another logic is required. 
 
-The advantage of the first approach is that you are completely free in what you may change and have full control of the class lifecycle. The disadvantage is that you will need to merge your changes with /UI2/CL_JSON updates. 
+The advantage of the first approach is that you are completely free in what you may change and have full control of the class lifecycle. The disadvantage is that you must merge your changes with /UI2/CL_JSON updates. 
 
-For the second approach you can use /UI2/CL_JSON directly (the prerequisite is the latest version of note 2330592), you do not need to care about the merge but can override only some methods. The methods are:
+For the second approach, you can use /UI2/CL_JSON directly (the prerequisite is the latest version of note 2330592), you do not need to care about the merge but can override only some methods. The methods are:
 
 ## IS_COMPRESSIBLE 
 IS_COMPRESSIBLE is called to check, if the given type output may be suppressed during ABAP to JSON serialization when a value is initial. 
@@ -21,7 +21,7 @@ PRETTY_NAME – called to format ABAP field name written to **JSON** or deserial
 
 * \> **IN** (CSEQUENCE) – Field name to pretty print.
 * \< **OUT** (STRING) – Pretty printed field name
-The default implementation applies camelCase formatting, based on the usage of the “_” symbol. To output, the “_” symbol, use the double “__” symbol in the field name.
+The default implementation applies camelCase formatting, based on using the “_” symbol. To output, the “_” symbol, use the double “__” symbol in the field name.
 
 ## PRETTY_NAME_EX
 PRETTY_NAME_EX – called to format ABAP field name written to JSON or deserialized from JSON to ABAP field, when the pretty_name parameter of *SERIALIZE/DESERIALIZE*  method equal to *PRETTY_MODE-EXTENDED*.
