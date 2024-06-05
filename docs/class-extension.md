@@ -21,7 +21,7 @@ PRETTY_NAME – called to format ABAP field name written to **JSON** or deserial
 
 * \> **IN** (CSEQUENCE) – Field name to pretty print.
 * \< **OUT** (STRING) – Pretty printed field name
-The default implementation applies camelCase formatting, based on using the “_” symbol. To output, the “_” symbol, use the double “__” symbol in the field name.
+The default implementation applies camelCase formatting using the “_” symbol. To output, the “_” symbol, use the double “__” symbol in the field name.
 
 ## PRETTY_NAME_EX
 PRETTY_NAME_EX – called to format ABAP field name written to JSON or deserialized from JSON to ABAP field, when the pretty_name parameter of *SERIALIZE/DESERIALIZE*  method equal to *PRETTY_MODE-EXTENDED*.
@@ -64,7 +64,7 @@ RESTORE_TYPE - called to deserialize simple JSON attributes and JSON arrays
 * \<\> **OFFSET** (I) – parsing start point in JSON string
 
 ## CLASS_CONSTRUCTOR
-CLASS_CONSTRUCTOR - used to initialize static variables. You can not overwrite it, but you can implement your class constructor that adapts default globals. For example, add the additional boolean types to be recognized during serialization/deserialization. 
+CLASS_CONSTRUCTOR - used to initialize static variables. You can not overwrite it but implement your class constructor that adapts default globals. For example, add boolean types to be recognized during serialization/deserialization. 
 
 ## SERIALIZE/DESERIALIZE
 SERIALIZE/DESERIALIZE - these methods are static and therefore cannot be redefined. Methods are helpers for a consumption code, hiding the construction of the class instance and further \*\_INT calls. So, if you would like to use something similar, in your custom class, you need to copy the mentioned methods to new ones e,g \*\_EX and overwrite there /UI2/CL_JSON type to your custom class name. And use these methods instead of standard.
