@@ -685,7 +685,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     lv_act = `"2024-02-01T00:00:00+01:00"`.
 
     deserialize( EXPORTING json = lv_act CHANGING data = lv_act_tsmp ).
-    lv_exp_tsmp = '20240131230000'.
+    lv_exp_tsmp = '20240131230000' ##LITERAL.
 
     cl_aunit_assert=>assert_equals( act = lv_act_tsmp exp = lv_exp_tsmp msg = 'Deserialization of of ISO8601 field with time offset (+1:00) fails' ).
 
@@ -2459,6 +2459,9 @@ CLASS abap_unit_testclass IMPLEMENTATION.
           lv_int    TYPE i,
           lv_float  TYPE f,
           lv_p      TYPE p,
+          lv_date   TYPE d,
+          lv_time   TYPE t,
+          lv_ts     TYPE timestamp,
           lv_act    TYPE json,
           lo_data   TYPE REF TO z_ui2_data_access,
           lr_val    TYPE REF TO data,
@@ -2548,7 +2551,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     cl_aunit_assert=>assert_equals( act = lv_string exp = '2000' msg = 'Generation of ABAP object from JSON with long attributes fails!' ).
 
-    lv_json = `{"exponential": 1E+3, "bool": true, "packed": 12345678910, "int": 123456789}`.
+    lv_json = `{"exponential":1E+3,"bool":true,"packed":12345678910,"int":123456789,"date":"2024-10-03","time":"23:34:12","ts":"2015-10-02T13:44:50.5545900Z"}`.
 
     lr_act = generate( json = lv_json ).
     cl_aunit_assert=>assert_not_initial( act = lr_act msg = 'Type conversion during generation object from JSON fails!' ).
@@ -2572,6 +2575,21 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     lo_data->value( IMPORTING ev_data = lv_int ).
 
     cl_aunit_assert=>assert_equals( act = lv_int exp = 123456789 msg = 'Generation of integer value fails!' ).
+
+    lo_data = z_ui2_data_access=>create( iv_data = lr_act iv_component = 'DATE' ).
+    lo_data->value( IMPORTING ev_data = lv_date ).
+
+    cl_aunit_assert=>assert_equals( act = lv_date exp = '20241003' msg = 'Generation of date value fails!' ).
+
+    lo_data = z_ui2_data_access=>create( iv_data = lr_act iv_component = 'TIME' ).
+    lo_data->value( IMPORTING ev_data = lv_time ).
+
+    cl_aunit_assert=>assert_equals( act = lv_time exp = '233412' msg = 'Generation of time value fails!' ).
+
+    lo_data = z_ui2_data_access=>create( iv_data = lr_act iv_component = 'TS' ).
+    lo_data->value( IMPORTING ev_data = lv_ts ).
+
+    cl_aunit_assert=>assert_equals( act = lv_ts exp = '20151002134451' msg = 'Generation of timestamp value fails!' ).
 
     lv_json = 'null'.
     lr_act  = generate( json = lv_json pretty_name = pretty_mode-user_low_case ).
@@ -3264,14 +3282,14 @@ CLASS abap_unit_testclass IMPLEMENTATION.
           lv_xsd_tms2 TYPE ty_tms,
           lv_act      TYPE json.
 
-    lv_xsd_tms = '19370101120027' .
+    lv_xsd_tms = '19370101120027' ##LITERAL.
     lv_act = serialize( ts_as_iso8601 = abap_true data = lv_xsd_tms ).
     cl_abap_unit_assert=>assert_equals( exp = '"1937-01-01T12:00:27Z"' act = lv_act ).
 
     deserialize( EXPORTING  json = '"1937-01-01T12:00:27"' CHANGING data = lv_xsd_tms ).
     cl_abap_unit_assert=>assert_equals( exp = '19370101120027' act = lv_xsd_tms ).
 
-    lv_xsd_tms2 = '19370101120027' .
+    lv_xsd_tms2 = '19370101120027' ##LITERAL.
     lv_act = serialize( ts_as_iso8601 = abap_true data = lv_xsd_tms2 ).
     cl_abap_unit_assert=>assert_equals( exp = '"1937-01-01T12:00:27Z"' act = lv_act ).
 

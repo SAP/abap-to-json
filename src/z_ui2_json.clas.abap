@@ -272,6 +272,9 @@ public section.
     CLASS-DATA so_type_p TYPE REF TO cl_abap_elemdescr .
     CLASS-DATA so_type_i TYPE REF TO cl_abap_elemdescr .
     CLASS-DATA so_type_b TYPE REF TO cl_abap_elemdescr .
+    CLASS-DATA so_type_d TYPE REF TO cl_abap_elemdescr .
+    CLASS-DATA so_type_t TYPE REF TO cl_abap_elemdescr .
+    CLASS-DATA so_type_ts TYPE REF TO cl_abap_elemdescr .
     CLASS-DATA so_type_t_json TYPE REF TO cl_abap_tabledescr .
     CLASS-DATA so_type_t_name_value TYPE REF TO cl_abap_tabledescr .
     CLASS-DATA so_regex_date TYPE REF TO cl_abap_regex.
@@ -281,6 +284,7 @@ public section.
     CLASS-DATA so_regex_edm_time TYPE REF TO cl_abap_regex.
     CLASS-DATA so_regex_generate_normalize TYPE REF TO cl_abap_regex.
     CLASS-DATA so_regex_generate_camel_case TYPE REF TO cl_abap_regex.
+    CLASS-DATA so_regex_generate_type_detect TYPE REF TO cl_abap_regex.
     CLASS-DATA so_regex_unescape_spec_char TYPE REF TO cl_abap_regex.
 
     CONSTANTS:
@@ -528,6 +532,9 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     so_type_f = cl_abap_elemdescr=>get_f( ).
     so_type_p = cl_abap_elemdescr=>get_p( p_length = 16 p_decimals = 0 ).
     so_type_i = cl_abap_elemdescr=>get_i( ).
+    so_type_d = cl_abap_elemdescr=>get_d( ).
+    so_type_t = cl_abap_elemdescr=>get_t( ).
+    so_type_ts ?= cl_abap_typedescr=>describe_by_name( 'TIMESTAMP' ).
     so_type_b ?= cl_abap_typedescr=>describe_by_name( 'ABAP_BOOL' ).
     so_type_t_json ?= cl_abap_typedescr=>describe_by_name( 'T_T_JSON' ).
     so_type_t_name_value ?= cl_abap_typedescr=>describe_by_name( 'T_T_NAME_VALUE' ).
@@ -542,6 +549,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
     create_regexp so_regex_generate_normalize '[^0-9a-zA-Z_]{1,}'.
     create_regexp so_regex_generate_camel_case '([a-z])([A-Z])'.
+    create_regexp so_regex_generate_type_detect '"(?:(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:[\.,]\d{0,7})?(?:Z|(?:[+-]\d{2}:\d{2})))|(?:\d{4}-\d{2}-\d{2})|(?:\d{2}:\d{2}:\d{2}))"'.
 
     create_regexp so_regex_unescape_spec_char '\\[rntfbu\\]'.
 
@@ -1161,16 +1169,17 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           mark      LIKE offset,
           match     LIKE offset,
           data_opt  LIKE data,
+          mlen      TYPE i,
           lo_type   TYPE REF TO cl_abap_datadescr,
           lt_types  TYPE SORTED TABLE OF REF TO cl_abap_datadescr WITH UNIQUE KEY table_line,
           lt_fields TYPE t_t_name_value.
 
-    FIELD-SYMBOLS: <data>       TYPE data,
-                   <struct>     TYPE data,
-                   <json>       LIKE LINE OF lt_json,
-                   <field>      LIKE LINE OF lt_fields,
-                   <table>      TYPE STANDARD TABLE,
-                   <table_opt>  LIKE <table>.
+    FIELD-SYMBOLS: <data>      TYPE data,
+                   <struct>    TYPE data,
+                   <json>      LIKE LINE OF lt_json,
+                   <field>     LIKE LINE OF lt_fields,
+                   <table>     TYPE STANDARD TABLE,
+                   <table_opt> LIKE <table>.
 
     IF length IS NOT SUPPLIED.
       length = strlen( json ).
@@ -1226,7 +1235,20 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           data = data_opt.
         ENDIF.
       WHEN '"'."string
-        restore_reference so_type_s.
+        FIND FIRST OCCURRENCE OF REGEX so_regex_generate_type_detect IN SECTION OFFSET offset
+        OF json MATCH LENGTH mlen.
+        IF sy-subrc IS INITIAL.
+          CASE mlen.
+            WHEN 10. " time
+              restore_reference so_type_t.
+            WHEN 12. " date
+              restore_reference so_type_d.
+            WHEN OTHERS. " timestamp
+              restore_reference so_type_ts.
+          ENDCASE.
+        ELSE.
+          restore_reference so_type_s.
+        ENDIF.
       WHEN '-' OR '0' OR '1' OR '2' OR '3' OR '4' OR '5' OR '6' OR '7' OR '8' OR '9'. " number
         IF json+offset CA '.Ee'.
           restore_reference so_type_f.
@@ -1275,7 +1297,6 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           lv_invalid   TYPE abap_bool,
           ls_type      LIKE LINE OF mt_struct_type,
           lt_names     TYPE HASHED TABLE OF string WITH UNIQUE KEY table_line,
-          lo_type      TYPE REF TO cl_abap_refdescr,
           lo_data_type TYPE REF TO cl_abap_datadescr,
           cache        LIKE LINE OF mt_name_mappings_ex,
           ls_comp      LIKE LINE OF lt_comp.
