@@ -31,7 +31,8 @@
 * Fixed. Added support for the timezone offsets for ISO8601.
 * New: Information about the invalid field added to the exception data of move_cast_error ([details](https://github.com/SAP/abap-to-json/pull/8))
 * New: serialization now can detect "timestamps" defined with the help of data domains ([details](https://github.com/SAP/abap-to-json/pull/9))
-* New: new switch for GENERATE (optimize) and DESERIALIZE (gen_optimize) that enables optimization of generated ABAP data for REF TO DATA (fewer references, easily readable and accessible). Results in longer processing. 
+* New: new switch for GENERATE (optimize) and DESERIALIZE (gen_optimize) that enables optimization of generated ABAP data for REF TO DATA (fewer references, easily readable and accessible). Results in longer processing.
+* New: added detection of time, date, and timestamp values on generation/deserialization into TYPE REF TO data.
 
 ## Removed dependency to /ui2/cl_data_acceess for z_ui2_json
 * Added: Open Source version of the /ui2/cl_data_access as Z_UI2_DATA_ACCESS
