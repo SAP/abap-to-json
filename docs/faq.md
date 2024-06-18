@@ -18,9 +18,9 @@ It is always better to deserialize into explicit data structure but not into ano
 Deserializing into REF TO data is the same as using the GENERATE method and results in generating real-time ABAP types, which is quite slow. You can not specify the resulting types for data elements and the deserializer needs to guess types. To process generated results, you always use dynamic programming, which is by default slow (or /UI2/CL_DATA_ACCESS, which is more comfortable but still uses dynamic programming inside).
 
 ## Serialize huge data objects into JSON and short dumps
-You are using the class to serialize your data into JSON. Unfortunately, sometimes you pass too big tables, which results in too long a JSON string (for example, longer than 1GB), and this leads to dumps like SYSTEM_NO_ROLL, STRING_SIZE_TOO_LARGE, MEMORY_NO_MORE_PAGING, while the system can not allocate such a big continuous memory chunk. This specific case can potentially be solved by increasing the memory allocation limit, but you would still end up with an INT4 size limit for string length, which can not be more than 2GB.
+You are using the class to serialize your data into JSON. Unfortunately, sometimes you pass too big tables, which results in too long a JSON string (for example, longer than 1GB), and this leads to dumps like SYSTEM_NO_ROLL, STRING_SIZE_TOO_LARGE, MEMORY_NO_MORE_PAGING, while the system can not allocate such a big continuous memory chunk. This specific case could be solved by increasing the memory allocation limit, but you would still end up with an INT4 size limit for string length, which can not be more than 2GB.
 
-The string (JSON) of such size can not be created nor transported or persisted. You would need to have special handling on your side for this case.
+The string (JSON) of such size can not be created, transported, or persisted. I think you would need to have special handling on your side for this case.
 E.g. if you want to serialize such a big amount of data, you will need to split the input into chunks and do the serialization and transport of the resulting JSON chunks by parts.
 
 The memory exceptions are not catchable and you will need to do data size evaluations on your side, before calling serialization.
