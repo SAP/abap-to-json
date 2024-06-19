@@ -1163,111 +1163,115 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
   ENDMETHOD.
 
 
-  METHOD generate_int.
+METHOD generate_int.
 
-    DATA: lt_json   TYPE t_t_json,
-          mark      LIKE offset,
-          match     LIKE offset,
-          data_opt  LIKE data,
-          mlen      TYPE i,
-          lo_type   TYPE REF TO cl_abap_datadescr,
-          lt_types  TYPE SORTED TABLE OF REF TO cl_abap_datadescr WITH UNIQUE KEY table_line,
-          lt_fields TYPE t_t_name_value.
+  DATA: lt_json       TYPE t_t_json,
+        mark          LIKE offset,
+        match         LIKE offset,
+        data_opt      LIKE data,
+        mlen          TYPE i,
+        lo_type       TYPE REF TO cl_abap_datadescr,
+        lo_table_type TYPE REF TO cl_abap_tabledescr,
+        lt_types      TYPE SORTED TABLE OF REF TO cl_abap_datadescr WITH UNIQUE KEY table_line,
+        lt_fields     TYPE t_t_name_value.
 
-    FIELD-SYMBOLS: <data>      TYPE data,
-                   <struct>    TYPE data,
-                   <json>      LIKE LINE OF lt_json,
-                   <field>     LIKE LINE OF lt_fields,
-                   <table>     TYPE STANDARD TABLE,
-                   <table_opt> LIKE <table>.
+  FIELD-SYMBOLS: <data>      TYPE data,
+                 <struct>    TYPE data,
+                 <value>     TYPE data,
+                 <json>      LIKE LINE OF lt_json,
+                 <field>     LIKE LINE OF lt_fields,
+                 <table>     TYPE STANDARD TABLE,
+                 <table_opt> LIKE <table>.
 
-    IF length IS NOT SUPPLIED.
-      length = strlen( json ).
-    ENDIF.
+  IF length IS NOT SUPPLIED.
+    length = strlen( json ).
+  ENDIF.
 
-    eat_white.
+  eat_white.
 
-    CASE json+offset(1).
-      WHEN '{'."result must be a structure
-        restore_type( EXPORTING json = json length = length type_descr = so_type_t_name_value CHANGING offset = offset data = lt_fields ).
-        IF mv_gen_optimize EQ abap_true.
-          LOOP AT lt_fields ASSIGNING <field>.
-            generate_int( EXPORTING json = <field>-value CHANGING data = <field>-data ).
-          ENDLOOP.
-          generate_struct( CHANGING fields = lt_fields data = data ).
-          IF data IS BOUND.
-            ASSIGN data->* TO <struct>.
-            LOOP AT lt_fields ASSIGNING <field>.
-              ASSIGN COMPONENT sy-tabix OF STRUCTURE <struct> TO <data>.
-              CHECK <field>-data IS NOT INITIAL.
-              <data> = <field>-data->*.
-            ENDLOOP.
-          ENDIF.
-        ELSE.
-          generate_struct( CHANGING fields = lt_fields data = data ).
-          IF data IS BOUND.
-            ASSIGN data->* TO <struct>.
-            LOOP AT lt_fields ASSIGNING <field>.
-              ASSIGN COMPONENT sy-tabix OF STRUCTURE <struct> TO <data>.
-              generate_int( EXPORTING json = <field>-value CHANGING data = <data> ).
-            ENDLOOP.
-          ENDIF.
-        ENDIF.
-      WHEN '['."result must be a table of ref
-        restore_type( EXPORTING json = json length = length type_descr = so_type_t_json CHANGING offset = offset data = lt_json ).
-        CREATE DATA data TYPE ref_tab.
-        ASSIGN data->* TO <table>.
-        LOOP AT lt_json ASSIGNING <json>.
-          APPEND INITIAL LINE TO <table> ASSIGNING <data>.
-          generate_int( EXPORTING json = <json> CHANGING data = <data> ).
-          IF mv_gen_optimize EQ abap_true AND <data> IS NOT INITIAL.
-            lo_type ?= cl_abap_typedescr=>describe_by_data_ref( <data> ).
-            INSERT lo_type INTO TABLE lt_types.
-          ENDIF.
+  CASE json+offset(1).
+    WHEN '{'."result must be a structure
+      restore_type( EXPORTING json = json length = length type_descr = so_type_t_name_value CHANGING offset = offset data = lt_fields ).
+      IF mv_gen_optimize EQ abap_true.
+        LOOP AT lt_fields ASSIGNING <field>.
+          generate_int( EXPORTING json = <field>-value CHANGING data = <field>-data ).
         ENDLOOP.
-        IF mv_gen_optimize EQ abap_true AND lines( lt_types ) EQ 1.
-          DATA(lo_table_type) = cl_abap_tabledescr=>get( p_line_type = lo_type ).
-          CREATE DATA data_opt TYPE HANDLE lo_table_type.
-          ASSIGN data_opt->* TO <table_opt>.
-          LOOP AT <table> ASSIGNING <data>.
-            APPEND <data>->* TO <table_opt>.
+        generate_struct( CHANGING fields = lt_fields data = data ).
+        IF data IS BOUND.
+          ASSIGN data->* TO <struct>.
+          LOOP AT lt_fields ASSIGNING <field>.
+            ASSIGN COMPONENT sy-tabix OF STRUCTURE <struct> TO <data>.
+            CHECK <field>-data IS NOT INITIAL.
+            ASSIGN <field>-data->* TO <value>.
+            <data> = <value>.
           ENDLOOP.
-          data = data_opt.
         ENDIF.
-      WHEN '"'."string
-        FIND FIRST OCCURRENCE OF REGEX so_regex_generate_type_detect IN SECTION OFFSET offset
-        OF json MATCH LENGTH mlen.
-        IF sy-subrc IS INITIAL.
-          CASE mlen.
-            WHEN 10. " time
-              restore_reference so_type_t.
-            WHEN 12. " date
-              restore_reference so_type_d.
-            WHEN OTHERS. " timestamp
-              restore_reference so_type_ts.
-          ENDCASE.
-        ELSE.
-          restore_reference so_type_s.
+      ELSE.
+        generate_struct( CHANGING fields = lt_fields data = data ).
+        IF data IS BOUND.
+          ASSIGN data->* TO <struct>.
+          LOOP AT lt_fields ASSIGNING <field>.
+            ASSIGN COMPONENT sy-tabix OF STRUCTURE <struct> TO <data>.
+            generate_int( EXPORTING json = <field>-value CHANGING data = <data> ).
+          ENDLOOP.
         ENDIF.
-      WHEN '-' OR '0' OR '1' OR '2' OR '3' OR '4' OR '5' OR '6' OR '7' OR '8' OR '9'. " number
-        IF json+offset CA '.Ee'.
-          restore_reference so_type_f.
-        ELSEIF length GT 9.
-          restore_reference so_type_p.
-        ELSE.
-          restore_reference so_type_i.
+      ENDIF.
+    WHEN '['."result must be a table of ref
+      restore_type( EXPORTING json = json length = length type_descr = so_type_t_json CHANGING offset = offset data = lt_json ).
+      CREATE DATA data TYPE ref_tab.
+      ASSIGN data->* TO <table>.
+      LOOP AT lt_json ASSIGNING <json>.
+        APPEND INITIAL LINE TO <table> ASSIGNING <data>.
+        generate_int( EXPORTING json = <json> CHANGING data = <data> ).
+        IF mv_gen_optimize EQ abap_true AND <data> IS NOT INITIAL.
+          lo_type ?= cl_abap_typedescr=>describe_by_data_ref( <data> ).
+          INSERT lo_type INTO TABLE lt_types.
         ENDIF.
-      WHEN OTHERS.
-        eat_bool_string.
-        IF json+mark(match) EQ 'true' OR json+mark(match) EQ 'false'. "#EC NOTEXT
-          offset = mark. "need to restore after eat_bool_string
-          restore_reference so_type_b.
-        ELSE. "null or no match
-          CLEAR data.
-        ENDIF.
-    ENDCASE.
+      ENDLOOP.
+      IF mv_gen_optimize EQ abap_true AND lines( lt_types ) EQ 1.
+        lo_table_type = cl_abap_tabledescr=>get( p_line_type = lo_type ).
+        CREATE DATA data_opt TYPE HANDLE lo_table_type.
+        ASSIGN data_opt->* TO <table_opt>.
+        LOOP AT <table> ASSIGNING <data>.
+          ASSIGN <data>->* TO <value>.
+          APPEND <value> TO <table_opt>.
+        ENDLOOP.
+        data = data_opt.
+      ENDIF.
+    WHEN '"'."string
+      FIND FIRST OCCURRENCE OF REGEX so_regex_generate_type_detect IN SECTION OFFSET offset
+      OF json MATCH LENGTH mlen.
+      IF sy-subrc IS INITIAL.
+        CASE mlen.
+          WHEN 10. " time
+            restore_reference so_type_t.
+          WHEN 12. " date
+            restore_reference so_type_d.
+          WHEN OTHERS. " timestamp
+            restore_reference so_type_ts.
+        ENDCASE.
+      ELSE.
+        restore_reference so_type_s.
+      ENDIF.
+    WHEN '-' OR '0' OR '1' OR '2' OR '3' OR '4' OR '5' OR '6' OR '7' OR '8' OR '9'. " number
+      IF json+offset CA '.Ee'.
+        restore_reference so_type_f.
+      ELSEIF length GT 9.
+        restore_reference so_type_p.
+      ELSE.
+        restore_reference so_type_i.
+      ENDIF.
+    WHEN OTHERS.
+      eat_bool_string.
+      IF json+mark(match) EQ 'true' OR json+mark(match) EQ 'false'. "#EC NOTEXT
+        offset = mark. "need to restore after eat_bool_string
+        restore_reference so_type_b.
+      ELSE. "null or no match
+        CLEAR data.
+      ENDIF.
+  ENDCASE.
 
-  ENDMETHOD.
+ENDMETHOD.
 
 
   METHOD generate_int_ex.
