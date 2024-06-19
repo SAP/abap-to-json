@@ -34,7 +34,7 @@
 * New: new switch for GENERATE (optimize) and DESERIALIZE (gen_optimize) that enables optimization of generated ABAP data for REF TO DATA (fewer references, easily readable and accessible). Results in longer processing.
 * New: added detection of time, date, and timestamp values on generation/deserialization into TYPE REF TO data.
 
-## Removed dependency to /ui2/cl_data_acceess for z_ui2_json
+## Removed dependency to /ui2/cl_data_access for z_ui2_json
 * Added: Open Source version of the /ui2/cl_data_access as Z_UI2_DATA_ACCESS
 
 ## Note [3424850](https://launchpad.support.sap.com/#/notes/3424850) - /UI2/CL_JSON - Release API for Cloud Development
