@@ -1,5 +1,5 @@
 # Version History
-   * [Note 3414589 - PL19 (not released, planned)](#note-3414589-pl19-not-released-planned)
+   * [Note 3414589 - PL19](#note-3414589-pl19)
    * [Note 3424850 - /UI2/CL_JSON - Release API for Cloud Development](#note-3424850-ui2cl_json-release-api-for-cloud-development)
    * [Note 3315430 - PL18](#note-3315430-pl18)
    * [Note 3106267 - PL17](#note-3106267-pl17)
@@ -21,7 +21,7 @@
    * [Note 2429758](#note-2429758)
    * [Note 2480119](#note-2480119)
 
-## Note [3414589](https://launchpad.support.sap.com/#/notes/3414589) - PL19 (not released, planned)
+## Note [3414589](https://launchpad.support.sap.com/#/notes/3414589) - PL19
 ### /UI2/CL_JSON
 * Fixed: enhanced processing of deserialization into typed TYPE REFs
 * Fixed: deserialization of JSON 'null' into complex, not reference ABAP fields does not lead to exception in strict mode ([details](https://github.com/SAP/abap-to-json/pull/5))
