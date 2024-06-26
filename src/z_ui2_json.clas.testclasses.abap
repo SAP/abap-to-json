@@ -126,7 +126,9 @@ CLASS lcl_util IMPLEMENTATION.
 
     IF stimestmp+15(1) IS NOT INITIAL. " msec provided
       stimestmp+14(1) = '.'.
-    ELSEIF stimestmp(1) IS INITIAL. " timeonly, default to current date
+    ELSEIF stimestmp+8(1) IS INITIAL. " date-only, default to 000000 time
+      stimestmp+8(6) = '000000'.
+    ELSEIF stimestmp(1) IS INITIAL. " time-only, default to current date
       stimestmp(8) = sy-datlo.
     ENDIF.
 
@@ -687,7 +689,17 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     deserialize( EXPORTING json = lv_act CHANGING data = lv_act_tsmp ).
     lv_exp_tsmp = '20240131230000' ##LITERAL.
 
-    cl_aunit_assert=>assert_equals( act = lv_act_tsmp exp = lv_exp_tsmp msg = 'Deserialization of of ISO8601 field with time offset (+1:00) fails' ).
+    cl_aunit_assert=>assert_equals( act = lv_act_tsmp exp = lv_exp_tsmp msg = 'Deserialization of ISO8601 field with time offset (+1:00) fails' ).
+
+    DATA: lv_act_d TYPE d.
+
+    lv_act = `"2017-01-01T00:00:00"`.
+    deserialize( EXPORTING json = lv_act CHANGING data = lv_act_d ).
+    cl_aunit_assert=>assert_equals( act = lv_act_d exp = '20170101' msg = 'Deserialization of date field in format ISO8601 fails' ).
+
+    lv_act = `"20170101"`.
+    deserialize( EXPORTING json = lv_act CHANGING data = lv_act_d ).
+    cl_aunit_assert=>assert_equals( act = lv_act_d exp = '20170101' msg = 'Deserialization of date field in format 20170101 fails' ).
 
   ENDMETHOD.                    "serialize_types
 
@@ -2939,7 +2951,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
           lr_data  TYPE REF TO data,
           lr_data2 TYPE REF TO data.
 
-    lv_json = `{"system XYZ": {"S/I\D": "XYZ", ":#*~@#$%^&*()_+-|.,=><!?/'{}[]В§": "Ш§Щ„ШЄШ¬Ш§Ш±ЩЉ"}}`. "#EC NOTEXT
+    lv_json = `{"system XYZ": {"S/I\D": "XYZ", ":#*~@#$%^&*()_+-|.,=><!?/'{}[]§": "التجاري"}}`. "#EC NOTEXT
 
     lr_data = generate( json = lv_json ).
 

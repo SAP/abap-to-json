@@ -3,31 +3,31 @@
 *----------------------------------------------------------------------*
 *
 *----------------------------------------------------------------------*
-class Z_UI2_JSON definition
-  public
-  create public .
+CLASS z_ui2_json DEFINITION
+  PUBLIC
+  CREATE PUBLIC .
 
-public section.
-  type-pools ABAP .
-  class CL_ABAP_TSTMP definition load .
-  class CX_SY_CONVERSION_ERROR definition load .
+  PUBLIC SECTION.
+    TYPE-POOLS abap .
+    CLASS cl_abap_tstmp DEFINITION LOAD .
+    CLASS cx_sy_conversion_error DEFINITION LOAD .
 
-  types JSON type STRING .
-  types:
-    BEGIN OF name_mapping,
+    TYPES json TYPE string .
+    TYPES:
+      BEGIN OF name_mapping,
         abap TYPE abap_compname,
         json TYPE string,
       END OF name_mapping .
-  types:
-    name_mappings    TYPE HASHED TABLE OF name_mapping WITH UNIQUE KEY abap .
-  types:
-    ref_tab          TYPE STANDARD TABLE OF REF TO data WITH DEFAULT KEY .
-  types BOOL type CHAR1 .
-  types TRIBOOL type CHAR1 .
-  types PRETTY_NAME_MODE type CHAR1 .
+    TYPES:
+      name_mappings    TYPE HASHED TABLE OF name_mapping WITH UNIQUE KEY abap .
+    TYPES:
+      ref_tab          TYPE STANDARD TABLE OF REF TO data WITH DEFAULT KEY .
+    TYPES bool TYPE char1 .
+    TYPES tribool TYPE char1 .
+    TYPES pretty_name_mode TYPE char1 .
 
-  constants:
-    BEGIN OF pretty_mode,
+    CONSTANTS:
+      BEGIN OF pretty_mode,
         none          TYPE char1  VALUE ``,
         low_case      TYPE char1  VALUE 'L',
         camel_case    TYPE char1  VALUE 'X',
@@ -35,152 +35,152 @@ public section.
         user          TYPE char1  VALUE 'U',
         user_low_case TYPE char1  VALUE 'C',
       END OF  pretty_mode .
-  constants:
-    BEGIN OF c_bool,
+    CONSTANTS:
+      BEGIN OF c_bool,
         true  TYPE bool  VALUE 'X',
         false TYPE bool  VALUE '',
       END OF  c_bool .
-  constants:
-    BEGIN OF c_tribool,
+    CONSTANTS:
+      BEGIN OF c_tribool,
         true      TYPE tribool  VALUE c_bool-true,
         false     TYPE tribool  VALUE '-',
         undefined TYPE tribool  VALUE ``,
       END OF  c_tribool .
-  class-data SV_WHITE_SPACE type STRING read-only .
-  constants MC_KEY_SEPARATOR type STRING value `-` ##NO_TEXT.
-  class-data MC_BOOL_TYPES type STRING read-only value `\TYPE-POOL=ABAP\TYPE=ABAP_BOOL\TYPE=BOOLEAN\TYPE=BOOLE_D\TYPE=XFELD\TYPE=XSDBOOLEAN\TYPE=WDY_BOOLEAN` ##NO_TEXT.
-  class-data MC_BOOL_3STATE type STRING read-only value `\TYPE=BOOLEAN` ##NO_TEXT.
-  constants VERSION type I value 19 ##NO_TEXT.
-  class-data MC_JSON_TYPE type STRING read-only .
+    CLASS-DATA sv_white_space TYPE string READ-ONLY .
+    CONSTANTS mc_key_separator TYPE string VALUE `-` ##NO_TEXT.
+    CLASS-DATA mc_bool_types TYPE string READ-ONLY VALUE `\TYPE-POOL=ABAP\TYPE=ABAP_BOOL\TYPE=BOOLEAN\TYPE=BOOLE_D\TYPE=XFELD\TYPE=XSDBOOLEAN\TYPE=WDY_BOOLEAN` ##NO_TEXT.
+    CLASS-DATA mc_bool_3state TYPE string READ-ONLY VALUE `\TYPE=BOOLEAN` ##NO_TEXT.
+    CONSTANTS version TYPE i VALUE 19 ##NO_TEXT.
+    CLASS-DATA mc_json_type TYPE string READ-ONLY .
 
-  class-methods CLASS_CONSTRUCTOR .
-  class-methods STRING_TO_XSTRING
-    importing
-      !IN type STRING
-    changing
-      value(OUT) type ANY .
-  class-methods XSTRING_TO_STRING
-    importing
-      !IN type ANY
-    returning
-      value(OUT) type STRING .
-  class-methods RAW_TO_STRING
-    importing
-      !IV_XSTRING type XSTRING
-      !IV_ENCODING type ABAP_ENCODING optional
-    returning
-      value(RV_STRING) type STRING .
-  class-methods STRING_TO_RAW
-    importing
-      !IV_STRING type STRING
-      !IV_ENCODING type ABAP_ENCODING optional
-    returning
-      value(RV_XSTRING) type XSTRING .
-  class-methods DUMP
-    importing
-      !DATA type DATA
-      !COMPRESS type BOOL default C_BOOL-FALSE
-      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR optional
-      !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
-      !ASSOC_ARRAYS type BOOL default C_BOOL-FALSE
-      !TS_AS_ISO8601 type BOOL default C_BOOL-FALSE
-    returning
-      value(R_JSON) type JSON .
-  class-methods DESERIALIZE
-    importing
-      !JSON type JSON optional
-      !JSONX type XSTRING optional
-      !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
-      !ASSOC_ARRAYS type BOOL default C_BOOL-FALSE
-      !ASSOC_ARRAYS_OPT type BOOL default C_BOOL-FALSE
-      !NAME_MAPPINGS type NAME_MAPPINGS optional
-      !CONVERSION_EXITS type BOOL default C_BOOL-FALSE
-      !HEX_AS_BASE64 type BOOL default C_BOOL-TRUE
-      !GEN_OPTIMIZE type BOOL default C_BOOL-FALSE
-    changing
-      !DATA type DATA .
-  class-methods SERIALIZE
-    importing
-      !DATA type DATA
-      !COMPRESS type BOOL default C_BOOL-FALSE
-      !NAME type STRING optional
-      !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
-      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR optional
-      !ASSOC_ARRAYS type BOOL default C_BOOL-FALSE
-      !TS_AS_ISO8601 type BOOL default C_BOOL-FALSE
-      !EXPAND_INCLUDES type BOOL default C_BOOL-TRUE
-      !ASSOC_ARRAYS_OPT type BOOL default C_BOOL-FALSE
-      !NUMC_AS_STRING type BOOL default C_BOOL-FALSE
-      !NAME_MAPPINGS type NAME_MAPPINGS optional
-      !CONVERSION_EXITS type BOOL default C_BOOL-FALSE
-      !FORMAT_OUTPUT type BOOL default C_BOOL-FALSE
-      !HEX_AS_BASE64 type BOOL default C_BOOL-TRUE
-    returning
-      value(R_JSON) type JSON .
-  methods DESERIALIZE_INT
-    importing
-      !JSON type JSON optional
-      !JSONX type XSTRING optional
-    changing
-      !DATA type DATA
-    raising
-      CX_SY_MOVE_CAST_ERROR .
-  class-methods GENERATE
-    importing
-      !JSON type JSON optional
-      !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
-      !OPTIMIZE type BOOL default C_BOOL-FALSE
-      !NAME_MAPPINGS type NAME_MAPPINGS optional
-      !JSONX type XSTRING optional
-    preferred parameter JSON
-    returning
-      value(RR_DATA) type ref to DATA .
-  methods SERIALIZE_INT
-    importing
-      !DATA type DATA
-      !NAME type STRING optional
-      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR optional
-    returning
-      value(R_JSON) type JSON .
-  methods GENERATE_INT
-    importing
-      !JSON type JSON
-      value(LENGTH) type I optional
-    changing
-      !DATA type ref to DATA
-      !OFFSET type I default 0
-    raising
-      CX_SY_MOVE_CAST_ERROR .
-  methods CONSTRUCTOR
-    importing
-      !COMPRESS type BOOL default C_BOOL-FALSE
-      !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
-      !ASSOC_ARRAYS type BOOL default C_BOOL-FALSE
-      !TS_AS_ISO8601 type BOOL default C_BOOL-FALSE
-      !EXPAND_INCLUDES type BOOL default C_BOOL-TRUE
-      !ASSOC_ARRAYS_OPT type BOOL default C_BOOL-FALSE
-      !STRICT_MODE type BOOL default C_BOOL-FALSE
-      !NUMC_AS_STRING type BOOL default C_BOOL-FALSE
-      !NAME_MAPPINGS type NAME_MAPPINGS optional
-      !CONVERSION_EXITS type BOOL default C_BOOL-FALSE
-      !FORMAT_OUTPUT type BOOL default C_BOOL-FALSE
-      !HEX_AS_BASE64 type BOOL default C_BOOL-TRUE
-      !GEN_OPTIMIZE type BOOL default C_BOOL-FALSE
-      !BOOL_TYPES type STRING default MC_BOOL_TYPES
-      !BOOL_3STATE type STRING default MC_BOOL_3STATE
-      !INITIAL_TS type STRING default `""`
-      !INITIAL_DATE type STRING default `""`
-      !INITIAL_TIME type STRING default `""` .
-  class-methods BOOL_TO_TRIBOOL
-    importing
-      !IV_BOOL type BOOL
-    returning
-      value(RV_TRIBOOL) type TRIBOOL .
-  class-methods TRIBOOL_TO_BOOL
-    importing
-      !IV_TRIBOOL type TRIBOOL
-    returning
-      value(RV_BOOL) type BOOL .
+    CLASS-METHODS class_constructor .
+    CLASS-METHODS string_to_xstring
+      IMPORTING
+        !in        TYPE string
+      CHANGING
+        VALUE(out) TYPE any .
+    CLASS-METHODS xstring_to_string
+      IMPORTING
+        !in        TYPE any
+      RETURNING
+        VALUE(out) TYPE string .
+    CLASS-METHODS raw_to_string
+      IMPORTING
+        !iv_xstring      TYPE xstring
+        !iv_encoding     TYPE abap_encoding OPTIONAL
+      RETURNING
+        VALUE(rv_string) TYPE string .
+    CLASS-METHODS string_to_raw
+      IMPORTING
+        !iv_string        TYPE string
+        !iv_encoding      TYPE abap_encoding OPTIONAL
+      RETURNING
+        VALUE(rv_xstring) TYPE xstring .
+    CLASS-METHODS dump
+      IMPORTING
+        !data          TYPE data
+        !compress      TYPE bool DEFAULT c_bool-false
+        !type_descr    TYPE REF TO cl_abap_typedescr OPTIONAL
+        !pretty_name   TYPE pretty_name_mode DEFAULT pretty_mode-none
+        !assoc_arrays  TYPE bool DEFAULT c_bool-false
+        !ts_as_iso8601 TYPE bool DEFAULT c_bool-false
+      RETURNING
+        VALUE(r_json)  TYPE json .
+    CLASS-METHODS deserialize
+      IMPORTING
+        !json             TYPE json OPTIONAL
+        !jsonx            TYPE xstring OPTIONAL
+        !pretty_name      TYPE pretty_name_mode DEFAULT pretty_mode-none
+        !assoc_arrays     TYPE bool DEFAULT c_bool-false
+        !assoc_arrays_opt TYPE bool DEFAULT c_bool-false
+        !name_mappings    TYPE name_mappings OPTIONAL
+        !conversion_exits TYPE bool DEFAULT c_bool-false
+        !hex_as_base64    TYPE bool DEFAULT c_bool-true
+        !gen_optimize     TYPE bool DEFAULT c_bool-false
+      CHANGING
+        !data             TYPE data .
+    CLASS-METHODS serialize
+      IMPORTING
+        !data             TYPE data
+        !compress         TYPE bool DEFAULT c_bool-false
+        !name             TYPE string OPTIONAL
+        !pretty_name      TYPE pretty_name_mode DEFAULT pretty_mode-none
+        !type_descr       TYPE REF TO cl_abap_typedescr OPTIONAL
+        !assoc_arrays     TYPE bool DEFAULT c_bool-false
+        !ts_as_iso8601    TYPE bool DEFAULT c_bool-false
+        !expand_includes  TYPE bool DEFAULT c_bool-true
+        !assoc_arrays_opt TYPE bool DEFAULT c_bool-false
+        !numc_as_string   TYPE bool DEFAULT c_bool-false
+        !name_mappings    TYPE name_mappings OPTIONAL
+        !conversion_exits TYPE bool DEFAULT c_bool-false
+        !format_output    TYPE bool DEFAULT c_bool-false
+        !hex_as_base64    TYPE bool DEFAULT c_bool-true
+      RETURNING
+        VALUE(r_json)     TYPE json .
+    METHODS deserialize_int
+      IMPORTING
+        !json  TYPE json OPTIONAL
+        !jsonx TYPE xstring OPTIONAL
+      CHANGING
+        !data  TYPE data
+      RAISING
+        cx_sy_move_cast_error .
+    CLASS-METHODS generate
+      IMPORTING
+        !json          TYPE json OPTIONAL
+        !pretty_name   TYPE pretty_name_mode DEFAULT pretty_mode-none
+        !optimize      TYPE bool DEFAULT c_bool-false
+        !name_mappings TYPE name_mappings OPTIONAL
+        !jsonx         TYPE xstring OPTIONAL
+          PREFERRED PARAMETER json
+      RETURNING
+        VALUE(rr_data) TYPE REF TO data .
+    METHODS serialize_int
+      IMPORTING
+        !data         TYPE data
+        !name         TYPE string OPTIONAL
+        !type_descr   TYPE REF TO cl_abap_typedescr OPTIONAL
+      RETURNING
+        VALUE(r_json) TYPE json .
+    METHODS generate_int
+      IMPORTING
+        !json         TYPE json
+        VALUE(length) TYPE i OPTIONAL
+      CHANGING
+        !data         TYPE REF TO data
+        !offset       TYPE i DEFAULT 0
+      RAISING
+        cx_sy_move_cast_error .
+    METHODS constructor
+      IMPORTING
+        !compress         TYPE bool DEFAULT c_bool-false
+        !pretty_name      TYPE pretty_name_mode DEFAULT pretty_mode-none
+        !assoc_arrays     TYPE bool DEFAULT c_bool-false
+        !ts_as_iso8601    TYPE bool DEFAULT c_bool-false
+        !expand_includes  TYPE bool DEFAULT c_bool-true
+        !assoc_arrays_opt TYPE bool DEFAULT c_bool-false
+        !strict_mode      TYPE bool DEFAULT c_bool-false
+        !numc_as_string   TYPE bool DEFAULT c_bool-false
+        !name_mappings    TYPE name_mappings OPTIONAL
+        !conversion_exits TYPE bool DEFAULT c_bool-false
+        !format_output    TYPE bool DEFAULT c_bool-false
+        !hex_as_base64    TYPE bool DEFAULT c_bool-true
+        !gen_optimize     TYPE bool DEFAULT c_bool-false
+        !bool_types       TYPE string DEFAULT mc_bool_types
+        !bool_3state      TYPE string DEFAULT mc_bool_3state
+        !initial_ts       TYPE string DEFAULT `""`
+        !initial_date     TYPE string DEFAULT `""`
+        !initial_time     TYPE string DEFAULT `""` .
+    CLASS-METHODS bool_to_tribool
+      IMPORTING
+        !iv_bool          TYPE bool
+      RETURNING
+        VALUE(rv_tribool) TYPE tribool .
+    CLASS-METHODS tribool_to_bool
+      IMPORTING
+        !iv_tribool    TYPE tribool
+      RETURNING
+        VALUE(rv_bool) TYPE bool .
   PROTECTED SECTION.
 
     TYPES:
@@ -207,10 +207,16 @@ public section.
     TYPES:
       name_mappings_ex TYPE HASHED TABLE OF name_mapping WITH UNIQUE KEY json .
     TYPES:
-      BEGIN OF t_s_name_value,
+      BEGIN OF t_s_name_json,
         name  TYPE string,
         value TYPE json,
-        data  TYPE REF TO data,
+      END OF t_s_name_json.
+    TYPES:
+      t_t_name_json TYPE SORTED TABLE OF t_s_name_json WITH UNIQUE KEY name.
+    TYPES:
+      BEGIN OF t_s_name_value.
+        INCLUDE TYPE t_s_name_json.
+    TYPES: data TYPE REF TO data,
       END OF t_s_name_value .
     TYPES:
       t_t_name_value TYPE SORTED TABLE OF t_s_name_value WITH UNIQUE KEY name .
@@ -537,9 +543,9 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     so_type_ts ?= cl_abap_typedescr=>describe_by_name( 'TIMESTAMP' ).
     so_type_b ?= cl_abap_typedescr=>describe_by_name( 'ABAP_BOOL' ).
     so_type_t_json ?= cl_abap_typedescr=>describe_by_name( 'T_T_JSON' ).
-    so_type_t_name_value ?= cl_abap_typedescr=>describe_by_name( 'T_T_NAME_VALUE' ).
+    so_type_t_name_value ?= cl_abap_typedescr=>describe_by_name( 'T_T_NAME_JSON' ).
 
-    create_regexp so_regex_date '^(\d{4})-(\d{2})-(\d{2})'.
+    create_regexp so_regex_date '^(\d{4})-(\d{2})-(\d{2})(?:[^T]|$)'.
     create_regexp so_regex_time '^(\d{2}):(\d{2}):(\d{2})'.
     create_regexp so_regex_guid '^([0-9A-Fa-f]{8})-([0-9A-Fa-f]{4})-([0-9A-Fa-f]{4})-([0-9A-Fa-f]{4})-([0-9A-Fa-f]{12})\s*$'. " support for Edm.Guid
     " support for Edm.DateTime => http://www.odata.org/documentation/odata-version-2-0/json-format/
@@ -1163,115 +1169,117 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
   ENDMETHOD.
 
 
-METHOD generate_int.
+  METHOD generate_int.
 
-  DATA: lt_json       TYPE t_t_json,
-        mark          LIKE offset,
-        match         LIKE offset,
-        data_opt      LIKE data,
-        mlen          TYPE i,
-        lo_type       TYPE REF TO cl_abap_datadescr,
-        lo_table_type TYPE REF TO cl_abap_tabledescr,
-        lt_types      TYPE SORTED TABLE OF REF TO cl_abap_datadescr WITH UNIQUE KEY table_line,
-        lt_fields     TYPE t_t_name_value.
+    DATA: lt_json        TYPE t_t_json,
+          mark           LIKE offset,
+          match          LIKE offset,
+          data_opt       LIKE data,
+          mlen           TYPE i,
+          lo_type        TYPE REF TO cl_abap_datadescr,
+          lo_table_type  TYPE REF TO cl_abap_tabledescr,
+          lt_types       TYPE SORTED TABLE OF REF TO cl_abap_datadescr WITH UNIQUE KEY table_line,
+          lt_fields      TYPE t_t_name_value,
+          lt_json_fields TYPE t_t_name_json.
 
-  FIELD-SYMBOLS: <data>      TYPE data,
-                 <struct>    TYPE data,
-                 <value>     TYPE data,
-                 <json>      LIKE LINE OF lt_json,
-                 <field>     LIKE LINE OF lt_fields,
-                 <table>     TYPE STANDARD TABLE,
-                 <table_opt> LIKE <table>.
+    FIELD-SYMBOLS: <data>      TYPE data,
+                   <struct>    TYPE data,
+                   <value>     TYPE data,
+                   <json>      LIKE LINE OF lt_json,
+                   <field>     LIKE LINE OF lt_fields,
+                   <table>     TYPE STANDARD TABLE,
+                   <table_opt> LIKE <table>.
 
-  IF length IS NOT SUPPLIED.
-    length = strlen( json ).
-  ENDIF.
+    IF length IS NOT SUPPLIED.
+      length = strlen( json ).
+    ENDIF.
 
-  eat_white.
+    eat_white.
 
-  CASE json+offset(1).
-    WHEN '{'."result must be a structure
-      restore_type( EXPORTING json = json length = length type_descr = so_type_t_name_value CHANGING offset = offset data = lt_fields ).
-      IF mv_gen_optimize EQ abap_true.
-        LOOP AT lt_fields ASSIGNING <field>.
-          generate_int( EXPORTING json = <field>-value CHANGING data = <field>-data ).
-        ENDLOOP.
-        generate_struct( CHANGING fields = lt_fields data = data ).
-        IF data IS BOUND.
-          ASSIGN data->* TO <struct>.
+    CASE json+offset(1).
+      WHEN '{'."result must be a structure
+        restore_type( EXPORTING json = json length = length type_descr = so_type_t_name_value CHANGING offset = offset data = lt_json_fields ).
+        MOVE-CORRESPONDING lt_json_fields TO lt_fields.
+        IF mv_gen_optimize EQ abap_true.
           LOOP AT lt_fields ASSIGNING <field>.
-            ASSIGN COMPONENT sy-tabix OF STRUCTURE <struct> TO <data>.
-            CHECK <field>-data IS NOT INITIAL.
-            ASSIGN <field>-data->* TO <value>.
-            <data> = <value>.
+            generate_int( EXPORTING json = <field>-value CHANGING data = <field>-data ).
           ENDLOOP.
+          generate_struct( CHANGING fields = lt_fields data = data ).
+          IF data IS BOUND.
+            ASSIGN data->* TO <struct>.
+            LOOP AT lt_fields ASSIGNING <field>.
+              ASSIGN COMPONENT sy-tabix OF STRUCTURE <struct> TO <data>.
+              CHECK <field>-data IS NOT INITIAL.
+              ASSIGN <field>-data->* TO <value>.
+              <data> = <value>.
+            ENDLOOP.
+          ENDIF.
+        ELSE.
+          generate_struct( CHANGING fields = lt_fields data = data ).
+          IF data IS BOUND.
+            ASSIGN data->* TO <struct>.
+            LOOP AT lt_fields ASSIGNING <field>.
+              ASSIGN COMPONENT sy-tabix OF STRUCTURE <struct> TO <data>.
+              generate_int( EXPORTING json = <field>-value CHANGING data = <data> ).
+            ENDLOOP.
+          ENDIF.
         ENDIF.
-      ELSE.
-        generate_struct( CHANGING fields = lt_fields data = data ).
-        IF data IS BOUND.
-          ASSIGN data->* TO <struct>.
-          LOOP AT lt_fields ASSIGNING <field>.
-            ASSIGN COMPONENT sy-tabix OF STRUCTURE <struct> TO <data>.
-            generate_int( EXPORTING json = <field>-value CHANGING data = <data> ).
-          ENDLOOP.
-        ENDIF.
-      ENDIF.
-    WHEN '['."result must be a table of ref
-      restore_type( EXPORTING json = json length = length type_descr = so_type_t_json CHANGING offset = offset data = lt_json ).
-      CREATE DATA data TYPE ref_tab.
-      ASSIGN data->* TO <table>.
-      LOOP AT lt_json ASSIGNING <json>.
-        APPEND INITIAL LINE TO <table> ASSIGNING <data>.
-        generate_int( EXPORTING json = <json> CHANGING data = <data> ).
-        IF mv_gen_optimize EQ abap_true AND <data> IS NOT INITIAL.
-          lo_type ?= cl_abap_typedescr=>describe_by_data_ref( <data> ).
-          INSERT lo_type INTO TABLE lt_types.
-        ENDIF.
-      ENDLOOP.
-      IF mv_gen_optimize EQ abap_true AND lines( lt_types ) EQ 1.
-        lo_table_type = cl_abap_tabledescr=>get( p_line_type = lo_type ).
-        CREATE DATA data_opt TYPE HANDLE lo_table_type.
-        ASSIGN data_opt->* TO <table_opt>.
-        LOOP AT <table> ASSIGNING <data>.
-          ASSIGN <data>->* TO <value>.
-          APPEND <value> TO <table_opt>.
+      WHEN '['."result must be a table of ref
+        restore_type( EXPORTING json = json length = length type_descr = so_type_t_json CHANGING offset = offset data = lt_json ).
+        CREATE DATA data TYPE ref_tab.
+        ASSIGN data->* TO <table>.
+        LOOP AT lt_json ASSIGNING <json>.
+          APPEND INITIAL LINE TO <table> ASSIGNING <data>.
+          generate_int( EXPORTING json = <json> CHANGING data = <data> ).
+          IF mv_gen_optimize EQ abap_true AND <data> IS NOT INITIAL.
+            lo_type ?= cl_abap_typedescr=>describe_by_data_ref( <data> ).
+            INSERT lo_type INTO TABLE lt_types.
+          ENDIF.
         ENDLOOP.
-        data = data_opt.
-      ENDIF.
-    WHEN '"'."string
-      FIND FIRST OCCURRENCE OF REGEX so_regex_generate_type_detect IN SECTION OFFSET offset
-      OF json MATCH LENGTH mlen.
-      IF sy-subrc IS INITIAL.
-        CASE mlen.
-          WHEN 10. " time
-            restore_reference so_type_t.
-          WHEN 12. " date
-            restore_reference so_type_d.
-          WHEN OTHERS. " timestamp
-            restore_reference so_type_ts.
-        ENDCASE.
-      ELSE.
-        restore_reference so_type_s.
-      ENDIF.
-    WHEN '-' OR '0' OR '1' OR '2' OR '3' OR '4' OR '5' OR '6' OR '7' OR '8' OR '9'. " number
-      IF json+offset CA '.Ee'.
-        restore_reference so_type_f.
-      ELSEIF length GT 9.
-        restore_reference so_type_p.
-      ELSE.
-        restore_reference so_type_i.
-      ENDIF.
-    WHEN OTHERS.
-      eat_bool_string.
-      IF json+mark(match) EQ 'true' OR json+mark(match) EQ 'false'. "#EC NOTEXT
-        offset = mark. "need to restore after eat_bool_string
-        restore_reference so_type_b.
-      ELSE. "null or no match
-        CLEAR data.
-      ENDIF.
-  ENDCASE.
+        IF mv_gen_optimize EQ abap_true AND lines( lt_types ) EQ 1.
+          lo_table_type = cl_abap_tabledescr=>get( p_line_type = lo_type ).
+          CREATE DATA data_opt TYPE HANDLE lo_table_type.
+          ASSIGN data_opt->* TO <table_opt>.
+          LOOP AT <table> ASSIGNING <data>.
+            ASSIGN <data>->* TO <value>.
+            APPEND <value> TO <table_opt>.
+          ENDLOOP.
+          data = data_opt.
+        ENDIF.
+      WHEN '"'."string
+        FIND FIRST OCCURRENCE OF REGEX so_regex_generate_type_detect IN SECTION OFFSET offset
+        OF json MATCH LENGTH mlen.
+        IF sy-subrc IS INITIAL.
+          CASE mlen.
+            WHEN 10. " time
+              restore_reference so_type_t.
+            WHEN 12. " date
+              restore_reference so_type_d.
+            WHEN OTHERS. " timestamp
+              restore_reference so_type_ts.
+          ENDCASE.
+        ELSE.
+          restore_reference so_type_s.
+        ENDIF.
+      WHEN '-' OR '0' OR '1' OR '2' OR '3' OR '4' OR '5' OR '6' OR '7' OR '8' OR '9'. " number
+        IF json+offset CA '.Ee'.
+          restore_reference so_type_f.
+        ELSEIF length GT 9.
+          restore_reference so_type_p.
+        ELSE.
+          restore_reference so_type_i.
+        ENDIF.
+      WHEN OTHERS.
+        eat_bool_string.
+        IF json+mark(match) EQ 'true' OR json+mark(match) EQ 'false'. "#EC NOTEXT
+          offset = mark. "need to restore after eat_bool_string
+          restore_reference so_type_b.
+        ELSE. "null or no match
+          CLEAR data.
+        ENDIF.
+    ENDCASE.
 
-ENDMETHOD.
+  ENDMETHOD.
 
 
   METHOD generate_int_ex.
@@ -1941,7 +1949,7 @@ ENDMETHOD.
                           struct_descr ?= data_descr.
                           ls_symbols = get_symbols_struct( type_descr = struct_descr data = line ).
                           DELETE ls_symbols-symbols WHERE name EQ key_name.
-                          IF lines( ls_symbols-symbols ) GE 1.
+                          IF lines( ls_symbols-symbols ) EQ 1.
                             READ TABLE ls_symbols-symbols INDEX 1 ASSIGNING <value_sym>.
                           ENDIF.
                         ENDIF.
@@ -2149,6 +2157,9 @@ ENDMETHOD.
                             tstml = lcl_util=>read_iso8601( sdummy ).
                             IF tstml IS NOT INITIAL.
                               CONVERT TIME STAMP tstml TIME ZONE sy-zonlo INTO DATE data.
+                              IF sy-subrc IS NOT INITIAL.
+                                CLEAR data.
+                              ENDIF.
                               RETURN.
                             ELSE.
                               FIND FIRST OCCURRENCE OF REGEX so_regex_edm_date_time IN sdummy SUBMATCHES lv_ticks lv_offset.
@@ -2171,6 +2182,9 @@ ENDMETHOD.
                             tstml = lcl_util=>read_iso8601( sdummy ).
                             IF tstml IS NOT INITIAL.
                               CONVERT TIME STAMP tstml TIME ZONE sy-zonlo INTO TIME data.
+                              IF sy-subrc IS NOT INITIAL.
+                                CLEAR data.
+                              ENDIF.
                               RETURN.
                             ELSE.
                               FIND FIRST OCCURRENCE OF REGEX so_regex_edm_date_time IN sdummy SUBMATCHES lv_ticks lv_offset.
@@ -2599,7 +2613,7 @@ ENDMETHOD.
               IF inner_elemdescr->is_ddic_type( ) EQ abap_true.
                 domain_name = inner_elemdescr->get_ddic_field( )-domname.
               ENDIF.
-            CATCH cx_root. "#EC CATCH_ALL
+            CATCH cx_root.                               "#EC CATCH_ALL
               domain_name = ''.
           ENDTRY.
         ELSE.
