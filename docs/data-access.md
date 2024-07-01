@@ -3,7 +3,7 @@
 # Why
 Sometimes you need to access [ABAP data objects dynamically](https://help.sap.com/http.svc/rc/abapdocu_751_index_htm/7.51/en-US/abendyn_access_data_obj_guidl.htm). For example, when:
 * you do not know the structure of the ABAP object and to dynamically access the value of the field, you are forced to use ASSIGN .. COMPONENT with field symbol
-* you do a cross-release development in ABAP and do not know if some field exists, so need dynamic access to data
+* you do a cross-release development in ABAP and do not know if some field exists, so you need dynamic access to data
 *	you access data from the optional ABAP component and also need dynamic access to the ABAP structure field or internal table row
 *	you need a key or index access to a dynamic internal table
 
