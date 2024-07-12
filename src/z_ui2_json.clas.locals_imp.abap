@@ -249,19 +249,19 @@ END-OF-DEFINITION.
 DEFINE while_offset_cs.
 
 *  >= 7.02 alternative
-  offset = find_any_not_of( val = json sub = &1 off = offset )  ##NO_TEXT.
-  IF offset EQ -1.
-    offset = length.
+  &2 = find_any_not_of( val = json sub = &1 off = &2 )  ##NO_TEXT.
+  IF &2 EQ -1.
+    &2 = length.
   ENDIF.
 *  >= 7.02
 
 * < 7.02
-*  WHILE offset < length.
-*    FIND FIRST OCCURRENCE OF json+offset(1) IN &1.
+*  WHILE &2 < length.
+*    FIND FIRST OCCURRENCE OF json+&2(1) IN &1.
 *    IF sy-subrc IS NOT INITIAL.
 *      EXIT.
 *    ENDIF.
-*    offset = offset + 1.
+*    &2 = &2 + 1.
 *  ENDWHILE.
 * < 7.02
 
@@ -270,26 +270,26 @@ END-OF-DEFINITION.
 DEFINE while_offset_not_cs.
 
 *  >= 7.02 alternative
-  offset = find_any_of( val = &2 sub = &1 off = offset ).
-  IF offset EQ -1.
-    offset = length.
+  &3 = find_any_of( val = &2 sub = &1 off = &3 ).
+  IF &3 EQ -1.
+    &3 = length.
   ENDIF.
 *  >= 7.02
 
 * < 7.02
-*  WHILE offset < length.
-*    FIND FIRST OCCURRENCE OF &2+offset(1) IN &1.
+*  WHILE &3 < length.
+*    FIND FIRST OCCURRENCE OF &2+&3(1) IN &1.
 *    IF sy-subrc IS INITIAL.
 *      EXIT.
 *    ENDIF.
-*    offset = offset + 1.
+*    &3 = &3 + 1.
 *  ENDWHILE.
 * < 7.02
 
 END-OF-DEFINITION.
 
 DEFINE eat_white.
-  while_offset_cs sv_white_space.
+  while_offset_cs sv_white_space offset.
   IF offset GE length.
     throw_error.
   ENDIF.
@@ -323,19 +323,15 @@ END-OF-DEFINITION.
 
 DEFINE eat_number.
   mark   = offset.
-  while_offset_cs '0123456789+-eE.'.
+  while_offset_cs '0123456789+-eE.' offset.
   match = offset - mark.
   &1 = json+mark(match).
 END-OF-DEFINITION.
 
-DEFINE eat_bool_string.
-  mark   = offset.
-  while_offset_cs 'aeflnrstu'.
-  match = offset - mark.
-END-OF-DEFINITION.
-
 DEFINE eat_bool.
-  eat_bool_string.
+  mark   = offset.
+  while_offset_cs 'aeflnrstu' offset.
+  match = offset - mark.
   IF json+mark(match) EQ 'true'  ##NO_TEXT.
     &1 = c_bool-true.
   ELSEIF json+mark(match) EQ 'false'  ##NO_TEXT.

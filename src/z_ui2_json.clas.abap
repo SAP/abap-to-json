@@ -281,6 +281,7 @@ CLASS z_ui2_json DEFINITION
     CLASS-DATA so_type_d TYPE REF TO cl_abap_elemdescr .
     CLASS-DATA so_type_t TYPE REF TO cl_abap_elemdescr .
     CLASS-DATA so_type_ts TYPE REF TO cl_abap_elemdescr .
+    CLASS-DATA so_type_tsl TYPE REF TO cl_abap_elemdescr .
     CLASS-DATA so_type_t_json TYPE REF TO cl_abap_tabledescr .
     CLASS-DATA so_type_t_name_value TYPE REF TO cl_abap_tabledescr .
     CLASS-DATA so_regex_date TYPE REF TO cl_abap_regex.
@@ -541,6 +542,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     so_type_d = cl_abap_elemdescr=>get_d( ).
     so_type_t = cl_abap_elemdescr=>get_t( ).
     so_type_ts ?= cl_abap_typedescr=>describe_by_name( 'TIMESTAMP' ).
+    so_type_tsl ?= cl_abap_typedescr=>describe_by_name( 'TIMESTAMPL' ).
     so_type_b ?= cl_abap_typedescr=>describe_by_name( 'ABAP_BOOL' ).
     so_type_t_json ?= cl_abap_typedescr=>describe_by_name( 'T_T_JSON' ).
     so_type_t_name_value ?= cl_abap_typedescr=>describe_by_name( 'T_T_NAME_JSON' ).
@@ -555,7 +557,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
     create_regexp so_regex_generate_normalize '[^0-9a-zA-Z_]{1,}'.
     create_regexp so_regex_generate_camel_case '([a-z])([A-Z])'.
-    create_regexp so_regex_generate_type_detect '"(?:(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:[\.,]\d{0,7})?(?:Z|(?:[+-]\d{2}:\d{2})))|(?:\d{4}-\d{2}-\d{2})|(?:\d{2}:\d{2}:\d{2}))"'.
+    create_regexp so_regex_generate_type_detect '"(?:(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:[\.,]\d{0,9})?(?:Z|(?:[+-]\d{2}:\d{2})))|(?:\d{4}-\d{2}-\d{2})|(?:\d{2}:\d{2}:\d{2}))"'.
 
     create_regexp so_regex_unescape_spec_char '\\[rntfbu\\]'.
 
@@ -675,7 +677,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
     " skip leading BOM signs till string, array, object, boolean or number
     length = strlen( lv_json ).
-    while_offset_not_cs '"{[aeflnrstu0123456789+-eE.' lv_json.
+    while_offset_not_cs '"{[aeflnrstu0123456789+-eE.' lv_json offset.
 
     TRY.
         restore_type( EXPORTING json = lv_json length = length CHANGING data = data offset = offset ).
@@ -1175,7 +1177,6 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           mark           LIKE offset,
           match          LIKE offset,
           data_opt       LIKE data,
-          mlen           TYPE i,
           lo_type        TYPE REF TO cl_abap_datadescr,
           lo_table_type  TYPE REF TO cl_abap_tabledescr,
           lt_types       TYPE SORTED TABLE OF REF TO cl_abap_datadescr WITH UNIQUE KEY table_line,
@@ -1248,31 +1249,47 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
         ENDIF.
       WHEN '"'."string
         FIND FIRST OCCURRENCE OF REGEX so_regex_generate_type_detect IN SECTION OFFSET offset
-        OF json MATCH LENGTH mlen.
+        OF json MATCH LENGTH match.
         IF sy-subrc IS INITIAL.
-          CASE mlen.
+          CASE match.
             WHEN 10. " time
               restore_reference so_type_t.
             WHEN 12. " date
               restore_reference so_type_d.
-            WHEN OTHERS. " timestamp
-              restore_reference so_type_ts.
+            WHEN OTHERS. " timestamp(L)
+              IF json+offset(match) CA '.'. " TIMESTAMPL
+                restore_reference so_type_tsl.
+              ELSE.
+                restore_reference so_type_ts.
+              ENDIF.
           ENDCASE.
         ELSE.
           restore_reference so_type_s.
         ENDIF.
       WHEN '-' OR '0' OR '1' OR '2' OR '3' OR '4' OR '5' OR '6' OR '7' OR '8' OR '9'. " number
-        IF json+offset CA '.Ee'.
+        IF offset EQ 0.
+          match = length.
+        ELSE.
+          mark = offset.
+          while_offset_cs '0123456789+-eE.' mark.
+          match = mark - offset.
+        ENDIF.
+        IF json+offset(match) CA '.Ee'.
           restore_reference so_type_f.
-        ELSEIF length GT 9.
+        ELSEIF match GT 9.
           restore_reference so_type_p.
         ELSE.
           restore_reference so_type_i.
         ENDIF.
       WHEN OTHERS.
-        eat_bool_string.
-        IF json+mark(match) EQ 'true' OR json+mark(match) EQ 'false'. "#EC NOTEXT
-          offset = mark. "need to restore after eat_bool_string
+        IF offset EQ 0.
+          match = length.
+        ELSE.
+          mark   = offset.
+          while_offset_cs 'aeflnrstu' mark.
+          match = mark - offset.
+        ENDIF.
+        IF json+offset(match) EQ 'true' OR json+offset(match) EQ 'false'. "#EC NOTEXT
           restore_reference so_type_b.
         ELSE. "null or no match
           CLEAR data.
@@ -1890,7 +1907,6 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           ref_descr          TYPE REF TO cl_abap_refdescr,
           data_descr         TYPE REF TO cl_abap_datadescr,
           array_index        TYPE i,
-          text_buf           TYPE c LENGTH 128,
           tstml              TYPE timestampl,
           date               TYPE c LENGTH 8,
           time               TYPE c LENGTH 6,
@@ -2110,16 +2126,15 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                         TRY .
                             CALL FUNCTION lv_convexit
                               EXPORTING
-                                input         = sdummy
+                                input  = sdummy
                               IMPORTING
-                                output        = text_buf
+                                output = data
                               EXCEPTIONS
-                                error_message = 2
-                                OTHERS        = 1.
-                            IF sy-subrc IS INITIAL.
-                              data = text_buf.
-                              RETURN.
+                                OTHERS = 1.
+                            IF sy-subrc IS NOT INITIAL.
+                              CLEAR data.
                             ENDIF.
+                            RETURN.
                           CATCH cx_root ##CATCH_ALL ##NO_HANDLER.
                         ENDTRY.
                       ENDIF.
@@ -2265,16 +2280,15 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                         eat_number sdummy.
                         CALL FUNCTION lv_convexit
                           EXPORTING
-                            input         = sdummy
+                            input  = sdummy
                           IMPORTING
-                            output        = text_buf
+                            output = data
                           EXCEPTIONS
-                            error_message = 2
-                            OTHERS        = 1.
-                        IF sy-subrc IS INITIAL.
-                          data = text_buf.
-                          RETURN.
+                            OTHERS = 1.
+                        IF sy-subrc IS NOT INITIAL.
+                          CLEAR data.
                         ENDIF.
+                        RETURN.
                       CATCH cx_root ##CATCH_ALL ##NO_HANDLER.
                     ENDTRY.
                   ENDIF.
@@ -2494,7 +2508,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     FIND FIRST OCCURRENCE OF '\\' IN unescaped+offset RESPECTING CASE.
     IF sy-subrc IS INITIAL. " complex case - there are escaped "\"
 
-      FIND FIRST OCCURRENCE OF REGEX so_regex_unescape_spec_char IN SECTION OFFSET offset OF unescaped RESULTS lt_matches.
+      FIND ALL OCCURRENCES OF REGEX so_regex_unescape_spec_char IN SECTION OFFSET offset OF unescaped RESULTS lt_matches.
       IF sy-subrc IS INITIAL.
         lv_length = strlen( unescaped ).
         LOOP AT lt_matches ASSIGNING <match>.

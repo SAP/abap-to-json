@@ -34,7 +34,7 @@ CLASS lcl_util IMPLEMENTATION.
   METHOD class_constructor.
 
     " support for ISO8601 => https://en.wikipedia.org/wiki/ISO_8601
-    create_regexp so_regex_iso8601 '^(?:(\d{4})-?(\d{2})-?(\d{2}))?(?:T(\d{2}):?(\d{2})(?::?(\d{2}))?(?:[\.,](\d{0,7}))?(?:Z|(?:([+-])(\d{2})(?::?(\d{2}))?))?)?\s*$'.
+    create_regexp so_regex_iso8601 '^(?:(\d{4})-?(\d{2})-?(\d{2}))?(?:T(\d{2}):?(\d{2})(?::?(\d{2}))?(?:[\.,](\d{0,9}))?(?:Z|(?:([+-])(\d{2})(?::?(\d{2}))?))?)?\s*$'.
 
   ENDMETHOD.
 
@@ -562,7 +562,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
           lv_exp     LIKE lv_act.
 
     ls_data-flag    = abap_true.
-    ls_data-char    = '"TEST\"/C:\temp'.
+    ls_data-char    = '"TEST\"/C:\temp\'.
     ls_data-numc    = 12345678.
     ls_data-string  = 'ABCDEFG'.
     ls_data-xstring = ls_data-string.
@@ -609,7 +609,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     CLEAR ls_data-guid.
 
-    CONCATENATE `{"FLAG":true,"CHAR":"\"TEST\\\"/C:\\temp","NUMC":12345678,"STRING":"ABCDEFG","XSTRING":"q83v","INTEGER":42,"FLOAT":3.1415926535897900E+00,`
+    CONCATENATE `{"FLAG":true,"CHAR":"\"TEST\\\"/C:\\temp\\","NUMC":12345678,"STRING":"ABCDEFG","XSTRING":"q83v","INTEGER":42,"FLOAT":3.1415926535897900E+00,`
                 `"PACKED":3.141593,"HEX":"AAAAAAAAOt5osQ==","GUID":"","TSL":20151002134450.5545900,"TSL2":20191227160050.4540000,"TSL3":20191227160050.4540000,"TS":20160708123456,"DATE":"2016-07-08","TIME":"12:34:56","DATE_I":"","TIME_I":""}`
                 INTO lv_exp.
     lv_act    = serialize( data = ls_data ).
@@ -619,7 +619,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     deserialize( EXPORTING json = lv_act CHANGING data = ls_data2 ).
     cl_aunit_assert=>assert_equals( act = ls_data2 exp = ls_data msg = 'Deserialization of data types fails' ).
 
-    CONCATENATE `{"FLAG":true,"CHAR":"\"TEST\\\"/C:\\temp","NUMC":12345678,"STRING":"ABCDEFG","XSTRING":"ABCDEF","INTEGER":42,"FLOAT":3.1415926535897900E+00,`
+    CONCATENATE `{"FLAG":true,"CHAR":"\"TEST\\\"/C:\\temp\\","NUMC":12345678,"STRING":"ABCDEFG","XSTRING":"ABCDEF","INTEGER":42,"FLOAT":3.1415926535897900E+00,`
                 `"PACKED":3.141593,"HEX":"0000000000003ADE68B1","GUID":"","TSL":20151002134450.5545900,"TSL2":20191227160050.4540000,"TSL3":20191227160050.4540000,"TS":20160708123456,"DATE":"2016-07-08","TIME":"12:34:56","DATE_I":"","TIME_I":""}`
                 INTO lv_exp.
     lv_act    = serialize( data = ls_data hex_as_base64 = abap_false ).
@@ -629,7 +629,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     deserialize( EXPORTING json = lv_act hex_as_base64 = abap_false CHANGING data = ls_data2 ).
     cl_aunit_assert=>assert_equals( act = ls_data2 exp = ls_data msg = 'Deserialization of hex without base64 fails' ).
 
-    CONCATENATE `{"FLAG":true,"CHAR":"\"TEST\\\"/C:\\temp","NUMC":12345678,"STRING":"ABCDEFG","XSTRING":"q83v","INTEGER":42,"FLOAT":3.1415926535897900E+00,`
+    CONCATENATE `{"FLAG":true,"CHAR":"\"TEST\\\"/C:\\temp\\","NUMC":12345678,"STRING":"ABCDEFG","XSTRING":"q83v","INTEGER":42,"FLOAT":3.1415926535897900E+00,`
                 `"PACKED":3.141593,"HEX":"AAAAAAAAOt5osQ==","GUID":"","TSL":"2015-10-02T13:44:50.5545900Z","TSL2":"2019-12-27T16:00:50.4540000Z","TSL3":"2019-12-27T16:00:50.4540000Z","TS":"2016-07-08T12:34:56Z","DATE":"2016-07-08","TIME":"12:34:56",`
                 `"DATE_I":"","TIME_I":""}`
                 INTO lv_exp.
@@ -640,7 +640,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     deserialize( EXPORTING json = lv_act CHANGING data = ls_data2 ).
     cl_aunit_assert=>assert_equals( act = ls_data2 exp = ls_data msg = 'Deserialization of timestamp in ISO8601 fails' ).
 
-    CONCATENATE `{"FLAG":true,"CHAR":"\"TEST\\\"\/C:\\temp","NUMC":12345678,"STRING":"ABCDEFG","XSTRING":"q83v","INTEGER":42,"FLOAT":3.1415926535897900E+00,`
+    CONCATENATE `{"FLAG":true,"CHAR":"\"TEST\\\"\/C:\\temp\\","NUMC":12345678,"STRING":"ABCDEFG","XSTRING":"q83v","INTEGER":42,"FLOAT":3.1415926535897900E+00,`
             `"PACKED":3.141593,"HEX":"AAAAAAAAOt5osQ==","GUID":"","TSL":"2015-10-02T13:44:50.5545900Z","TSL2":"2019-12-27T16:00:50.4540000Z","TSL3":"20191227160050.4540000","TS":"2016-07-08T12:34:56Z","DATE":"2016-07-08","TIME":"12:34:56",`
             `"DATE_I":"","TIME_I":""}` INTO lv_act.
 
@@ -648,7 +648,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     cl_aunit_assert=>assert_equals( act = ls_data2 exp = ls_data msg = 'Deserialization of redunant escapment fails' ).
 
     " https://blogs.sap.com/2017/01/05/date-and-time-in-sap-gateway-foundation/
-    CONCATENATE `{"FLAG":true,"CHAR":"\"TEST\\\"/C:\\temp","NUMC":12345678,"STRING":"ABCDEFG","XSTRING":"q83v","INTEGER":42,"FLOAT":3.1415926535897900E+00,`
+    CONCATENATE `{"FLAG":true,"CHAR":"\"TEST\\\"/C:\\temp\\","NUMC":12345678,"STRING":"ABCDEFG","XSTRING":"q83v","INTEGER":42,"FLOAT":3.1415926535897900E+00,`
             `"PACKED":3.141593,"HEX":"AAAAAAAAOt5osQ==","GUID":"","TSL":"2015-10-02T13:44:50.5545900Z","TSL2":"\/Date(1577462450454)\/","TSL3":"\/Date(1577462450454)\/","TS":"\/Date(1467981296000)\/","DATE":"2016-07-08","TIME":"12:34:56",`
             `"DATE_I":"","TIME_I":""}` INTO lv_act.
 
@@ -656,7 +656,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     cl_aunit_assert=>assert_equals( act = ls_data2 exp = ls_data msg = 'Deserialization of timestamp in Edm.DateTime fails' ).
 
     " https://blogs.sap.com/2017/01/05/date-and-time-in-sap-gateway-foundation/
-    CONCATENATE `{"FLAG":true,"CHAR":"\"TEST\\\"/C:\\temp","NUMC":12345678,"STRING":"ABCDEFG","XSTRING":"q83v","INTEGER":42,"FLOAT":3.1415926535897900E+00,`
+    CONCATENATE `{"FLAG":true,"CHAR":"\"TEST\\\"/C:\\temp\\","NUMC":12345678,"STRING":"ABCDEFG","XSTRING":"q83v","INTEGER":42,"FLOAT":3.1415926535897900E+00,`
             `"PACKED":3.141593,"HEX":"AAAAAAAAOt5osQ==","GUID":"","TSL":"2015-10-02T13:44:50.5545900Z","TSL2":"\/Date(1577462450454)\/","TSL3":"\/Date(1577462450454)\/","TS":"\/Date(1467981296000)\/","DATE":"2016-07-08","TIME":"PT12H34M56S",`
             `"DATE_I":"","TIME_I":""}` INTO lv_act.
 
@@ -700,6 +700,12 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     lv_act = `"20170101"`.
     deserialize( EXPORTING json = lv_act CHANGING data = lv_act_d ).
     cl_aunit_assert=>assert_equals( act = lv_act_d exp = '20170101' msg = 'Deserialization of date field in format 20170101 fails' ).
+
+    CONCATENATE '"' cl_abap_char_utilities=>cr_lf 'DATA(txt) = |Test_2\n|. "with nl' '"' cl_abap_char_utilities=>cr_lf INTO lv_exp.
+
+    lv_act    = serialize( data = lv_exp ).
+    deserialize( EXPORTING json = lv_act CHANGING data = lv_act ).
+    cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Deserialization and serialization of complex escapment fails' ).
 
   ENDMETHOD.                    "serialize_types
 
