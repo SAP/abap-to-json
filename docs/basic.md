@@ -134,7 +134,7 @@ Two static methods are most interesting in common cases: SERIALIZE and DESERIALI
 ## SERIALIZE: Serialize ABAP object into JSON
 
 * \> **DATA** (any) - any ABAP object/structure/table/element to be serialized
-* \> **COMPRESS** (bool, default=false) - tells serializer to skip empty elements/objects during serialization. So, all of which IS INITIAL = TRUE. 
+* \> **COMPRESS** (bool, default = false) - tells serializer to skip empty elements/objects during serialization. So, all of which IS INITIAL = TRUE. 
 * \> **NAME** (string, optional) - optional name of the serialized object. Will '"name" : {...}' instead of ' {...} ' if supplied.
 * \> **PRETTY_NAME** (enum, optional)- mode controls how ABAP field names are transformed into JSON attribute names.  More can be found in the description below.
 * \> **TYPE_DESCR** (ref to CL_ABAP_TYPEDESCR, optional) - if you already know the object type, pass it to improve performance. 
