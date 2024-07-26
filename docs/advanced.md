@@ -109,7 +109,7 @@ If you do not own a class you want to serialize, you can inherit it from your cl
 # Partial serialization/deserialization
 When it is needed:
 * You deserialize JSON to ABAP but would like some known parts to be deserialized as JSON string, while you do not know the nesting JSON structure.
-* You deserialize a collection (array/associative array) having objects with heterogeneous structures (for example the same field has a different type depending on object type). Using partial deserialization, you can restore such a type as JSON string in ABAP and apply additional deserialization based on the object type later.  
+* You deserialize a collection (array/associative array) having objects with heterogeneous structures (for example the same field has a different type depending on object type). Using partial deserialization, you can restore a type such as a JSON string in ABAP, and apply additional deserialization based on the object type later.  
 * You serialize ABAP to JSON and have some ready JSON pieces (strings) you want to mix in. 
 
 The solution /UI2/CL_JSON has for this type /UI2/CL_JSON=>JSON (alias for built-in type string). ABAP fields declared with this type will be serialized/deserialized as JSON pieces. During serialization from ABAP to JSON, the content of such JSON piece is not validated for correctness, so if you pass an invalid JSON block, it may destroy the complete resulting JSON string at the end.
@@ -206,10 +206,11 @@ O000001ZZ_TRANSIENT_TEST_A  {"columns":{"ABTNR":{"bVisible":false},"CITY1":{"bVi
 
 # Deserialization of an untyped (unknown) JSON object
 Suppose you need to deserialize a JSON object with an unknown structure, or you do not have a passing data type on the ABAP side, or the data type of the resulting object may vary. In that case, you can generate an ABAP object on the fly, using the corresponding GENERATE method. The method has some limitations compared to standard deserialization:
-
-* All fields are generated as a reference (even elementary types)
+* Fields are generated as a reference (even elementary types). If you want a more user-friendly generation - use the optimization flag (see below).
 * you can not control how deserialized arrays or timestamps
 * you can not access components of generated structure statically (while the structure is unknown at compile time) and need to use dynamic access
+* you need to accept default logic for type detection. Supported types are int, float, packaged, strings, boolean, date, time, and timestamps.
+
 The simplest example, with straightforward access:
 ```abap
 DATA: lv_json TYPE /ui2/cl_json=>json,
@@ -252,12 +253,19 @@ lr_data = /ui2/cl_json=>generate( json = lv_json ).
 WRITE: lv_val.
 ```
 
-# Implicit generation of ABAP objects on deserialization
+## Optimized type generation
+From PL19 it is possible to use the new switch for GENERATE (optimize) and DESERIALIZE (gen_optimize) to activate the optimization of generated ABAP data for REF TO DATA (fewer references, easily readable and accessible). But it results in longer processing for data generation (~25%).
+The generation without optimization flag:
+With optimization flag:
+
+
+## Implicit generation of ABAP objects on deserialization
+
 In addition to the explicit generation of the ABAP data objects from the JSON string, the deserializer supports an implicit way of generation, during DESERIALIZE(INT) call. To trigger generation, your output data structure shall contain a field with the type REF TO DATA, and the field name shall match the JSON attribute (pretty name rules are considered). Depending on the value of the field, the behavior may differ:
 * The value is not bound (initial): deserialize will use generation rules when creating corresponding data types of the referenced value
 * The value is bound (but may be empty): the deserializer will create a new referenced value based on the referenced type.
 
-## Example of implicit generation of ABAP data from JSON string
+### Example of implicit generation of ABAP data from JSON string
 ```abap
 TYPES:
   BEGIN OF ts_dyn_data1,
