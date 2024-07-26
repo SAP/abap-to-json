@@ -155,18 +155,21 @@ Two static methods are most interesting in common cases: SERIALIZE and DESERIALI
 * \> **PRETTY_NAME** (enum, optional) - mode, controlling how JSON field names are mapped to ABAP component names. More can be found in  the description below.  
 * \> **ASSOC_ARRAYS** (bool, default = false) -  controls how to deserialize JSON objects into hash or sorted tables with unique keys. More can be found in the description below.
 * \> **ASSOC_ARRAYS_OPT** (bool, default = false) - when set, the deserializer will take into account the optimized rendering of associated arrays (properties) in JSON. 
-* \> **TS_AS_ISO8601** (bool, default = false) - says deserializer to read timestamps from strings into timestamps fields using ISO 8601 format.
 * \> **NAME_MAPPINGS** (table) - ABAP<->JSON Name Mapping Table
 * \> **CONVERSION_EXITS** (bool, default = false) - use DDIC conversion exits on deserialize of values (performance loss!)
-* \> **HEX_AS_BASE64** (bool, default = true) - Deserialize hex values as base64
+* \> **HEX_AS_BASE64** (bool, default = true) - deserialize hex values as base64
+* \> **[GEN_OPTIMIZE](advanced.md#deserialization-of-an-untyped-unknown-json-object)** (bool, default = false) - optimize generated types, structures, and table types for REF TO DATA
 * \<\> **DATA** (any) - ABAP object/structure/table/element to be filled from JSON string. If the ABAP structure contains more fields than in the JSON object, the content of unmatched fields is preserved.
 
 ## GENERATE: Generates ABAP object from JSON
 
-* \> **JSON** (string) - input JSON object string to deserialize
-* \> **PRETTY_NAME** (enum, optional) - mode, controlling how JSON field names are mapped to ABAP component names. More can be found in the description below.  
+* \> **JSON** (string) - input JSON object string to generate
+* \> **JSONX** (xstring) - input JSON object as a raw string to generate
+* \> **PRETTY_NAME** (enum, optional) - mode, controlling how JSON field names are mapped to ABAP component names. More can be found in the description below.
+* \> **[OPTIMIZE](advanced.md#deserialization-of-an-untyped-unknown-json-object)** (bool, default = false) - optimize generated types, structures, and table types for REF TO DATA
 * \> **NAME_MAPPINGS** (table) - ABAP<->JSON Name Mapping Table
 * \< **RR_DATA** (REF TO DATA) - a reference to ABAP structure/table dynamically generated from JSON string.
+
 In addition to the explained methods, there are two options, that need a wider explanation:
 
 ## PRETTY_NAME : enumeration of modes, defined as constant /UI2/CL_JSON=>pretty_name.
