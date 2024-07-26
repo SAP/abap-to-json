@@ -22,7 +22,7 @@ For simplicity reason the class provides you static SERIALIZE/DESERIALIZE method
  * \> **ASSOC_ARRAYS_OPT** (bool, default = false) - Optimize rendering of name-value maps
  * \> **STRICT_MODE** (bool, default = false) - Stop further processing on error
  * \> **NUMC_AS_STRING** (bool, default = false) - Serialize NUMC fields as strings
- * \> **NAME_MAPPINGS** - ABAP<->JSON Name Mapping Table
+ * \> **NAME_MAPPINGS** (optional) - ABAP<->JSON Name Mapping Table
  * \> **CONVERSION_EXITS** (bool, default = false) - Use DDIC conversion exits on serialize/deserialize of values
  * \> **FORMAT_OUTPUT** (bool, default = false) - Indent and split in lines serialized JSON
  * \> **HEX_AS_BASE64** (bool, default = true) - Process hex values as base64
