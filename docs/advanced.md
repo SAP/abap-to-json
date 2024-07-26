@@ -1,4 +1,5 @@
 # Overview
+- [CONSTRUCTOR and using instance methods](#CONSTRUCTOR-and-using-instance-methods)
 - [Custom ABAP to JSON, JSON to ABAP name mapping](#custom-abap-to-json-json-to-abap-name-mapping)
 - [Custom formatting of values for serialization of ABAP into JSON](#custom-formatting-of-values-for-serialization-of-abap-into-json)
 - [Serialization/deserialization of hierarchical/recursive data](#serializationdeserialization-of-hierarchicalrecursive-data)
@@ -8,6 +9,30 @@
 - [Exception Handling in /UI2/CL_JSON](#exception-handling-in-ui2cl_json)
 - [JSON to ABAP transformation with the use of CALL TRANSFORMATION](#json-to-abap-transformation-with-the-use-of-call-transformation)
 
+# CONSTRUCTOR and using instance methods
+For simplicity reason the class provides you static SERIALIZE/DESERIALIZE methods that can be used without explicit creation of of the class instance. However, the instance of the class is still created implicitly inside of the static method. If you have multiple usages of the class and would like to benefit from better performance and single initialization you may create the class instance manually, initialize the constructor once, and use the instance methods instead (SERIALIZE_INT/DESERIALIZE_INT/GENERATE_INT). Instance methods have fewer parameters compared to static ones, while use instance setting provided in the constructor. In addition to performance gains, you also get more flexibility in class behavior customizing. The class CONSTRUCTOR has more flags as it is exposed in static methods. 
+
+##CONSTRUCTOR
+* > **COMPRESS** (bool, default=false) - Skip empty elements
+* > **PRETTY_NAME** (PRETTY_NAME_MODE, default=PRETTY_MODE-NONE) - Pretty Print property names
+* > **ASSOC_ARRAYS** (bool, default=false) - C_BOOL-FALSE	Serialize tables with unique keys as associative array
+* > **TS_AS_ISO8601** (bool, default=false) - C_BOOL-FALSE	Dump timestamps as string in ISO8601 format
+* > **EXPAND_INCLUDES** (bool, default=true) - Expand named includes in structures
+* > **ASSOC_ARRAYS_OPT** (bool, default=false) - Optimize rendering of name-value maps
+* > **STRICT_MODE** (bool, default=false) - Stop further processing on error
+* > **NUMC_AS_STRING** (bool, default=false) - Serialize NUMC fields as strings
+* > **NAME_MAPPINGS** - ABAP<->JSON Name Mapping Table
+* > **CONVERSION_EXITS** (bool, default=false) - Use DDIC conversion exits on serialize/deserialize of values
+* > **FORMAT_OUTPUT** (bool, default=false) - Indent and split in lines serialized JSON
+* > **HEX_AS_BASE64** (bool, default=true) - Process hex values as base64
+* > **GEN_OPTIMIZE** (bool, default=false) - Optimize generated structures for REF TO DATA
+* > **BOOL_TYPES** (string, default=MC_BOOL_TYPES) - List of known boolean types
+* > **BOOL_3STATE** (string, default=MC_BOOL_3STATE) - List of known 3state boolean types
+* > **INITIAL_TS** (string, default="") - Initial timestamp as JSON
+* > **INITIAL_DATE** (string, default="") -	Initial date as JSON
+* > **INITIAL_TIME** (string, default="") Initial time as JSON
+* > **TIME_ZONE	Like** (string, default='UTC') - default time zone for conversion to date and time
+  
 # Custom ABAP to JSON, JSON to ABAP name mapping
 By default, you control how JSON names are formatted/mapped to ABAP names by selecting proper pretty_mode as a parameter for the SERIALIZE/DESERIALIZE/GENERATE method. But sometimes, the standard, hard-coded formatting, is not enough. For example, if you need special rules for name formatting (for using special characters) or because the JSON attribute name is too long and can't be mapped to the ABAP name (which has a 30-character length limit). 
 
