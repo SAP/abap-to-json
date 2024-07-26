@@ -4,7 +4,6 @@
 - [Serialization/deserialization of hierarchical/recursive data](#serializationdeserialization-of-hierarchicalrecursive-data)
 - [Partial serialization/deserialization](#partial-serializationdeserialization)
 - [Deserialization of an untyped (unknown) JSON object](#deserialization-of-an-untyped-unknown-json-object)
-- [Implicit generation of ABAP objects on deserialization](#implicit-generation-of-abap-objects-on-deserialization)
 - [JSON/ABAP serialization/deserialization with runtime type information](#jsonabap-serializationdeserialization-with-runtime-type-information)
 - [Exception Handling in /UI2/CL_JSON](#exception-handling-in-ui2cl_json)
 - [JSON to ABAP transformation with the use of CALL TRANSFORMATION](#json-to-abap-transformation-with-the-use-of-call-transformation)
@@ -255,9 +254,14 @@ WRITE: lv_val.
 
 ## Optimized type generation
 From PL19 it is possible to use the new switch for GENERATE (optimize) and DESERIALIZE (gen_optimize) to activate the optimization of generated ABAP data for REF TO DATA (fewer references, easily readable and accessible). But it results in longer processing for data generation (~25%).
-The generation without optimization flag:
-With optimization flag:
 
+The generation without optimization flag:
+
+![generate_sbook1](images/generate_sbook1.png)
+![generate_sbook2](images/generate_sbook2.png)
+
+With optimization flag:
+![generate_sbook_optimized](images/generate_sbook_optimized.png)
 
 ## Implicit generation of ABAP objects on deserialization
 
