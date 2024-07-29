@@ -14,19 +14,22 @@ For simplicity reason the class provides you static SERIALIZE/DESERIALIZE method
 
 ## CONSTRUCTOR
 
+### Common settings exposed also in dedicated static API
  * \> **COMPRESS** (bool, default = false) - Skip empty elements
  * \> **PRETTY_NAME** (PRETTY_NAME_MODE, default = PRETTY_MODE-NONE) - Pretty Print property names
  * \> **ASSOC_ARRAYS** (bool, default = false) - C_BOOL-FALSE	Serialize tables with unique keys as associative array
  * \> **TS_AS_ISO8601** (bool, default = false) - C_BOOL-FALSE	Dump timestamps as string in ISO8601 format
  * \> **EXPAND_INCLUDES** (bool, default = true) - Expand named includes in structures
  * \> **ASSOC_ARRAYS_OPT** (bool, default = false) - Optimize rendering of name-value maps
- * \> **STRICT_MODE** (bool, default = false) - Stop further processing on error
- * \> **NUMC_AS_STRING** (bool, default = false) - Serialize NUMC fields as strings
+  * \> **NUMC_AS_STRING** (bool, default = false) - Serialize NUMC fields as strings
  * \> **NAME_MAPPINGS** (optional) - ABAP<->JSON Name Mapping Table
  * \> **CONVERSION_EXITS** (bool, default = false) - Use DDIC conversion exits on serialize/deserialize of values
  * \> **FORMAT_OUTPUT** (bool, default = false) - Indent and split in lines serialized JSON
  * \> **HEX_AS_BASE64** (bool, default = true) - Process hex values as base64
  * \> **GEN_OPTIMIZE** (bool, default = false) - Optimize generated structures for REF TO DATA
+
+### Advanced settings available only with explicit constructor initialization
+ * \> **STRICT_MODE** (bool, default = false) - Stop further processing on error
  * \> **BOOL_TYPES** (string, default = MC_BOOL_TYPES) - List of known boolean types
  * \> **BOOL_3STATE** (string, default = MC_BOOL_3STATE) - List of known 3state boolean types
  * \> **INITIAL_TS** (string, default = "") - Initial timestamp as JSON
