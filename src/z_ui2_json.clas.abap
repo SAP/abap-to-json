@@ -3,31 +3,31 @@
 *----------------------------------------------------------------------*
 *
 *----------------------------------------------------------------------*
-CLASS z_ui2_json DEFINITION
-  PUBLIC
-  CREATE PUBLIC .
+class Z_UI2_JSON definition
+  public
+  create public .
 
-  PUBLIC SECTION.
-    TYPE-POOLS abap .
-    CLASS cl_abap_tstmp DEFINITION LOAD .
-    CLASS cx_sy_conversion_error DEFINITION LOAD .
+public section.
+  type-pools ABAP .
+  class CL_ABAP_TSTMP definition load .
+  class CX_SY_CONVERSION_ERROR definition load .
 
-    TYPES json TYPE string .
-    TYPES:
-      BEGIN OF name_mapping,
+  types JSON type STRING .
+  types:
+    BEGIN OF name_mapping,
         abap TYPE abap_compname,
         json TYPE string,
       END OF name_mapping .
-    TYPES:
-      name_mappings    TYPE HASHED TABLE OF name_mapping WITH UNIQUE KEY abap .
-    TYPES:
-      ref_tab          TYPE STANDARD TABLE OF REF TO data WITH DEFAULT KEY .
-    TYPES bool TYPE char1 .
-    TYPES tribool TYPE char1 .
-    TYPES pretty_name_mode TYPE char1 .
+  types:
+    name_mappings    TYPE HASHED TABLE OF name_mapping WITH UNIQUE KEY abap .
+  types:
+    ref_tab          TYPE STANDARD TABLE OF REF TO data WITH DEFAULT KEY .
+  types BOOL type CHAR1 .
+  types TRIBOOL type CHAR1 .
+  types PRETTY_NAME_MODE type CHAR1 .
 
-    CONSTANTS:
-      BEGIN OF pretty_mode,
+  constants:
+    BEGIN OF pretty_mode,
         none          TYPE char1  VALUE ``,
         low_case      TYPE char1  VALUE 'L',
         camel_case    TYPE char1  VALUE 'X',
@@ -35,152 +35,153 @@ CLASS z_ui2_json DEFINITION
         user          TYPE char1  VALUE 'U',
         user_low_case TYPE char1  VALUE 'C',
       END OF  pretty_mode .
-    CONSTANTS:
-      BEGIN OF c_bool,
+  constants:
+    BEGIN OF c_bool,
         true  TYPE bool  VALUE 'X',
         false TYPE bool  VALUE '',
       END OF  c_bool .
-    CONSTANTS:
-      BEGIN OF c_tribool,
+  constants:
+    BEGIN OF c_tribool,
         true      TYPE tribool  VALUE c_bool-true,
         false     TYPE tribool  VALUE '-',
         undefined TYPE tribool  VALUE ``,
       END OF  c_tribool .
-    CLASS-DATA sv_white_space TYPE string READ-ONLY .
-    CONSTANTS mc_key_separator TYPE string VALUE `-` ##NO_TEXT.
-    CLASS-DATA mc_bool_types TYPE string READ-ONLY VALUE `\TYPE-POOL=ABAP\TYPE=ABAP_BOOL\TYPE=BOOLEAN\TYPE=BOOLE_D\TYPE=XFELD\TYPE=XSDBOOLEAN\TYPE=WDY_BOOLEAN` ##NO_TEXT.
-    CLASS-DATA mc_bool_3state TYPE string READ-ONLY VALUE `\TYPE=BOOLEAN` ##NO_TEXT.
-    CONSTANTS version TYPE i VALUE 19 ##NO_TEXT.
-    CLASS-DATA mc_json_type TYPE string READ-ONLY .
+  class-data SV_WHITE_SPACE type STRING read-only .
+  constants MC_KEY_SEPARATOR type STRING value `-` ##NO_TEXT.
+  class-data MC_BOOL_TYPES type STRING read-only value `\TYPE-POOL=ABAP\TYPE=ABAP_BOOL\TYPE=BOOLEAN\TYPE=BOOLE_D\TYPE=XFELD\TYPE=XSDBOOLEAN\TYPE=WDY_BOOLEAN` ##NO_TEXT.
+  class-data MC_BOOL_3STATE type STRING read-only value `\TYPE=BOOLEAN` ##NO_TEXT.
+  constants VERSION type I value 19 ##NO_TEXT.
+  class-data MC_JSON_TYPE type STRING read-only .
 
-    CLASS-METHODS class_constructor .
-    CLASS-METHODS string_to_xstring
-      IMPORTING
-        !in        TYPE string
-      CHANGING
-        VALUE(out) TYPE any .
-    CLASS-METHODS xstring_to_string
-      IMPORTING
-        !in        TYPE any
-      RETURNING
-        VALUE(out) TYPE string .
-    CLASS-METHODS raw_to_string
-      IMPORTING
-        !iv_xstring      TYPE xstring
-        !iv_encoding     TYPE abap_encoding OPTIONAL
-      RETURNING
-        VALUE(rv_string) TYPE string .
-    CLASS-METHODS string_to_raw
-      IMPORTING
-        !iv_string        TYPE string
-        !iv_encoding      TYPE abap_encoding OPTIONAL
-      RETURNING
-        VALUE(rv_xstring) TYPE xstring .
-    CLASS-METHODS dump
-      IMPORTING
-        !data          TYPE data
-        !compress      TYPE bool DEFAULT c_bool-false
-        !type_descr    TYPE REF TO cl_abap_typedescr OPTIONAL
-        !pretty_name   TYPE pretty_name_mode DEFAULT pretty_mode-none
-        !assoc_arrays  TYPE bool DEFAULT c_bool-false
-        !ts_as_iso8601 TYPE bool DEFAULT c_bool-false
-      RETURNING
-        VALUE(r_json)  TYPE json .
-    CLASS-METHODS deserialize
-      IMPORTING
-        !json             TYPE json OPTIONAL
-        !jsonx            TYPE xstring OPTIONAL
-        !pretty_name      TYPE pretty_name_mode DEFAULT pretty_mode-none
-        !assoc_arrays     TYPE bool DEFAULT c_bool-false
-        !assoc_arrays_opt TYPE bool DEFAULT c_bool-false
-        !name_mappings    TYPE name_mappings OPTIONAL
-        !conversion_exits TYPE bool DEFAULT c_bool-false
-        !hex_as_base64    TYPE bool DEFAULT c_bool-true
-        !gen_optimize     TYPE bool DEFAULT c_bool-false
-      CHANGING
-        !data             TYPE data .
-    CLASS-METHODS serialize
-      IMPORTING
-        !data             TYPE data
-        !compress         TYPE bool DEFAULT c_bool-false
-        !name             TYPE string OPTIONAL
-        !pretty_name      TYPE pretty_name_mode DEFAULT pretty_mode-none
-        !type_descr       TYPE REF TO cl_abap_typedescr OPTIONAL
-        !assoc_arrays     TYPE bool DEFAULT c_bool-false
-        !ts_as_iso8601    TYPE bool DEFAULT c_bool-false
-        !expand_includes  TYPE bool DEFAULT c_bool-true
-        !assoc_arrays_opt TYPE bool DEFAULT c_bool-false
-        !numc_as_string   TYPE bool DEFAULT c_bool-false
-        !name_mappings    TYPE name_mappings OPTIONAL
-        !conversion_exits TYPE bool DEFAULT c_bool-false
-        !format_output    TYPE bool DEFAULT c_bool-false
-        !hex_as_base64    TYPE bool DEFAULT c_bool-true
-      RETURNING
-        VALUE(r_json)     TYPE json .
-    METHODS deserialize_int
-      IMPORTING
-        !json  TYPE json OPTIONAL
-        !jsonx TYPE xstring OPTIONAL
-      CHANGING
-        !data  TYPE data
-      RAISING
-        cx_sy_move_cast_error .
-    CLASS-METHODS generate
-      IMPORTING
-        !json          TYPE json OPTIONAL
-        !pretty_name   TYPE pretty_name_mode DEFAULT pretty_mode-none
-        !optimize      TYPE bool DEFAULT c_bool-false
-        !name_mappings TYPE name_mappings OPTIONAL
-        !jsonx         TYPE xstring OPTIONAL
-          PREFERRED PARAMETER json
-      RETURNING
-        VALUE(rr_data) TYPE REF TO data .
-    METHODS serialize_int
-      IMPORTING
-        !data         TYPE data
-        !name         TYPE string OPTIONAL
-        !type_descr   TYPE REF TO cl_abap_typedescr OPTIONAL
-      RETURNING
-        VALUE(r_json) TYPE json .
-    METHODS generate_int
-      IMPORTING
-        !json         TYPE json
-        VALUE(length) TYPE i OPTIONAL
-      CHANGING
-        !data         TYPE REF TO data
-        !offset       TYPE i DEFAULT 0
-      RAISING
-        cx_sy_move_cast_error .
-    METHODS constructor
-      IMPORTING
-        !compress         TYPE bool DEFAULT c_bool-false
-        !pretty_name      TYPE pretty_name_mode DEFAULT pretty_mode-none
-        !assoc_arrays     TYPE bool DEFAULT c_bool-false
-        !ts_as_iso8601    TYPE bool DEFAULT c_bool-false
-        !expand_includes  TYPE bool DEFAULT c_bool-true
-        !assoc_arrays_opt TYPE bool DEFAULT c_bool-false
-        !strict_mode      TYPE bool DEFAULT c_bool-false
-        !numc_as_string   TYPE bool DEFAULT c_bool-false
-        !name_mappings    TYPE name_mappings OPTIONAL
-        !conversion_exits TYPE bool DEFAULT c_bool-false
-        !format_output    TYPE bool DEFAULT c_bool-false
-        !hex_as_base64    TYPE bool DEFAULT c_bool-true
-        !gen_optimize     TYPE bool DEFAULT c_bool-false
-        !bool_types       TYPE string DEFAULT mc_bool_types
-        !bool_3state      TYPE string DEFAULT mc_bool_3state
-        !initial_ts       TYPE string DEFAULT `""`
-        !initial_date     TYPE string DEFAULT `""`
-        !initial_time     TYPE string DEFAULT `""` .
-    CLASS-METHODS bool_to_tribool
-      IMPORTING
-        !iv_bool          TYPE bool
-      RETURNING
-        VALUE(rv_tribool) TYPE tribool .
-    CLASS-METHODS tribool_to_bool
-      IMPORTING
-        !iv_tribool    TYPE tribool
-      RETURNING
-        VALUE(rv_bool) TYPE bool .
+  class-methods CLASS_CONSTRUCTOR .
+  class-methods STRING_TO_XSTRING
+    importing
+      !IN type STRING
+    changing
+      value(OUT) type ANY .
+  class-methods XSTRING_TO_STRING
+    importing
+      !IN type ANY
+    returning
+      value(OUT) type STRING .
+  class-methods RAW_TO_STRING
+    importing
+      !IV_XSTRING type XSTRING
+      !IV_ENCODING type ABAP_ENCODING optional
+    returning
+      value(RV_STRING) type STRING .
+  class-methods STRING_TO_RAW
+    importing
+      !IV_STRING type STRING
+      !IV_ENCODING type ABAP_ENCODING optional
+    returning
+      value(RV_XSTRING) type XSTRING .
+  class-methods DUMP
+    importing
+      !DATA type DATA
+      !COMPRESS type BOOL default C_BOOL-FALSE
+      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR optional
+      !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
+      !ASSOC_ARRAYS type BOOL default C_BOOL-FALSE
+      !TS_AS_ISO8601 type BOOL default C_BOOL-FALSE
+    returning
+      value(R_JSON) type JSON .
+  class-methods DESERIALIZE
+    importing
+      !JSON type JSON optional
+      !JSONX type XSTRING optional
+      !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
+      !ASSOC_ARRAYS type BOOL default C_BOOL-FALSE
+      !ASSOC_ARRAYS_OPT type BOOL default C_BOOL-FALSE
+      !NAME_MAPPINGS type NAME_MAPPINGS optional
+      !CONVERSION_EXITS type BOOL default C_BOOL-FALSE
+      !HEX_AS_BASE64 type BOOL default C_BOOL-TRUE
+      !GEN_OPTIMIZE type BOOL default C_BOOL-FALSE
+    changing
+      !DATA type DATA .
+  class-methods SERIALIZE
+    importing
+      !DATA type DATA
+      !COMPRESS type BOOL default C_BOOL-FALSE
+      !NAME type STRING optional
+      !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
+      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR optional
+      !ASSOC_ARRAYS type BOOL default C_BOOL-FALSE
+      !TS_AS_ISO8601 type BOOL default C_BOOL-FALSE
+      !EXPAND_INCLUDES type BOOL default C_BOOL-TRUE
+      !ASSOC_ARRAYS_OPT type BOOL default C_BOOL-FALSE
+      !NUMC_AS_STRING type BOOL default C_BOOL-FALSE
+      !NAME_MAPPINGS type NAME_MAPPINGS optional
+      !CONVERSION_EXITS type BOOL default C_BOOL-FALSE
+      !FORMAT_OUTPUT type BOOL default C_BOOL-FALSE
+      !HEX_AS_BASE64 type BOOL default C_BOOL-TRUE
+    returning
+      value(R_JSON) type JSON .
+  methods DESERIALIZE_INT
+    importing
+      !JSON type JSON optional
+      !JSONX type XSTRING optional
+    changing
+      !DATA type DATA
+    raising
+      CX_SY_MOVE_CAST_ERROR .
+  class-methods GENERATE
+    importing
+      !JSON type JSON optional
+      !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
+      !OPTIMIZE type BOOL default C_BOOL-FALSE
+      !NAME_MAPPINGS type NAME_MAPPINGS optional
+      !JSONX type XSTRING optional
+    preferred parameter JSON
+    returning
+      value(RR_DATA) type ref to DATA .
+  methods SERIALIZE_INT
+    importing
+      !DATA type DATA
+      !NAME type STRING optional
+      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR optional
+    returning
+      value(R_JSON) type JSON .
+  methods GENERATE_INT
+    importing
+      !JSON type JSON
+      value(LENGTH) type I optional
+    changing
+      !DATA type ref to DATA
+      !OFFSET type I default 0
+    raising
+      CX_SY_MOVE_CAST_ERROR .
+  methods CONSTRUCTOR
+    importing
+      !COMPRESS type BOOL default C_BOOL-FALSE
+      !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
+      !ASSOC_ARRAYS type BOOL default C_BOOL-FALSE
+      !TS_AS_ISO8601 type BOOL default C_BOOL-FALSE
+      !EXPAND_INCLUDES type BOOL default C_BOOL-TRUE
+      !ASSOC_ARRAYS_OPT type BOOL default C_BOOL-FALSE
+      !STRICT_MODE type BOOL default C_BOOL-FALSE
+      !NUMC_AS_STRING type BOOL default C_BOOL-FALSE
+      !NAME_MAPPINGS type NAME_MAPPINGS optional
+      !CONVERSION_EXITS type BOOL default C_BOOL-FALSE
+      !FORMAT_OUTPUT type BOOL default C_BOOL-FALSE
+      !HEX_AS_BASE64 type BOOL default C_BOOL-TRUE
+      !GEN_OPTIMIZE type BOOL default C_BOOL-FALSE
+      !BOOL_TYPES type STRING default MC_BOOL_TYPES
+      !BOOL_3STATE type STRING default MC_BOOL_3STATE
+      !INITIAL_TS type STRING default `""`
+      !INITIAL_DATE type STRING default `""`
+      !INITIAL_TIME type STRING default `""`
+      !TIME_ZONE like SY-ZONLO default 'UTC' .
+  class-methods BOOL_TO_TRIBOOL
+    importing
+      !IV_BOOL type BOOL
+    returning
+      value(RV_TRIBOOL) type TRIBOOL .
+  class-methods TRIBOOL_TO_BOOL
+    importing
+      !IV_TRIBOOL type TRIBOOL
+    returning
+      value(RV_BOOL) type BOOL .
   PROTECTED SECTION.
 
     TYPES:
@@ -249,6 +250,7 @@ CLASS z_ui2_json DEFINITION
     DATA mv_initial_ts TYPE string VALUE `""` ##NO_TEXT.
     DATA mv_initial_date TYPE string VALUE `""` ##NO_TEXT.
     DATA mv_initial_time TYPE string VALUE `""` ##NO_TEXT.
+    DATA mv_time_zone LIKE sy-zonlo VALUE `UTC` ##NO_TEXT.
     DATA mv_compress TYPE bool .
     DATA mv_pretty_name TYPE pretty_name_mode .
     DATA mv_assoc_arrays TYPE bool .
@@ -586,6 +588,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     mv_initial_ts       = initial_ts.
     mv_initial_date     = initial_date.
     mv_initial_time     = initial_time.
+    mv_time_zone        = time_zone.
 
     LOOP AT name_mappings INTO pair.
       TRANSLATE pair-abap TO UPPER CASE.
@@ -2171,7 +2174,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                           ELSE.
                             tstml = lcl_util=>read_iso8601( sdummy ).
                             IF tstml IS NOT INITIAL.
-                              CONVERT TIME STAMP tstml TIME ZONE sy-zonlo INTO DATE data.
+                              CONVERT TIME STAMP tstml TIME ZONE mv_time_zone INTO DATE data.
                               IF sy-subrc IS NOT INITIAL.
                                 CLEAR data.
                               ENDIF.
@@ -2196,7 +2199,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                           ELSE.
                             tstml = lcl_util=>read_iso8601( sdummy ).
                             IF tstml IS NOT INITIAL.
-                              CONVERT TIME STAMP tstml TIME ZONE sy-zonlo INTO TIME data.
+                              CONVERT TIME STAMP tstml TIME ZONE mv_time_zone INTO TIME data.
                               IF sy-subrc IS NOT INITIAL.
                                 CLEAR data.
                               ENDIF.
