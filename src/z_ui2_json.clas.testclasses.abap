@@ -13,13 +13,15 @@ CLASS lcl_util DEFINITION FINAL FRIENDS z_ui2_json.
 
   PRIVATE SECTION.
     CLASS-DATA:
-      so_regex_iso8601 TYPE REF TO cl_abap_regex.
+      so_regex_iso8601 TYPE REF TO cl_abap_regex,
+      so_regex_edm_date_time TYPE REF TO cl_abap_regex.
 
     CLASS-METHODS:
       _escape IMPORTING in TYPE data EXPORTING out TYPE string,
       to_md5  IMPORTING iv_value TYPE string RETURNING VALUE(rv_result) TYPE string,
       read_string IMPORTING json TYPE string mark TYPE i CHANGING offset TYPE i DEFAULT 0 text TYPE string RAISING cx_sy_move_cast_error,
       read_iso8601 IMPORTING in TYPE string RETURNING VALUE(rv_tstm) TYPE timestampl,
+      read_edm_datetime IMPORTING in TYPE string RETURNING VALUE(rv_tstm) TYPE timestampl,
       describe_type IMPORTING io_type_descr TYPE REF TO cl_abap_typedescr RETURNING VALUE(rv_typename) TYPE string.
 
 ENDCLASS.                    "lcl_util DEFINITION
@@ -35,6 +37,8 @@ CLASS lcl_util IMPLEMENTATION.
 
     " support for ISO8601 => https://en.wikipedia.org/wiki/ISO_8601
     create_regexp so_regex_iso8601 '^(?:(\d{4})-?(\d{2})-?(\d{2}))?(?:T(\d{2}):?(\d{2})(?::?(\d{2}))?(?:[\.,](\d{0,9}))?(?:Z|(?:([+-])(\d{2})(?::?(\d{2}))?))?)?\s*$'.
+    " support for Edm.DateTime => http://www.odata.org/documentation/odata-version-2-0/json-format/
+    create_regexp so_regex_edm_date_time '^\/[Dd][Aa][Tt][Ee]\((-?\d+)(?:([+-])(\d{1,4}))?\)\/\s*$'.
 
   ENDMETHOD.
 
@@ -140,6 +144,42 @@ CLASS lcl_util IMPLEMENTATION.
         rv_tstm = cl_abap_tstmp=>subtractsecs( tstmp = rv_tstm secs = seconds ).
       ELSE.
         rv_tstm = cl_abap_tstmp=>add( tstmp = rv_tstm secs = seconds ).
+      ENDIF.
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD read_edm_datetime.
+
+    CONSTANTS: lc_epochs TYPE c LENGTH 15 VALUE '19700101000000.'.
+
+    DATA: ticks       TYPE c LENGTH 21,
+          offset_sign TYPE c,
+          offset      TYPE c LENGTH 4,
+          pticks      TYPE p,
+          pseconds    TYPE p,
+          psubsec     TYPE p,
+          stimestmp   TYPE string.
+
+    FIND FIRST OCCURRENCE OF REGEX so_regex_edm_date_time IN in SUBMATCHES ticks offset_sign offset.
+    CHECK sy-subrc IS INITIAL.
+
+    pticks     = ticks.
+    pseconds   = pticks / 1000. " in seconds
+    psubsec    = pticks MOD 1000. " in subsec
+
+    stimestmp = psubsec.
+    CONCATENATE lc_epochs stimestmp INTO stimestmp.
+    rv_tstm = stimestmp.
+
+    rv_tstm = cl_abap_tstmp=>add( tstmp = rv_tstm secs = pseconds ).
+
+    IF offset_sign IS NOT INITIAL.
+      pticks = offset * 60. "offset is in minutes
+      IF offset_sign EQ '+'.
+        rv_tstm = cl_abap_tstmp=>subtractsecs( tstmp = rv_tstm secs = pticks ).
+      ELSE.
+        rv_tstm = cl_abap_tstmp=>add( tstmp = rv_tstm secs = pticks ).
       ENDIF.
     ENDIF.
 
@@ -568,7 +608,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     ls_data-xstring = ls_data-string.
     ls_data-integer = 42.
     ls_data-float   = pi.
-    ls_data-packed  = pi.
+    ls_data-packed  = '3.141592' ##LITERAL.
     ls_data-hex     = 987654321.
     ls_data-tsl     = '20151002134450.5545900' ##LITERAL.
     ls_data-tsl2    = '20191227160050.4540000' ##LITERAL.
@@ -610,7 +650,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     CLEAR ls_data-guid.
 
     CONCATENATE `{"FLAG":true,"CHAR":"\"TEST\\\"/C:\\temp\\","NUMC":12345678,"STRING":"ABCDEFG","XSTRING":"q83v","INTEGER":42,"FLOAT":3.1415926535897900E+00,`
-                `"PACKED":3.141593,"HEX":"AAAAAAAAOt5osQ==","GUID":"","TSL":20151002134450.5545900,"TSL2":20191227160050.4540000,"TSL3":20191227160050.4540000,"TS":20160708123456,"DATE":"2016-07-08","TIME":"12:34:56","DATE_I":"","TIME_I":""}`
+                `"PACKED":3.141592,"HEX":"AAAAAAAAOt5osQ==","GUID":"","TSL":20151002134450.5545900,"TSL2":20191227160050.4540000,"TSL3":20191227160050.4540000,"TS":20160708123456,"DATE":"2016-07-08","TIME":"12:34:56","DATE_I":"","TIME_I":""}`
                 INTO lv_exp.
     lv_act    = serialize( data = ls_data ).
 
@@ -620,7 +660,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     cl_aunit_assert=>assert_equals( act = ls_data2 exp = ls_data msg = 'Deserialization of data types fails' ).
 
     CONCATENATE `{"FLAG":true,"CHAR":"\"TEST\\\"/C:\\temp\\","NUMC":12345678,"STRING":"ABCDEFG","XSTRING":"ABCDEF","INTEGER":42,"FLOAT":3.1415926535897900E+00,`
-                `"PACKED":3.141593,"HEX":"0000000000003ADE68B1","GUID":"","TSL":20151002134450.5545900,"TSL2":20191227160050.4540000,"TSL3":20191227160050.4540000,"TS":20160708123456,"DATE":"2016-07-08","TIME":"12:34:56","DATE_I":"","TIME_I":""}`
+                `"PACKED":3.141592,"HEX":"0000000000003ADE68B1","GUID":"","TSL":20151002134450.5545900,"TSL2":20191227160050.4540000,"TSL3":20191227160050.4540000,"TS":20160708123456,"DATE":"2016-07-08","TIME":"12:34:56","DATE_I":"","TIME_I":""}`
                 INTO lv_exp.
     lv_act    = serialize( data = ls_data hex_as_base64 = abap_false ).
 
@@ -630,7 +670,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     cl_aunit_assert=>assert_equals( act = ls_data2 exp = ls_data msg = 'Deserialization of hex without base64 fails' ).
 
     CONCATENATE `{"FLAG":true,"CHAR":"\"TEST\\\"/C:\\temp\\","NUMC":12345678,"STRING":"ABCDEFG","XSTRING":"q83v","INTEGER":42,"FLOAT":3.1415926535897900E+00,`
-                `"PACKED":3.141593,"HEX":"AAAAAAAAOt5osQ==","GUID":"","TSL":"2015-10-02T13:44:50.5545900Z","TSL2":"2019-12-27T16:00:50.4540000Z","TSL3":"2019-12-27T16:00:50.4540000Z","TS":"2016-07-08T12:34:56Z","DATE":"2016-07-08","TIME":"12:34:56",`
+                `"PACKED":3.141592,"HEX":"AAAAAAAAOt5osQ==","GUID":"","TSL":"2015-10-02T13:44:50.5545900Z","TSL2":"2019-12-27T16:00:50.4540000Z","TSL3":"2019-12-27T16:00:50.4540000Z","TS":"2016-07-08T12:34:56Z","DATE":"2016-07-08","TIME":"12:34:56",`
                 `"DATE_I":"","TIME_I":""}`
                 INTO lv_exp.
     lv_act    = serialize( ts_as_iso8601 = abap_true data = ls_data ).
@@ -641,7 +681,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     cl_aunit_assert=>assert_equals( act = ls_data2 exp = ls_data msg = 'Deserialization of timestamp in ISO8601 fails' ).
 
     CONCATENATE `{"FLAG":true,"CHAR":"\"TEST\\\"\/C:\\temp\\","NUMC":12345678,"STRING":"ABCDEFG","XSTRING":"q83v","INTEGER":42,"FLOAT":3.1415926535897900E+00,`
-            `"PACKED":3.141593,"HEX":"AAAAAAAAOt5osQ==","GUID":"","TSL":"2015-10-02T13:44:50.5545900Z","TSL2":"2019-12-27T16:00:50.4540000Z","TSL3":"20191227160050.4540000","TS":"2016-07-08T12:34:56Z","DATE":"2016-07-08","TIME":"12:34:56",`
+            `"PACKED":3.141592,"HEX":"AAAAAAAAOt5osQ==","GUID":"","TSL":"2015-10-02T13:44:50.5545900Z","TSL2":"2019-12-27T16:00:50.4540000Z","TSL3":"20191227160050.4540000","TS":"2016-07-08T12:34:56Z","DATE":"2016-07-08","TIME":"12:34:56",`
             `"DATE_I":"","TIME_I":""}` INTO lv_act.
 
     deserialize( EXPORTING json = lv_act CHANGING data = ls_data2 ).
@@ -649,7 +689,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     " https://blogs.sap.com/2017/01/05/date-and-time-in-sap-gateway-foundation/
     CONCATENATE `{"FLAG":true,"CHAR":"\"TEST\\\"/C:\\temp\\","NUMC":12345678,"STRING":"ABCDEFG","XSTRING":"q83v","INTEGER":42,"FLOAT":3.1415926535897900E+00,`
-            `"PACKED":3.141593,"HEX":"AAAAAAAAOt5osQ==","GUID":"","TSL":"2015-10-02T13:44:50.5545900Z","TSL2":"\/Date(1577462450454)\/","TSL3":"\/Date(1577462450454)\/","TS":"\/Date(1467981296000)\/","DATE":"2016-07-08","TIME":"12:34:56",`
+            `"PACKED":3.141592,"HEX":"AAAAAAAAOt5osQ==","GUID":"","TSL":"2015-10-02T13:44:50.5545900Z","TSL2":"\/Date(1577462450454)\/","TSL3":"\/Date(1577462450454)\/","TS":"\/Date(1467981296000)\/","DATE":"2016-07-08","TIME":"12:34:56",`
             `"DATE_I":"","TIME_I":""}` INTO lv_act.
 
     deserialize( EXPORTING json = lv_act CHANGING data = ls_data2 ).
@@ -657,7 +697,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     " https://blogs.sap.com/2017/01/05/date-and-time-in-sap-gateway-foundation/
     CONCATENATE `{"FLAG":true,"CHAR":"\"TEST\\\"/C:\\temp\\","NUMC":12345678,"STRING":"ABCDEFG","XSTRING":"q83v","INTEGER":42,"FLOAT":3.1415926535897900E+00,`
-            `"PACKED":3.141593,"HEX":"AAAAAAAAOt5osQ==","GUID":"","TSL":"2015-10-02T13:44:50.5545900Z","TSL2":"\/Date(1577462450454)\/","TSL3":"\/Date(1577462450454)\/","TS":"\/Date(1467981296000)\/","DATE":"2016-07-08","TIME":"PT12H34M56S",`
+            `"PACKED":3.141592,"HEX":"AAAAAAAAOt5osQ==","GUID":"","TSL":"2015-10-02T13:44:50.5545900Z","TSL2":"\/Date(1577462450454)\/","TSL3":"\/Date(1577462450454)\/","TS":"\/Date(1467981296000)\/","DATE":"2016-07-08","TIME":"PT12H34M56S",`
             `"DATE_I":"","TIME_I":""}` INTO lv_act.
 
     deserialize( EXPORTING json = lv_act CHANGING data = ls_data2 ).
@@ -706,6 +746,14 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     lv_act    = serialize( data = lv_exp ).
     deserialize( EXPORTING json = lv_act CHANGING data = lv_act ).
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Deserialization and serialization of complex escapment fails' ).
+
+    lv_act = '"\/Date(1689670138545)\/"'.
+
+    deserialize( EXPORTING json = lv_act CHANGING data = lv_act_tsmp ).
+    lv_exp_tsmp = '20230718084900' ##LITERAL.
+
+    cl_aunit_assert=>assert_equals( act = lv_act_tsmp exp = lv_exp_tsmp msg = 'Deserialization of EDM Date Time with rounding fails' ).
+
 
   ENDMETHOD.                    "serialize_types
 
