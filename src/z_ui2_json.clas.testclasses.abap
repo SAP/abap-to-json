@@ -750,7 +750,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     lv_act = '"\/Date(1689670138545)\/"'.
 
     deserialize( EXPORTING json = lv_act CHANGING data = lv_act_tsmp ).
-    lv_exp_tsmp = '20230718084900' ##LITERAL.
+    lv_exp_tsmp = '20230718084859' ##LITERAL.
 
     cl_aunit_assert=>assert_equals( act = lv_act_tsmp exp = lv_exp_tsmp msg = 'Deserialization of EDM Date Time with rounding fails' ).
 
@@ -1915,7 +1915,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     ls_exp-offer_id               = 'a46e801e067e46098e93fcd1d9e34f01'.
     ls_exp-offer_code             = '575tpNAk'.
     ls_exp-offer_type             = 'COUPON'.
-    ls_exp-valid_to               = '20160131095124' ##LITERAL.
+    ls_exp-valid_to               = '20160131095123' ##LITERAL. " round down, as CONVERT TIME STAMP
     ls_exp-enable_geo_marketing   = abap_true.
 
     ls_beacon-id                  = 'B9407F30-F5F8-466E-AFF9-25556B57FE6D'.
