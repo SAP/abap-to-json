@@ -29,6 +29,7 @@
 * Fixed: performance optimization for deserializing strings with escaped line breaks and special characters. When you have escaped "\", e.g. "\\" it is still slow.
 * Fixed: short dump in conversion exits routines on SERIALIZE/DESERIALIZE because of the wrong data type (OBJECTS_NOT_CHAR).
 * Fixed. Added support for the timezone offsets for ISO8601.
+* Fixed: rounding bug when deserializing timestamps with sub-seconds into short timestamps (seconds)
 * New: Information about the invalid field added to the exception data of move_cast_error ([details](https://github.com/SAP/abap-to-json/pull/8))
 * New: serialization now can detect "timestamps" defined with the help of data domains ([details](https://github.com/SAP/abap-to-json/pull/9))
 * New: new switch for GENERATE (optimize) and DESERIALIZE (gen_optimize) that enables optimization of generated ABAP data for REF TO DATA (fewer references, easily readable and accessible). Results in longer processing.
