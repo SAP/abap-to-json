@@ -21,6 +21,10 @@
    * [Note 2429758](#note-2429758)
    * [Note 2480119](#note-2480119)
 
+## Note [3515438](https://launchpad.support.sap.com/#/notes/3515438) - PL20 (not released)
+### /UI2/CL_JSON
+* Fixed: Empty objects ( "a":{} ) are not initialized when using GENERATE or DESERIALIZE into REF TO data, taking the value of the previous field
+
 ## Note [3414589](https://launchpad.support.sap.com/#/notes/3414589) - PL19
 ### /UI2/CL_JSON
 * Fixed: enhanced processing of deserialization into typed TYPE REFs
