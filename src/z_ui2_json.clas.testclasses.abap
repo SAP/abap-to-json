@@ -2709,6 +2709,12 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_json msg = 'Generation of null references to simple types fails!' ).
 
+    lv_json = '{"a":{},"c":{},"b":"ABC"}'.
+    lr_act  = generate( json = lv_json ).
+    lo_data = z_ui2_data_access=>create( iv_data = lr_act iv_component = 'c' ).
+    lr_val = lo_data->ref( ).
+    cl_aunit_assert=>assert_initial( act = lr_val msg = 'Initialization of fields on generate fails!' ).
+
   ENDMETHOD.                    "generate_simple
 
   METHOD generate_for_odata.
