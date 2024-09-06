@@ -10,7 +10,7 @@ The official delivery of /UI2/CL_JSON will continue. The Open Source version (Z_
 ### Why
 There are a lot of other implementations of the **ABAP to JSON Serializer and Deserializer** in SDN. Still, I found all implementations unsuitable for my needs for different reasons. From SAP_BASIS 7.40 there is also **a simple transformation** available for converting **ABAP to JSON** and **JSON to ABAP**. It is the best choice if you need maximal performance and do not care about **serialization format**, but it fits badly for properly handling ABAP types and name **pretty-printing**. 
 
-So, I have written my **ABAP JSON serializer and ** ABAP JSON deserializer**, which have some key differences from other implementations.
+So, I have written my **ABAP JSON serializer** and **ABAP JSON deserializer**, which have some key differences from other implementations.
 
 Here, you can find an Open-Source version of the standard /UI2/CL_JSON class in the form of a Z* class that you can use as a local or global one.
 
