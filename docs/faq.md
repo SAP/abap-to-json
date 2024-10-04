@@ -76,6 +76,35 @@ JSON, as JavaSctript, has a built-in Boolean type with true/false values. ABAP d
 ## I can not use /UI2/CL_JSON for ABAP Cloud BADi development
 The class has been released for ABAP Cloud development (Steampunk) for a long time. Initially, it was released only for the Public Cloud, and the Private Cloud was missed by mistake. That was corrected and now you can use it for Private Cloud from release OP 2023 (SAP_BASIS 758). See details [here](docs/history.md#note-3424850-ui2cl_json-release-api-for-cloud-development). If you need JSON processing in ABAP Cloud BADis, you may need to use the XCO library (XCO_JSON), which is meant to be the official JSON processing library for Key User Extensibility Apps. If you still think that the use of /UI2/CL_JSON would be preferable you may ask for releasing of it via the Customer Influence program, like it was [done for Steampunk sometime](https://influence.sap.com/sap/ino/#/idea/234724/?section=sectionVotes). 
 
+## You get a short dump OBJECTS_NOT_CHAR when serializing data with enabled conversion exits
+You can apply conversion exits to serialized data when using the /ui2/cl_json. The class uses a temporary buffer of type STRING as an output for conversion exits. But some old conversion exits support only writing in char-like variables (C LENGHT ...) (restriction of WRITE TO) and dumping when WRITE TO executed with STRING output. But the current [programming guidelines for conversion exits](https://help.sap.com/doc/abapdocu_latest_index_htm/latest/en-US/index.htm?file=abenconversion_exits.htm) say that output can be [C-LIKE type](https://help.sap.com/doc/abapdocu_latest_index_htm/latest/en-US/index.htm?file=abenbuilt_in_types_generic.htm) (c, n, and string, as well as the date/time types d, t and character-like flat structures). So it can be a string. 
+If you get such a dump, please raise a message and ask the conversion exit owner to update the code to support STRING type, following the example implementation for CONVERSION_EXIT_SDURA_OUTPUT from SAP Help]:
+```abap
+FUNCTION CONVERSION_EXIT_SDURA_OUTPUT.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     VALUE(INPUT)
+*"  EXPORTING
+*"     VALUE(OUTPUT) TYPE  CLIKE
+*"----------------------------------------------------------------------
+
+  hours     = input DIV 60.
+  minutes_n = input MOD 60.
+
+  DESCRIBE FIELD output TYPE DATA(typ).
+
+  IF typ = 'g'. "OUTPUT is type string, no WRITE TO for strings, enabled with string templates 20130423, KELLERH
+    output = |{ hours WIDTH = 3 ALIGN = RIGHT }:{ minutes_n WIDTH = 2 }|.
+  ELSE. "Old overflow behavior to stay compatible
+    WRITE hours TO output(3) NO-SIGN.
+    output+3(1) = ':'.
+    WRITE minutes_n TO output+4(2).
+  ENDIF.
+ENDFUNCTION.
+```
+Use of output buffer TYPE C LENGHT ... in code of /ui2/cl_json would require an additional CONDENSE call that would negatively impact the performance of serialization and may still lead to incorrect data rendering (the logic with TYPE C LENGHT... was in PL19, but is reverted with PL 20, because on [this issue](issues/10)). 
+
 # Continue reading
 * [Basic usage of the class](basic.md)
 * [Advanced Use cases](advanced.md)
