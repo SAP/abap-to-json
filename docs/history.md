@@ -1,16 +1,16 @@
 # Version History
-   * [Note 3515438 - PL20](#note-3515438-pl20)
-   * [Note 3414589 - PL19](#note-3414589-pl19)
-   * [Note 3424850 - /UI2/CL_JSON - Release API for Cloud Development](#note-3424850-ui2cl_json-release-api-for-cloud-development)
-   * [Note 3315430 - PL18](#note-3315430-pl18)
-   * [Note 3106267 - PL17](#note-3106267-pl17)
-   * [Note 3038042 - PL16](#note-3038042-pl16)
-   * [Note 2944398 - PL15](#note-2944398-pl15)
-   * [Note 2904870 - PL14](#note-2904870-pl14)
-   * [Note 2870163 - PL13](#note-2870163-pl13)
-   * [Note 2798102 - PL12](#note-2798102-pl12)
-   * [Note 2786259 - PL11](#note-2786259-pl11)
-   * [Note 2763854 - PL10](#note-2763854-pl10)
+   * [Note 3515438 - PL20](#note-3515438---pl20)
+   * [Note 3414589 - PL19](#note-3414589---pl19)
+   * [Note 3424850 - /UI2/CL_JSON - Release API for Cloud Development](#note-3424850---ui2cl_json---release-api-for-cloud-development)
+   * [Note 3315430 - PL18](#note-3315430---pl18)
+   * [Note 3106267 - PL17](#note-3106267---pl17)
+   * [Note 3038042 - PL16](#note-3038042---pl16)
+   * [Note 2944398 - PL15](#note-2944398---pl15)
+   * [Note 2904870 - PL14](#note-2904870---pl14)
+   * [Note 2870163 - PL13](#note-2870163---pl13)
+   * [Note 2798102 - PL12](#note-2798102---pl12)
+   * [Note 2786259 - PL11](#note-2786259---pl11)
+   * [Note 2763854 - PL10](#note-2763854---pl10)
    * [Note 2650040](#note-2650040)
    * [Note 2629179](#note-2629179)
    * [Note 2526405](#note-2526405)
@@ -25,6 +25,8 @@
 ## Note [3515438](https://launchpad.support.sap.com/#/notes/3515438) - PL20 (not released)
 ### /UI2/CL_JSON
 * Fixed: Empty objects ( "a":{} ) are not initialized when using GENERATE or DESERIALIZE into REF TO data, taking the value of the previous field
+* Added: support of PascalCase for pretty printing.
+* Fixed. The logic for OUTPUT conversion exits reverted to the state of PL18 ([details](https://github.com/SAP/abap-to-json/issues/10)). 
 
 ## Note [3414589](https://launchpad.support.sap.com/#/notes/3414589) - PL19
 ### /UI2/CL_JSON
