@@ -1099,6 +1099,17 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     cl_aunit_assert=>assert_equals( act = ls_act exp = ls_data msg = 'Deserialization in camel case fails' ).
 
+
+    lv_exp = '{"_underscore":true,"Under_score":true,"UpperCamelCase":true,"CamelCase":true,"Lowcase":true,"DistanceAB":true}'.
+    lv_act = serialize( data = ls_data pretty_name = pretty_mode-pascal_case ).
+
+    cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Serialization in pascal case fails' ).
+
+    deserialize( EXPORTING json = lv_act pretty_name = pretty_mode-pascal_case CHANGING data = ls_act ).
+
+    cl_aunit_assert=>assert_equals( act = ls_act exp = ls_data msg = 'Deserialization in pascal case fails' ).
+
+
   ENDMETHOD.                    "serialize_upper_camel_case
 
   METHOD deserialize_camel_case.

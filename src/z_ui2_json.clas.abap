@@ -31,6 +31,7 @@ public section.
         none          TYPE char1  VALUE ``,
         low_case      TYPE char1  VALUE 'L',
         camel_case    TYPE char1  VALUE 'X',
+        pascal_case   TYPE char1  VALUE 'P',
         extended      TYPE char1  VALUE 'Y',
         user          TYPE char1  VALUE 'U',
         user_low_case TYPE char1  VALUE 'C',
@@ -183,9 +184,9 @@ public section.
       !IV_TRIBOOL type TRIBOOL
     returning
       value(RV_BOOL) type BOOL .
-PROTECTED SECTION.
+protected section.
 
-  TYPES:
+  types:
     BEGIN OF t_s_field_cache,
       name         TYPE string,
       type         TYPE REF TO cl_abap_datadescr,
@@ -195,110 +196,110 @@ PROTECTED SECTION.
       convexit_in  TYPE string,
       value        TYPE REF TO data,
     END OF t_s_field_cache .
-  TYPES:
+  types:
     BEGIN OF t_s_symbol,
       header       TYPE string,
       compressable TYPE abap_bool,
       read_only    TYPE abap_bool.
       INCLUDE TYPE t_s_field_cache.
   TYPES: END OF t_s_symbol .
-  TYPES:
+  types:
     t_t_symbol TYPE STANDARD TABLE OF t_s_symbol WITH DEFAULT KEY .
-  TYPES:
+  types:
     t_t_field_cache  TYPE HASHED TABLE OF t_s_field_cache WITH UNIQUE KEY name .
-  TYPES:
+  types:
     name_mappings_ex TYPE HASHED TABLE OF name_mapping WITH UNIQUE KEY json .
-  TYPES:
+  types:
     BEGIN OF t_s_name_json,
       name  TYPE string,
       value TYPE json,
     END OF t_s_name_json .
-  TYPES:
+  types:
     t_t_name_json TYPE SORTED TABLE OF t_s_name_json WITH UNIQUE KEY name .
-  TYPES:
+  types:
     BEGIN OF t_s_name_value,
       name  TYPE string,
       value TYPE json,
       data  TYPE REF TO data,
       type  TYPE REF TO cl_abap_datadescr,
     END OF t_s_name_value .
-  TYPES:
+  types:
     t_t_name_value TYPE SORTED TABLE OF t_s_name_value WITH UNIQUE KEY name .
-  TYPES:
+  types:
     t_t_json TYPE STANDARD TABLE OF json WITH DEFAULT KEY .
-  TYPES:
+  types:
     BEGIN OF t_s_struct_type,
       keys TYPE string,
       type TYPE REF TO cl_abap_datadescr,
     END OF t_s_struct_type .
-  TYPES:
+  types:
     t_t_struct_type TYPE SORTED TABLE OF t_s_struct_type WITH UNIQUE KEY keys .
-  TYPES:
+  types:
     BEGIN OF t_s_struct_cache_res,
       data    TYPE REF TO data,
       symbols TYPE t_t_symbol,
     END OF t_s_struct_cache_res .
-  TYPES:
+  types:
     BEGIN OF t_s_struct_cache,
       type_descr      TYPE REF TO cl_abap_structdescr,
       include_aliases	TYPE abap_bool,
       level           TYPE i,
       result          TYPE t_s_struct_cache_res,
     END OF t_s_struct_cache .
-  TYPES:
+  types:
     t_t_struct_cache TYPE HASHED TABLE OF t_s_struct_cache WITH UNIQUE KEY type_descr include_aliases level .
 
-  DATA mv_bool_types TYPE string .
-  DATA mv_bool_3state TYPE string .
-  DATA mv_initial_ts TYPE string VALUE `""` ##NO_TEXT.
-  DATA mv_initial_date TYPE string VALUE `""` ##NO_TEXT.
-  DATA mv_initial_time TYPE string VALUE `""` ##NO_TEXT.
-  DATA mv_time_zone TYPE timezone VALUE `UTC` ##NO_TEXT.
-  DATA mv_compress TYPE bool .
-  DATA mv_pretty_name TYPE pretty_name_mode .
-  DATA mv_assoc_arrays TYPE bool .
-  DATA mv_ts_as_iso8601 TYPE bool .
-  DATA mv_expand_includes TYPE bool .
-  DATA mv_assoc_arrays_opt TYPE bool .
-  DATA mv_strict_mode TYPE bool .
-  DATA mv_numc_as_string TYPE bool .
-  DATA mv_format_output TYPE bool .
-  DATA mv_conversion_exits TYPE bool .
-  DATA mv_hex_as_base64 TYPE bool .
-  DATA mv_gen_optimize TYPE bool .
-  DATA mt_name_mappings TYPE name_mappings .
-  DATA mt_name_mappings_ex TYPE name_mappings_ex .
-  DATA mt_struct_type TYPE t_t_struct_type .
-  DATA mt_struct_cache TYPE t_t_struct_cache .
-  DATA:
+  data MV_BOOL_TYPES type STRING .
+  data MV_BOOL_3STATE type STRING .
+  data MV_INITIAL_TS type STRING value `""` ##NO_TEXT.
+  data MV_INITIAL_DATE type STRING value `""` ##NO_TEXT.
+  data MV_INITIAL_TIME type STRING value `""` ##NO_TEXT.
+  data MV_TIME_ZONE type TIMEZONE value `UTC` ##NO_TEXT.
+  data MV_COMPRESS type BOOL .
+  data MV_PRETTY_NAME type PRETTY_NAME_MODE .
+  data MV_ASSOC_ARRAYS type BOOL .
+  data MV_TS_AS_ISO8601 type BOOL .
+  data MV_EXPAND_INCLUDES type BOOL .
+  data MV_ASSOC_ARRAYS_OPT type BOOL .
+  data MV_STRICT_MODE type BOOL .
+  data MV_NUMC_AS_STRING type BOOL .
+  data MV_FORMAT_OUTPUT type BOOL .
+  data MV_CONVERSION_EXITS type BOOL .
+  data MV_HEX_AS_BASE64 type BOOL .
+  data MV_GEN_OPTIMIZE type BOOL .
+  data MT_NAME_MAPPINGS type NAME_MAPPINGS .
+  data MT_NAME_MAPPINGS_EX type NAME_MAPPINGS_EX .
+  data MT_STRUCT_TYPE type T_T_STRUCT_TYPE .
+  data MT_STRUCT_CACHE type T_T_STRUCT_CACHE .
+  data:
     mt_ref_dump_idx TYPE SORTED TABLE OF REF TO data WITH UNIQUE DEFAULT KEY .
-  DATA:
+  data:
     mt_obj_dump_idx TYPE SORTED TABLE OF REF TO object WITH UNIQUE DEFAULT KEY .
-  CLASS-DATA mc_name_symbols_map TYPE string VALUE ` _/_\_:_;_~_._,_-_+_=_>_<_|_(_)_[_]_{_}_@_+_*_?_!_&_$_#_%_^_'_` ##NO_TEXT.
-  CONSTANTS mc_default_indent TYPE string VALUE `  ` ##NO_TEXT.
-  CONSTANTS mc_typekind_utclong TYPE abap_typekind VALUE 'p' ##NO_TEXT.   " CL_ABAP_TYPEDESCR=>TYPEKIND_UTCLONG -> 'p' only from 7.54
-  CONSTANTS mc_typekind_int8 TYPE abap_typekind VALUE '8' ##NO_TEXT.   " TYPEKIND_INT8 -> '8' only from 7.40
-  CLASS-DATA so_type_s TYPE REF TO cl_abap_elemdescr .
-  CLASS-DATA so_type_f TYPE REF TO cl_abap_elemdescr .
-  CLASS-DATA so_type_p TYPE REF TO cl_abap_elemdescr .
-  CLASS-DATA so_type_i TYPE REF TO cl_abap_elemdescr .
-  CLASS-DATA so_type_b TYPE REF TO cl_abap_elemdescr .
-  CLASS-DATA so_type_d TYPE REF TO cl_abap_elemdescr .
-  CLASS-DATA so_type_t TYPE REF TO cl_abap_elemdescr .
-  CLASS-DATA so_type_ts TYPE REF TO cl_abap_elemdescr .
-  CLASS-DATA so_type_tsl TYPE REF TO cl_abap_elemdescr .
-  CLASS-DATA so_type_t_json TYPE REF TO cl_abap_tabledescr .
-  CLASS-DATA so_type_t_name_value TYPE REF TO cl_abap_tabledescr .
-  CLASS-DATA so_regex_date TYPE REF TO cl_abap_regex .
-  CLASS-DATA so_regex_time TYPE REF TO cl_abap_regex .
-  CLASS-DATA so_regex_guid TYPE REF TO cl_abap_regex .
-  CLASS-DATA so_regex_edm_date_time TYPE REF TO cl_abap_regex .
-  CLASS-DATA so_regex_edm_time TYPE REF TO cl_abap_regex .
-  CLASS-DATA so_regex_generate_normalize TYPE REF TO cl_abap_regex .
-  CLASS-DATA so_regex_generate_camel_case TYPE REF TO cl_abap_regex .
-  CLASS-DATA so_regex_generate_type_detect TYPE REF TO cl_abap_regex .
-  CLASS-DATA so_regex_unescape_spec_char TYPE REF TO cl_abap_regex .
-  CONSTANTS:
+  class-data MC_NAME_SYMBOLS_MAP type STRING value ` _/_\_:_;_~_._,_-_+_=_>_<_|_(_)_[_]_{_}_@_+_*_?_!_&_$_#_%_^_'_` ##NO_TEXT.
+  constants MC_DEFAULT_INDENT type STRING value `  ` ##NO_TEXT.
+  constants MC_TYPEKIND_UTCLONG type ABAP_TYPEKIND value 'p' ##NO_TEXT.   " CL_ABAP_TYPEDESCR=>TYPEKIND_UTCLONG -> 'p' only from 7.54
+  constants MC_TYPEKIND_INT8 type ABAP_TYPEKIND value '8' ##NO_TEXT.   " TYPEKIND_INT8 -> '8' only from 7.40
+  class-data SO_TYPE_S type ref to CL_ABAP_ELEMDESCR .
+  class-data SO_TYPE_F type ref to CL_ABAP_ELEMDESCR .
+  class-data SO_TYPE_P type ref to CL_ABAP_ELEMDESCR .
+  class-data SO_TYPE_I type ref to CL_ABAP_ELEMDESCR .
+  class-data SO_TYPE_B type ref to CL_ABAP_ELEMDESCR .
+  class-data SO_TYPE_D type ref to CL_ABAP_ELEMDESCR .
+  class-data SO_TYPE_T type ref to CL_ABAP_ELEMDESCR .
+  class-data SO_TYPE_TS type ref to CL_ABAP_ELEMDESCR .
+  class-data SO_TYPE_TSL type ref to CL_ABAP_ELEMDESCR .
+  class-data SO_TYPE_T_JSON type ref to CL_ABAP_TABLEDESCR .
+  class-data SO_TYPE_T_NAME_VALUE type ref to CL_ABAP_TABLEDESCR .
+  class-data SO_REGEX_DATE type ref to CL_ABAP_REGEX .
+  class-data SO_REGEX_TIME type ref to CL_ABAP_REGEX .
+  class-data SO_REGEX_GUID type ref to CL_ABAP_REGEX .
+  class-data SO_REGEX_EDM_DATE_TIME type ref to CL_ABAP_REGEX .
+  class-data SO_REGEX_EDM_TIME type ref to CL_ABAP_REGEX .
+  class-data SO_REGEX_GENERATE_NORMALIZE type ref to CL_ABAP_REGEX .
+  class-data SO_REGEX_GENERATE_CAMEL_CASE type ref to CL_ABAP_REGEX .
+  class-data SO_REGEX_GENERATE_TYPE_DETECT type ref to CL_ABAP_REGEX .
+  class-data SO_REGEX_UNESCAPE_SPEC_CHAR type ref to CL_ABAP_REGEX .
+  constants:
     BEGIN OF e_typekind,
       " new extended pseudo typekind, hack and can clash with standard if new enums come...
       " always check for duplicates !!!
@@ -333,157 +334,158 @@ PROTECTED SECTION.
 
     END OF e_typekind .
 
-  CLASS-METHODS unescape
-    IMPORTING
-      !offset          TYPE i DEFAULT 0
-      !escaped         TYPE string
-    RETURNING
-      VALUE(unescaped) TYPE string .
-  CLASS-METHODS get_convexit_func
-    IMPORTING
-      !elem_descr    TYPE REF TO cl_abap_elemdescr
-      !input         TYPE abap_bool OPTIONAL
-    RETURNING
-      VALUE(rv_func) TYPE string .
-  METHODS dump_symbols
-    FINAL
-    IMPORTING
-      !it_symbols   TYPE t_t_symbol
-      !opt_array    TYPE bool OPTIONAL
-      !format_scope TYPE bool DEFAULT abap_true
-      !level        TYPE i
-    RETURNING
-      VALUE(r_json) TYPE json .
-  METHODS get_symbols_struct
-    FINAL
-    IMPORTING
-      !type_descr      TYPE REF TO cl_abap_structdescr
-      !include_aliases TYPE abap_bool DEFAULT abap_false
-      !data            TYPE REF TO data OPTIONAL
-      !level           TYPE i DEFAULT 0
-    RETURNING
-      VALUE(result)    TYPE t_s_struct_cache_res .
-  METHODS get_symbols_class
-    FINAL
-    IMPORTING
-      !type_descr   TYPE REF TO cl_abap_classdescr
-      !object       TYPE REF TO object OPTIONAL
-    RETURNING
-      VALUE(result) TYPE t_t_symbol .
-  METHODS get_symbols
-    FINAL
-    IMPORTING
-      !type_descr      TYPE REF TO cl_abap_typedescr
-      !data            TYPE REF TO data OPTIONAL
-      !object          TYPE REF TO object OPTIONAL
-      !include_aliases TYPE abap_bool DEFAULT abap_false
-    RETURNING
-      VALUE(result)    TYPE t_t_symbol .
-  METHODS get_fields
-    FINAL
-    IMPORTING
-      !type_descr      TYPE REF TO cl_abap_typedescr
-      !data            TYPE REF TO data OPTIONAL
-      !object          TYPE REF TO object OPTIONAL
-    RETURNING
-      VALUE(rt_fields) TYPE t_t_field_cache .
-  METHODS dump_int
-    IMPORTING
-      !data         TYPE data
-      !type_descr   TYPE REF TO cl_abap_typedescr OPTIONAL
-      !convexit     TYPE string OPTIONAL
-      !level        TYPE i DEFAULT 0
-    RETURNING
-      VALUE(r_json) TYPE json .
-  METHODS is_compressable
-    IMPORTING
-      !type_descr        TYPE REF TO cl_abap_typedescr   ##NEEDED
-      !name              TYPE csequence   ##NEEDED
-    RETURNING
-      VALUE(rv_compress) TYPE abap_bool .
-  METHODS restore
-    IMPORTING
-      !json             TYPE json
-      !length           TYPE i
-      VALUE(type_descr) TYPE REF TO cl_abap_typedescr OPTIONAL
-      !field_cache      TYPE t_t_field_cache OPTIONAL
-    CHANGING
-      !data             TYPE data OPTIONAL
-      !offset           TYPE i DEFAULT 0
-    RAISING
-      cx_sy_move_cast_error .
-  METHODS restore_type
-    IMPORTING
-      !json             TYPE json
-      !length           TYPE i
-      VALUE(type_descr) TYPE REF TO cl_abap_typedescr OPTIONAL
-      !field_cache      TYPE t_t_field_cache OPTIONAL
-      !convexit         TYPE string OPTIONAL
-    CHANGING
-      !data             TYPE data OPTIONAL
-      !offset           TYPE i DEFAULT 0
-    RAISING
-      cx_sy_move_cast_error .
-  METHODS dump_type
-    IMPORTING
-      !data         TYPE data
-      !type_descr   TYPE REF TO cl_abap_elemdescr
-      !convexit     TYPE string
-      !typekind     TYPE abap_typekind OPTIONAL
-    RETURNING
-      VALUE(r_json) TYPE json .
-  METHODS detect_typekind
-    FINAL
-    IMPORTING
-      !type_descr    TYPE REF TO cl_abap_elemdescr
-      !convexit      TYPE string
-    RETURNING
-      VALUE(rv_type) TYPE abap_typekind .
-  METHODS dump_type_ex
-    IMPORTING
-      !data         TYPE data
-    RETURNING
-      VALUE(r_json) TYPE json .
-  METHODS pretty_name_ex
-    IMPORTING
-      !in        TYPE csequence
-    RETURNING
-      VALUE(out) TYPE string .
-  METHODS generate_int_ex
-    FINAL
-    IMPORTING
-      !json   TYPE json
-      !length TYPE i
-    CHANGING
-      !data   TYPE data
-      !offset TYPE i .
-  METHODS pretty_name
-    IMPORTING
-      !in        TYPE csequence
-    RETURNING
-      VALUE(out) TYPE string .
-  CLASS-METHODS edm_datetime_to_ts
-    IMPORTING
-      !ticks        TYPE string
-      !offset       TYPE string OPTIONAL
-      !typekind     TYPE abap_typekind
-    RETURNING
-      VALUE(r_data) TYPE string .
-  CLASS-METHODS get_indent
-    IMPORTING
-      !level        TYPE i DEFAULT 0
-    RETURNING
-      VALUE(indent) TYPE string .
-  METHODS generate_struct
-    CHANGING
-      !fields TYPE t_t_name_value
-      !data   TYPE REF TO data
-      !type   TYPE REF TO cl_abap_datadescr OPTIONAL .
-  CLASS-METHODS escape
-    IMPORTING
-      !in        TYPE any
-    RETURNING
-      VALUE(out) TYPE string .
+  class-methods UNESCAPE
+    importing
+      !OFFSET type I default 0
+      !ESCAPED type STRING
+    returning
+      value(UNESCAPED) type STRING .
+  class-methods GET_CONVEXIT_FUNC
+    importing
+      !ELEM_DESCR type ref to CL_ABAP_ELEMDESCR
+      !INPUT type ABAP_BOOL optional
+    returning
+      value(RV_FUNC) type STRING .
+  methods DUMP_SYMBOLS
+  final
+    importing
+      !IT_SYMBOLS type T_T_SYMBOL
+      !OPT_ARRAY type BOOL optional
+      !FORMAT_SCOPE type BOOL default ABAP_TRUE
+      !LEVEL type I
+    returning
+      value(R_JSON) type JSON .
+  methods GET_SYMBOLS_STRUCT
+  final
+    importing
+      !TYPE_DESCR type ref to CL_ABAP_STRUCTDESCR
+      !INCLUDE_ALIASES type ABAP_BOOL default ABAP_FALSE
+      !DATA type ref to DATA optional
+      !LEVEL type I default 0
+    returning
+      value(RESULT) type T_S_STRUCT_CACHE_RES .
+  methods GET_SYMBOLS_CLASS
+  final
+    importing
+      !TYPE_DESCR type ref to CL_ABAP_CLASSDESCR
+      !OBJECT type ref to OBJECT optional
+    returning
+      value(RESULT) type T_T_SYMBOL .
+  methods GET_SYMBOLS
+  final
+    importing
+      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR
+      !DATA type ref to DATA optional
+      !OBJECT type ref to OBJECT optional
+      !INCLUDE_ALIASES type ABAP_BOOL default ABAP_FALSE
+    returning
+      value(RESULT) type T_T_SYMBOL .
+  methods GET_FIELDS
+  final
+    importing
+      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR
+      !DATA type ref to DATA optional
+      !OBJECT type ref to OBJECT optional
+    returning
+      value(RT_FIELDS) type T_T_FIELD_CACHE .
+  methods DUMP_INT
+    importing
+      !DATA type DATA
+      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR optional
+      !CONVEXIT type STRING optional
+      !LEVEL type I default 0
+    returning
+      value(R_JSON) type JSON .
+  methods IS_COMPRESSABLE
+    importing
+      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR   ##NEEDED
+      !NAME type CSEQUENCE   ##NEEDED
+    returning
+      value(RV_COMPRESS) type ABAP_BOOL .
+  methods RESTORE
+    importing
+      !JSON type JSON
+      !LENGTH type I
+      value(TYPE_DESCR) type ref to CL_ABAP_TYPEDESCR optional
+      !FIELD_CACHE type T_T_FIELD_CACHE optional
+    changing
+      !DATA type DATA optional
+      !OFFSET type I default 0
+    raising
+      CX_SY_MOVE_CAST_ERROR .
+  methods RESTORE_TYPE
+    importing
+      !JSON type JSON
+      !LENGTH type I
+      value(TYPE_DESCR) type ref to CL_ABAP_TYPEDESCR optional
+      !FIELD_CACHE type T_T_FIELD_CACHE optional
+      !CONVEXIT type STRING optional
+    changing
+      !DATA type DATA optional
+      !OFFSET type I default 0
+    raising
+      CX_SY_MOVE_CAST_ERROR .
+  methods DUMP_TYPE
+    importing
+      !DATA type DATA
+      !TYPE_DESCR type ref to CL_ABAP_ELEMDESCR
+      !CONVEXIT type STRING
+      !TYPEKIND type ABAP_TYPEKIND optional
+    returning
+      value(R_JSON) type JSON .
+  methods DETECT_TYPEKIND
+  final
+    importing
+      !TYPE_DESCR type ref to CL_ABAP_ELEMDESCR
+      !CONVEXIT type STRING
+    returning
+      value(RV_TYPE) type ABAP_TYPEKIND .
+  methods DUMP_TYPE_EX
+    importing
+      !DATA type DATA
+    returning
+      value(R_JSON) type JSON .
+  methods PRETTY_NAME_EX
+    importing
+      !IN type CSEQUENCE
+    returning
+      value(OUT) type STRING .
+  methods GENERATE_INT_EX
+  final
+    importing
+      !JSON type JSON
+      !LENGTH type I
+    changing
+      !DATA type DATA
+      !OFFSET type I .
+  methods PRETTY_NAME
+    importing
+      !IN type CSEQUENCE
+      !PASCAL_CASE type BOOL default C_BOOL-FALSE
+    returning
+      value(OUT) type STRING .
+  class-methods EDM_DATETIME_TO_TS
+    importing
+      !TICKS type STRING
+      !OFFSET type STRING optional
+      !TYPEKIND type ABAP_TYPEKIND
+    returning
+      value(R_DATA) type STRING .
+  class-methods GET_INDENT
+    importing
+      !LEVEL type I default 0
+    returning
+      value(INDENT) type STRING .
+  methods GENERATE_STRUCT
+    changing
+      !FIELDS type T_T_NAME_VALUE
+      !DATA type ref to DATA
+      !TYPE type ref to CL_ABAP_DATADESCR optional .
+  class-methods ESCAPE
+    importing
+      !IN type ANY
+    returning
+      value(OUT) type STRING .
   PRIVATE SECTION.
 
     DATA mv_extended TYPE bool .
@@ -992,16 +994,15 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           r_json = `""`.
         ELSE.
           TRY.
-              DATA: char128 TYPE c LENGTH 128.
               CALL FUNCTION convexit
                 EXPORTING
                   input  = data
                 IMPORTING
-                  output = char128
+                  output = r_json
                 EXCEPTIONS
                   OTHERS = 1.
               IF sy-subrc IS INITIAL.
-                CONCATENATE '"' char128 '"' INTO r_json.
+                CONCATENATE '"' r_json '"' INTO r_json.
               ENDIF.
             CATCH cx_root ##CATCH_ALL ##NO_HANDLER.
           ENDTRY.
@@ -1465,7 +1466,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
       IF mv_pretty_name NE pretty_mode-none AND mv_pretty_name NE pretty_mode-low_case.
         format_name <sym>-name mv_pretty_name ls_field-name.
         INSERT ls_field INTO TABLE rt_fields.
-        " let us check for not well formed canelCase to be compatible with old logic
+        " let us check for not well formed camelCase to be compatible with old logic
         lv_name = ls_field-name.
         TRANSLATE lv_name(1) TO UPPER CASE.
         ls_field-name = lv_name.
@@ -1679,9 +1680,15 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
       TRANSLATE out TO LOWER CASE.
       TRANSLATE out USING '/_:_~_'.
       SPLIT out AT '_' INTO TABLE tokens.
-      LOOP AT tokens ASSIGNING <token> FROM 2.
-        TRANSLATE <token>(1) TO UPPER CASE.
-      ENDLOOP.
+      IF pascal_case EQ c_bool-true.
+        LOOP AT tokens ASSIGNING <token>.
+          TRANSLATE <token>(1) TO UPPER CASE.
+        ENDLOOP.
+      ELSE.
+        LOOP AT tokens ASSIGNING <token> FROM 2.
+          TRANSLATE <token>(1) TO UPPER CASE.
+        ENDLOOP.
+      ENDIF.
 
       CONCATENATE LINES OF tokens INTO out.
       REPLACE ALL OCCURRENCES OF '*' IN out WITH '_'.

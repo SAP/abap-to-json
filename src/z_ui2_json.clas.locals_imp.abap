@@ -73,16 +73,15 @@ DEFINE dump_type_int.
         &3 = `""`.
       ELSE.
         TRY.
-            DATA: char128 TYPE c LENGTH 128.
             CALL FUNCTION &4
               EXPORTING
                 input  = &1
               IMPORTING
-                output = char128
+                output = &3
               EXCEPTIONS
                 OTHERS = 1.
             IF sy-subrc IS INITIAL.
-              CONCATENATE '"' char128 '"' INTO &3.
+              CONCATENATE '"' &3 '"' INTO &3.
             ENDIF.
           CATCH cx_root ##CATCH_ALL ##NO_HANDLER.
         ENDTRY.
@@ -194,6 +193,8 @@ DEFINE format_name.
   CASE &2.
     WHEN pretty_mode-camel_case.
       &3 = pretty_name( &1 ).
+    WHEN pretty_mode-pascal_case.
+      &3 = pretty_name( in = &1 pascal_case = c_bool-true ).
     WHEN pretty_mode-extended.
       &3 = pretty_name_ex( &1 ).
     WHEN pretty_mode-user_low_case.
