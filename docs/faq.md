@@ -8,6 +8,7 @@
 * [Is it possible to have a defined order of fields in ABAP structures generated when deserializing into REF TO DATA fields? Is it possible to have the fields in the generated structure in the same order as in the JSON file?](#is-it-possible-to-have-a-defined-order-of-fields-in-abap-structures-generated-when-deserializing-into-ref-to-data-fields-is-it-possible-to-have-the-fields-in-the-generated-structure-in-the-same-order-as-in-the-json-file)
 * [Is it possible to display the currency amount (CURR fields) formatted in the JSON output based on the related currency (CUKY field)?](#is-it-possible-to-display-the-currency-amount-curr-fields-formatted-in-the-json-output-based-on-the-related-currency-cuky-field)
 * [My fields are/NOT serialized as true/false instead and serialized like 'X' or ''! E.g. how to control ABAP/JSON Boolean conversion?](#my-fields-arenot-serialized-as-truefalse-instead-and-serialized-like-x-or-eg-how-to-control-abapjson-boolean-conversion)
+* [I can not use /UI2/CL_JSON for ABAP Cloud BADi development](#I-can-not-use-/UI2/CL_JSON-for-ABAP-Cloud-BADi-development)
 
 ## GENERATE or DESERIALIZE into REF TO DATA vs. DESERIALIZE into a typed data structure
 It is always better to deserialize into explicit data structure but not into anonymous reference:
@@ -39,7 +40,7 @@ First of all, I would agree that this is an incompatible change and I am asking 
 
 The reason for this change of default was a customer complaint regarding the handling of initial date-time values, which are not 0000-00-00 or 00:00:00. In general 0000-00-00 is an invalid date, 00:00:00 is valid, but how to understand that it is initial but not explicit midnight?
 
-Because of that, I have decided not to render initial values for date/time and give a receiver a way to understand that it is initial and has its processing of default/initial. I know that it is incompatible, but I want a default behavior to be the best and most common choice, even with the cost of modification of the consumer code that relies on old behavior :/.
+Because of that, I have decided not to render initial values for date/time and give a receiver a way to understand that it is initial and has its default/initial processing. I know that it is incompatible, but I want a default behavior to be the best and most common choice, even with the cost of modification of the consumer code that relies on old behavior :/.
 
 Because having custom rendering of the initial date/time is quite exotic, I have only let this for constructor calls and have not extended the serialize method, to keep standard API simple. If I get multiple requests regarding extending SERIALIZE with these defaults - I will do it. 
 
@@ -55,7 +56,7 @@ My recommendation for you:
 
 ## Is it possible to have a defined order of fields in ABAP structures generated when deserializing into REF TO DATA fields? Is it possible to have the fields in the generated structure in the same order as in the JSON file?
 The order of fields in JSON and also in ABAP is undefined. It may happen that you will have two records of the same type in an array but with attributes serialized in different orders. 
-What to do in this case? In general, the answer is – no (there is no way to configure it). Current alphabetical order gives at least some predefined output (but the result of name normalization and uniqueness check). 
+What to do in this case? In general, the answer is – no (there is no way to configure it). The current alphabetical order gives at least some predefined output (but the result is a name normalization and uniqueness check). 
 
 If you want a specific order – just deserialize in a predefined structure, but not in REF TO DATA. Generating into REF TO DATA is always a bad choice (from a performance and type definition perspective). 
 
@@ -68,10 +69,12 @@ No, there is no built-in support for currency fields. Potentially one can add it
 Only single-field conversion exits are supported. 
 
 ## My fields are/NOT serialized as true/false instead and serialized like 'X' or ''! E.g. how to control ABAP/JSON Boolean conversion?
-JSON, as JavaSctript, has a built-in Boolean type with true/false values. ABAP does not have a built-in Boolean type and uses fields of char 1 with constant values of 'X' (TRUE) and ''(space, FALSE). Different teams use different predefined types to be used as a Boolean type for them. It is a zoo. There is no way to detect the boolean type or even be able to auto-convert them between different ABAP types. But there are some more or less standard conventions of which standard types shall be used for booleans. The serializer class has the default list of standard boolean types hardcoded in constant MC_BOOL_TYPES (ABAP_BOOLEAN, ABAP_BOOL, BOOLEAN, BOOLE_D, XFELD, XSDBOOLEAN, WDY_BOOLEAN). If you use one of these types in your data, passed to the serializer, it will be automatically processed by the parser and converted from ''/'X' into false/true and vice versa. If you use any other type not in the list, there will be no auto-conversion. OK, you do not like default (it processes too many types or two less), what to do? You have the following choices:
+JSON, as JavaSctript, has a built-in Boolean type with true/false values. ABAP does not have a built-in Boolean type and uses fields of char 1 with constant values of 'X' (TRUE) and ''(space, FALSE). Different teams use different predefined types to be used as a Boolean type for them. It is a zoo. There is no way to detect the boolean type or even be able to auto-convert them between different ABAP types. However, there are some more or fewer standard conventions for which standard types shall be used for booleans. The serializer class has the default list of standard boolean types hardcoded in constant MC_BOOL_TYPES (ABAP_BOOLEAN, ABAP_BOOL, BOOLEAN, BOOLE_D, XFELD, XSDBOOLEAN, WDY_BOOLEAN). If you use one of these types in your data, passed to the serializer, it will be automatically processed by the parser and converted from ''/'X' into false/true and vice versa. If you use any other type not in the list, there will be no auto-conversion. OK, you do not like default (it processes too many types or two less), what to do? You have the following choices:
 * Do not use static methods for serialization and deserialization, but instance ones (e.g. json_obj->serilaize_int instead of /ui2/cl_json=>serilaize) AND customize the behavior of the instance by constructor parameters. You can pass an alternative set of boolean types with the parameter BOOL_TYPES. The usage of instance methods is also faster if you repeat calls for serialization.
 * Inherit the class and overwrite default boolean types, stored in the class variable mv_bool_types with your preferred default. Use your class everywhere instead of standard, to ensure consistency. How to inherit the class you can find [here](docs/class-extension.md). 
 
+## I can not use /UI2/CL_JSON for ABAP Cloud BADi development
+The class has been released for ABAP Cloud development (Steampunk) for a long time. Initially, it was released only for the Public Cloud, and the Private Cloud was missed by mistake. That was corrected and now you can use it for Private Cloud from release OP 2023 (SAP_BASIS 758). See details [here](docs/history.md#note-3424850-ui2cl_json-release-api-for-cloud-development). If you need JSON processing in ABAP Cloud BADis, you may need to use the XCO library (XCO_JSON), which is meant to be the official JSON processing library for Key User Extensibility Apps. If you still think that the use of /UI2/CL_JSON would be preferable you may ask for releasing of it via the Customer Influence program, like it was [done for Steampunk sometime](https://influence.sap.com/sap/ino/#/idea/234724/?section=sectionVotes). 
 
 # Continue reading
 * [Basic usage of the class](basic.md)
