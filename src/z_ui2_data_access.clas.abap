@@ -7,6 +7,7 @@ class Z_UI2_DATA_ACCESS definition
 public section.
   type-pools ABAP .
 
+  class-methods CLASS_CONSTRUCTOR .
   class-methods CREATE
     importing
       !IR_DATA type ref to DATA optional
@@ -58,6 +59,10 @@ protected section.
       !IV_KEYS type STRING optional
     returning
       value(RO_REF) type ref to Z_UI2_DATA_ACCESS .
+private section.
+
+  class-data SO_REGEX_HIER type ref to CL_ABAP_REGEX .
+  class-data SO_REGEX_KEYS type ref to CL_ABAP_REGEX .
 ENDCLASS.
 
 
@@ -79,7 +84,7 @@ CLASS Z_UI2_DATA_ACCESS IMPLEMENTATION.
       <sub_match> TYPE LINE OF submatch_result_tab.
 
     " (?:(\w+)|^)(?:\[(?:(\d+)|([^\]]+))\])? - no check for separators
-    FIND ALL OCCURRENCES OF REGEX `(?:([\w\/]+)|^)(?:\[\s*(?:(\d+)|([^\]]+))\s*\])?(?:(?:-\>)|(?:-)|(?:=>)|$)` IN iv_component RESULTS lt_hier ##REGEX_POSIX.
+    FIND ALL OCCURRENCES OF REGEX so_regex_hier IN iv_component RESULTS lt_hier.
 
     ro_ref = me.
 
@@ -158,7 +163,7 @@ METHOD AT_INT.
         IF sy-subrc IS INITIAL.
           CREATE DATA lr_data LIKE LINE OF <table>.
           ASSIGN lr_data->* TO <data>.
-          FIND ALL OCCURRENCES OF REGEX `(\w+)\s*=\s*([^,]*),?` IN iv_keys RESULTS lt_keys ##REGEX_POSIX.
+          FIND ALL OCCURRENCES OF REGEX so_regex_keys IN iv_keys RESULTS lt_keys.
           IF sy-subrc IS INITIAL.
             LOOP AT lt_keys ASSIGNING <key>.
               READ TABLE <key>-submatches INDEX 1 ASSIGNING <sub_match>.
@@ -296,4 +301,10 @@ ENDMETHOD.
     ENDIF.
 
   ENDMETHOD.                    "value
+
+
+METHOD class_constructor.
+  create_regexp so_regex_hier '(?:([\w\/]+)|^)(?:\[\s*(?:(\d+)|([^\]]+))\s*\])?(?:(?:-\>)|(?:-)|(?:=>)|$)'.
+  create_regexp so_regex_keys '(\w+)\s*=\s*([^,]*),?'.
+ENDMETHOD.
 ENDCLASS.

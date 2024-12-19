@@ -56,7 +56,7 @@
     <SEOCOMPOTX>
      <CMPNAME>DETECT_TYPEKIND</CMPNAME>
      <LANGU>E</LANGU>
-     <DESCRIPT>Dumps elementary type to string</DESCRIPT>
+     <DESCRIPT>Detects type kind from daata</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
      <CMPNAME>DUMP</CMPNAME>
@@ -86,12 +86,17 @@
     <SEOCOMPOTX>
      <CMPNAME>EDM_DATETIME_TO_TS</CMPNAME>
      <LANGU>E</LANGU>
-     <DESCRIPT>Converts EDM DateTime into ABAP timestamp</DESCRIPT>
+     <DESCRIPT>OBSOLETE: use lc_util=&gt;read_edm_datetime instead</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
      <CMPNAME>ESCAPE</CMPNAME>
      <LANGU>E</LANGU>
      <DESCRIPT>OBSOLETE: Use ABAP built-in escape function instead</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>E_TYPEKIND</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Extended TypeKind enumeration</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
      <CMPNAME>GENERATE</CMPNAME>
@@ -279,6 +284,11 @@
      <DESCRIPT>Indent and split in lines serialized JSON</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
+     <CMPNAME>MV_GEN_OPTIMIZE</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Use structure optimization on generation</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
      <CMPNAME>MV_HEX_AS_BASE64</CMPNAME>
      <LANGU>E</LANGU>
      <DESCRIPT>Process hex values as base64</DESCRIPT>
@@ -312,6 +322,11 @@
      <CMPNAME>MV_STRICT_MODE</CMPNAME>
      <LANGU>E</LANGU>
      <DESCRIPT>Stop further processing on error</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>MV_TIME_ZONE</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Default time zone for conversion from timestamp</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
      <CMPNAME>MV_TS_AS_ISO8601</CMPNAME>
@@ -384,9 +399,59 @@
      <DESCRIPT>Serializes ABAP object to JSON</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
+     <CMPNAME>SO_REGEX_DATE</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Cached regular expression object for date</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>SO_REGEX_EDM_DATE_TIME</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Cached regular expression object for Edm.DateTime</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>SO_REGEX_EDM_TIME</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Cached regular expression object for Edm.Time</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>SO_REGEX_GENERATE_CAMEL_CASE</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Cached regular expression object for Generation</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>SO_REGEX_GENERATE_NORMALIZE</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Cached regular expression object for Generation</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>SO_REGEX_GENERATE_TYPE_DETECT</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Cached regular expression object for Generation</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>SO_REGEX_GUID</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Cached regular expression object for GUID</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>SO_REGEX_TIME</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Cached regular expression object for time</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>SO_REGEX_UNESCAPE_SPEC_CHAR</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Cached regular expression object for unescape</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
      <CMPNAME>SO_TYPE_B</CMPNAME>
      <LANGU>E</LANGU>
      <DESCRIPT>Cache for abap_bool data type</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>SO_TYPE_D</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Cache for d data type</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
      <CMPNAME>SO_TYPE_F</CMPNAME>
@@ -409,6 +474,21 @@
      <DESCRIPT>Cache for string data type</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
+     <CMPNAME>SO_TYPE_T</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Cache for t data type</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>SO_TYPE_TS</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Cache for TIMESTAMP data type</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>SO_TYPE_TSL</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Cache for TIMESTAMPL data type</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
      <CMPNAME>SO_TYPE_T_JSON</CMPNAME>
      <LANGU>E</LANGU>
      <DESCRIPT>Cached type of table of JSON</DESCRIPT>
@@ -416,7 +496,7 @@
     <SEOCOMPOTX>
      <CMPNAME>SO_TYPE_T_NAME_VALUE</CMPNAME>
      <LANGU>E</LANGU>
-     <DESCRIPT>Cached type of table of name value pairs</DESCRIPT>
+     <DESCRIPT>Cached type of table of NAME VALUE</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
      <CMPNAME>STRING_TO_RAW</CMPNAME>
@@ -447,6 +527,11 @@
      <CMPNAME>T_S_FIELD_CACHE</CMPNAME>
      <LANGU>E</LANGU>
      <DESCRIPT>Structure field data cache</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>T_S_NAME_JSON</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>JSON Name structure</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
      <CMPNAME>T_S_NAME_VALUE</CMPNAME>
@@ -482,6 +567,11 @@
      <CMPNAME>T_T_JSON</CMPNAME>
      <LANGU>E</LANGU>
      <DESCRIPT>Table of JSON segements</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>T_T_NAME_JSON</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Table of JSON-NAME structure</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
      <CMPNAME>T_T_NAME_VALUE</CMPNAME>
@@ -576,6 +666,12 @@
     </SEOSUBCOTX>
     <SEOSUBCOTX>
      <CMPNAME>CONSTRUCTOR</CMPNAME>
+     <SCONAME>GEN_OPTIMIZE</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Optimize generated structures for REF TO DATA</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>CONSTRUCTOR</CMPNAME>
      <SCONAME>HEX_AS_BASE64</SCONAME>
      <LANGU>E</LANGU>
      <DESCRIPT>Process hex values as base64</DESCRIPT>
@@ -624,6 +720,12 @@
     </SEOSUBCOTX>
     <SEOSUBCOTX>
      <CMPNAME>CONSTRUCTOR</CMPNAME>
+     <SCONAME>TIME_ZONE</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Default time zone for conversion to date and time</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>CONSTRUCTOR</CMPNAME>
      <SCONAME>TS_AS_ISO8601</SCONAME>
      <LANGU>E</LANGU>
      <DESCRIPT>Dump timestamps as string in ISO8601 format</DESCRIPT>
@@ -651,6 +753,12 @@
      <SCONAME>DATA</SCONAME>
      <LANGU>E</LANGU>
      <DESCRIPT>Data to serialize</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>DESERIALIZE</CMPNAME>
+     <SCONAME>GEN_OPTIMIZE</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Optimize generated structures for REF TO DATA</DESCRIPT>
     </SEOSUBCOTX>
     <SEOSUBCOTX>
      <CMPNAME>DESERIALIZE</CMPNAME>
@@ -917,6 +1025,12 @@
      <DESCRIPT>ABAP&lt;-&gt;JSON Name Mapping Table</DESCRIPT>
     </SEOSUBCOTX>
     <SEOSUBCOTX>
+     <CMPNAME>GENERATE</CMPNAME>
+     <SCONAME>OPTIMIZE</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Optimize generated structures for REF TO DATA</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
      <CMPNAME>GENERATE_INT</CMPNAME>
      <SCONAME>CX_SY_MOVE_CAST_ERROR</SCONAME>
      <LANGU>E</LANGU>
@@ -947,6 +1061,12 @@
      <DESCRIPT>Offset of the JSON string</DESCRIPT>
     </SEOSUBCOTX>
     <SEOSUBCOTX>
+     <CMPNAME>GENERATE_INT</CMPNAME>
+     <SCONAME>TYPE</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Generated type</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
      <CMPNAME>GENERATE_INT_EX</CMPNAME>
      <SCONAME>DATA</SCONAME>
      <LANGU>E</LANGU>
@@ -974,13 +1094,19 @@
      <CMPNAME>GENERATE_STRUCT</CMPNAME>
      <SCONAME>DATA</SCONAME>
      <LANGU>E</LANGU>
-     <DESCRIPT>Reference to data structure</DESCRIPT>
+     <DESCRIPT>Generated structure</DESCRIPT>
     </SEOSUBCOTX>
     <SEOSUBCOTX>
      <CMPNAME>GENERATE_STRUCT</CMPNAME>
      <SCONAME>FIELDS</SCONAME>
      <LANGU>E</LANGU>
      <DESCRIPT>Name-value pairs</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>GENERATE_STRUCT</CMPNAME>
+     <SCONAME>TYPE</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Generated type</DESCRIPT>
     </SEOSUBCOTX>
     <SEOSUBCOTX>
      <CMPNAME>GET_CONVEXIT_FUNC</CMPNAME>
@@ -1143,6 +1269,12 @@
      <SCONAME>OUT</SCONAME>
      <LANGU>E</LANGU>
      <DESCRIPT>Processed (JSON name)</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>PRETTY_NAME</CMPNAME>
+     <SCONAME>PASCAL_CASE</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Use Pascal Case</DESCRIPT>
     </SEOSUBCOTX>
     <SEOSUBCOTX>
      <CMPNAME>PRETTY_NAME_EX</CMPNAME>

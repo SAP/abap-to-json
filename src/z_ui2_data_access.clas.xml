@@ -24,6 +24,11 @@
      <DESCRIPT>Internal helper for comonent access</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
+     <CMPNAME>CLASS_CONSTRUCTOR</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>CLASS_CONSTRUCTOR</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
      <CMPNAME>CONSTRUCTOR</CMPNAME>
      <LANGU>E</LANGU>
      <DESCRIPT>Constructor</DESCRIPT>
@@ -49,6 +54,11 @@
      <DESCRIPT>Returns TRUE if embedded object is initial (not bound)</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
+     <CMPNAME>MR_DATA</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Reference to the data</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
      <CMPNAME>REF</CMPNAME>
      <LANGU>E</LANGU>
      <DESCRIPT>Returns reference to embedded object</DESCRIPT>
@@ -57,6 +67,16 @@
      <CMPNAME>SET</CMPNAME>
      <LANGU>E</LANGU>
      <DESCRIPT>Sets value of the embedded object, if not initial</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>SO_REGEX_HIER</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Cached regexp for splitting pathes</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>SO_REGEX_KEYS</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Cached regexp for extracting keys</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
      <CMPNAME>VALUE</CMPNAME>
