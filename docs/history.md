@@ -32,7 +32,7 @@
 ### /UI2/CL_JSON
 * Fixed: enhanced processing of deserialization into typed TYPE REFs
 * Fixed: deserialization of JSON 'null' into complex, not reference ABAP fields does not lead to exception in strict mode ([details](https://github.com/SAP/abap-to-json/pull/5))
-* Fixed: Added support for ABAP_BOOLEAN type.
+* Fixed: Support for ABAP_BOOLEAN type was added.
 * Fixed: performance optimization for deserializing strings with escaped line breaks and special characters. When you have escaped "\", e.g. "\\" it is still slow.
 * Fixed: short dump in conversion exits routines on SERIALIZE/DESERIALIZE because of the wrong data type (OBJECTS_NOT_CHAR).
 * Fixed. Added support for the timezone offsets for ISO8601.
@@ -172,12 +172,13 @@ Delivered with OP 2025 and OP 2023 FPS2. Note for OP 2023 (SAP_BASIS 758)
 
 ## Note [2429758](https://launchpad.support.sap.com/#/notes/2429758)
 * Fixed: Short Dump on deserialization of classes with read-only attributes
-* New: Serialization parameter added NUMC_AS_STRING, controlling the way NUMC fields are serialized. The default is FALSE. If set to TRUE, NUMC fields are serialized not as numbers, but as strings, with all leading zeroes. Deserialization works compatibly with both ways of NUMC serialized data.
+* New: The serialization parameter was added to NUMC_AS_STRING, controlling the way NUMC fields are serialized. The default is FALSE. If set to TRUE, NUMC fields are serialized not as numbers, but as strings, with all leading zeroes. Deserialization works compatibly with both ways of NUMC serialized data.
 * New: GENERATE and GENERATE_INT methods are added for the on-the-fly creation of ABAP data objects from JSON, without the need to have a predefined ABAP structure. Supports automatic creation of ABAP structures, tables, and elementary types, concerning JSON types. Supports structure/table nesting.
 * New: DESERIALIZE_INT method throws an exception CX_SY_MOVE_CAST_ERROR and stops further processing in case of malformed data found and STRICT_MODE parameter in constructor set to TRUE.
-* New: Added support of XSTRING as input for deserialization.
+* New: Support for XSTRING was added as input for deserialization.
 
 ## Note [2480119](https://launchpad.support.sap.com/#/notes/2480119)
+!Last note with support of SAP_BASIS 740
 * New: GENERATE method creates a local custom class for deserialization (lc_json_custom), instead of standard /ui2/cl_json
 * Fixed: Internal tables are not initialized when deserializing JSON with empty arrays
 * New: Deserialization into a field with REF TO data type, if the field is bound, using a referenced data type
