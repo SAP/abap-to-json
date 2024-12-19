@@ -178,7 +178,7 @@ Delivered with OP 2025 and OP 2023 FPS2. Note for OP 2023 (SAP_BASIS 758)
 * New: Support for XSTRING was added as input for deserialization.
 
 ## Note [2480119](https://launchpad.support.sap.com/#/notes/2480119)
-!Last note with support of SAP_BASIS 740
+*Last note with support of SAP_BASIS 740*
 * New: GENERATE method creates a local custom class for deserialization (lc_json_custom), instead of standard /ui2/cl_json
 * Fixed: Internal tables are not initialized when deserializing JSON with empty arrays
 * New: Deserialization into a field with REF TO data type, if the field is bound, using a referenced data type
