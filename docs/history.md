@@ -22,7 +22,7 @@
    * [Note 2429758](#note-2429758)
    * [Note 2480119](#note-2480119)
 
-## Note [3515438](https://launchpad.support.sap.com/#/notes/3515438) - PL20 (not released)
+## Note [3515438](https://launchpad.support.sap.com/#/notes/3515438) - PL20
 ### /UI2/CL_JSON
 * Fixed: Empty objects ( "a":{} ) are not initialized when using GENERATE or DESERIALIZE into REF TO data, taking the value of the previous field
 * Added: support of PascalCase for pretty printing.
@@ -143,7 +143,7 @@ Delivered with OP 2025 and OP 2023 FPS2. Note for OP 2023 (SAP_BASIS 758)
 * Fixed: GENERATE method fails, if JSON object contains attribute names longer than 30 characters (allowed ABAP field length). This can also occur in case the name is shorter than 30 characters, but PRETTY_MODE-CAMEL_CASE is used.
 * New: methods DUMP_INT, DUMP_TYPE, RESTORE_TYPE, and RESTORE can be overridden now. So, you can introduce your data type conversion on serialization and deserialization.
 * New: now it is possible to pass the name mapping table as a parameter for the constructor/serialize/deserialize and control the way JSON names are formatted/mapped to ABAP names. This may help if you need special rules for name formatting (for special characters or two long JSON attributes) and standard pretty printing modes cannot help. With this feature, you may eliminate the need for the class extension and redefine PRETTY_NAME and PRETTY_NAME_EX methods. 
-* New: PRETTY_NAME_EX method extended to support the encoding of more special characters (characters needed in JSON names but that can not be used as part of ABAP name). The supported characters are: "!#$%&\*-~/:|@.". Used with pretty_mode-extended.
+* New: The PRETTY_NAME_EX method was extended to support the encoding of more special characters (characters needed in JSON names but can not be used as part of the ABAP name). The supported characters are: "!#$%&\*-~/:|@.". Used with pretty_mode-extended.
 
 ### /UI2/CL_DATA_ACCESS
 * New: /UI2/CL_DATA_ACCESS class for working with dynamic ABAP data object (generated with method /UI2/CL_JSON=>GENERATE). The class can be used as a replacement for multiple ASSIGN COMPONENT language constructions. 
