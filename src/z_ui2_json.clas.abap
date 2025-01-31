@@ -51,7 +51,7 @@ public section.
   constants MC_KEY_SEPARATOR type STRING value `-` ##NO_TEXT.
   class-data MC_BOOL_TYPES type STRING read-only value `\TYPE-POOL=ABAP\TYPE=ABAP_BOOL\TYPE=BOOLEAN\TYPE=BOOLE_D\TYPE=XFELD\TYPE=XSDBOOLEAN\TYPE=WDY_BOOLEAN` ##NO_TEXT.
   class-data MC_BOOL_3STATE type STRING read-only value `\TYPE=BOOLEAN` ##NO_TEXT.
-  constants VERSION type I value 20 ##NO_TEXT.
+  constants VERSION type I value 21 ##NO_TEXT.
   class-data MC_JSON_TYPE type STRING read-only .
 
   class-methods CLASS_CONSTRUCTOR .
@@ -569,7 +569,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
     create_regexp so_regex_generate_normalize '[^0-9a-zA-Z_]{1,}'.
     create_regexp so_regex_generate_camel_case '([a-z])([A-Z])'.
-    create_regexp so_regex_generate_type_detect '"(?:(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:[\.,]\d{0,9})?(?:Z|(?:[+-]\d{2}:\d{2})))|(?:\d{4}-\d{2}-\d{2})|(?:\d{2}:\d{2}:\d{2}))"'.
+    create_regexp so_regex_generate_type_detect '^"(?:(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:[\.,]\d{0,9})?(?:Z|(?:[+-]\d{2}:\d{2})))|(?:\d{4}-\d{2}-\d{2})|(?:\d{2}:\d{2}:\d{2}))"'.
 
     create_regexp so_regex_unescape_spec_char '\\[rntfbu\\]'.
 
