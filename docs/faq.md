@@ -9,7 +9,8 @@
 * [Is it possible to display the currency amount (CURR fields) formatted in the JSON output based on the related currency (CUKY field)?](#is-it-possible-to-display-the-currency-amount-curr-fields-formatted-in-the-json-output-based-on-the-related-currency-cuky-field)
 * [My fields are/NOT serialized as true/false instead and serialized like 'X' or ''! E.g. how to control ABAP/JSON Boolean conversion?](#my-fields-arenot-serialized-as-truefalse-instead-and-serialized-like-x-or-eg-how-to-control-abapjson-boolean-conversion)
 * [I can not use /UI2/CL_JSON for ABAP Cloud BADi development](#i-can-not-use-ui2cl_json-for-abap-cloud-badi-development)
-* [You get a short dump OBJECTS_NOT_CHAR when serializing data with enabled conversion exits](#you-get-a-short-dump-objects_not_char-when-serializing-data-with-enabled-conversion-exits)  
+* [You get a short dump OBJECTS_NOT_CHAR when serializing data with enabled conversion exits](#you-get-a-short-dump-objects_not_char-when-serializing-data-with-enabled-conversion-exits)
+* [Why special characters in JSON attribute names are not escaped or unescaped?](#why-special-characters-in-json-attribute-names-are-not-escaped-or-unescaped)
 
 ## GENERATE or DESERIALIZE into REF TO DATA vs. DESERIALIZE into a typed data structure
 It is always better to deserialize into explicit data structure but not into anonymous reference:
