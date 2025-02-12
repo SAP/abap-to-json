@@ -106,6 +106,9 @@ ENDFUNCTION.
 ```
 Use of output buffer TYPE C LENGHT ... in code of /ui2/cl_json would require an additional CONDENSE call that would negatively impact the performance of serialization and may still lead to incorrect data rendering (the logic with TYPE C LENGHT... was in PL19, but is reverted with PL 20, because on [this issue](issues/10)). 
 
+## Why special characters in JSON attribute names are not escaped or unescaped?
+This is a known limitation. Escaping, and especially unescaping is very performance-critical and will influence parsing time significantly. And cases that attribute names rarely contain special characters. So, to optimize overall performance I have decided to not support this.
+
 # Continue reading
 * [Basic usage of the class](basic.md)
 * [Advanced Use cases](advanced.md)
