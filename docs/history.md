@@ -1,4 +1,5 @@
 # Version History
+   * [Note 3568088 - PL21](#note-3568088---pl21)
    * [Note 3515438 - PL20](#note-3515438---pl20)
    * [Note 3414589 - PL19](#note-3414589---pl19)
    * [Note 3424850 - /UI2/CL_JSON - Release API for Cloud Development](#note-3424850---ui2cl_json---release-api-for-cloud-development)
@@ -21,6 +22,11 @@
    * [Note 2382783](#note-2382783)
    * [Note 2429758](#note-2429758)
    * [Note 2480119](#note-2480119)
+
+## Note [3568088](https://launchpad.support.sap.com/#/notes/3568088) - PL21 (planned)
+### /UI2/CL_JSON
+* Fixed: Wrong elementary type is used when generating data for REF TO data (TIMESTAMP instead of string)
+* Fixed: attribute names created from table key values are not escaped/unescaped when using the ASSOC_ARRAYS option.
 
 ## Note [3515438](https://launchpad.support.sap.com/#/notes/3515438) - PL20
 ### /UI2/CL_JSON
