@@ -10,7 +10,7 @@
 * [My fields are/NOT serialized as true/false instead and serialized like 'X' or ''! E.g. how to control ABAP/JSON Boolean conversion?](#my-fields-arenot-serialized-as-truefalse-instead-and-serialized-like-x-or--eg-how-to-control-abapjson-boolean-conversion)
 * [I can not use /UI2/CL_JSON for ABAP Cloud BADi development](#i-can-not-use-ui2cl_json-for-abap-cloud-badi-development)
 * [You get a short dump OBJECTS_NOT_CHAR when serializing data with enabled conversion exits](#you-get-a-short-dump-objects_not_char-when-serializing-data-with-enabled-conversion-exits)
-* [Why special characters in JSON attribute names are not escaped or unescaped?](#why-special-characters-in-json-attribute-names-are-not-escaped-or-unescaped)
+* [Why special characters in JSON attribute names are not escaped or unescaped?](#why-are-special-characters-in-json-attribute-names-not-escaped-or-unescaped)
 
 ## GENERATE or DESERIALIZE into REF TO DATA vs. DESERIALIZE into a typed data structure
 It is always better to deserialize into explicit data structure but not into anonymous reference:
@@ -107,8 +107,8 @@ ENDFUNCTION.
 ```
 Use of output buffer TYPE C LENGHT ... in code of /ui2/cl_json would require an additional CONDENSE call that would negatively impact the performance of serialization and may still lead to incorrect data rendering (the logic with TYPE C LENGHT... was in PL19, but is reverted with PL 20, because on [this issue](issues/10)). 
 
-## Why special characters in JSON attribute names are not escaped or unescaped?
-This is a known limitation. Escaping, and especially unescaping is very performance-critical and will influence parsing time significantly. And cases where attribute names contain special characters are quite unique - ABAP field names do not allow special characters. So, to optimize overall performance I have decided to not support this.
+## Why are special characters in JSON attribute names not escaped or unescaped?
+This is a known limitation. Escaping, and especially unescaping, is very performance-critical and will significantly influence parsing time. Cases where attribute names contain special characters are quite unique — ABAP field names do not allow special characters. So, to optimize overall performance, I have decided not to support this. The only cases when the parser does escaping and unescaping the attribute names are usages of the ASSOC_ARRAYS flag when table key values are converted into leading attribute names (associative arrays in terms of JSON) and generation of the structures (internally it also uses ASSOC_ARRAY flag). 
 
 # Continue reading
 * [Basic usage of the class](basic.md)
