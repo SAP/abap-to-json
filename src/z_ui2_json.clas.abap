@@ -859,6 +859,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                   ASSIGN lo_data_ref->* TO <value>.
                   lv_keyval = <value>.
                   CONDENSE lv_keyval.
+                  escape_json lv_keyval lv_keyval. " we use key value as an attribute name - need to escape
                   IF lv_prop_name IS NOT INITIAL.
                     CONCATENATE lv_prop_name mc_key_separator lv_keyval INTO lv_prop_name.
                   ELSE.
@@ -870,6 +871,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                   ASSIGN <symbol>-value->* TO <value>.
                   lv_keyval = <value>.
                   CONDENSE lv_keyval.
+                  escape_json lv_keyval lv_keyval. " we use key value as an attribute name - need to escape
                   IF lv_prop_name IS NOT INITIAL.
                     CONCATENATE lv_prop_name mc_key_separator lv_keyval INTO lv_prop_name.
                   ELSE.
@@ -1992,6 +1994,11 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                       WHILE offset < length AND json+offset(1) NE '}'.
                         CLEAR <line>.
                         eat_name key_value.
+                        " unescaped singe characters, e.g \\, \", \/ etc
+                        FIND FIRST OCCURRENCE OF '\' IN key_value MATCH OFFSET mark.
+                        IF sy-subrc IS INITIAL.
+                          key_value = unescape( escaped = key_value offset = mark ).
+                        ENDIF.
                         eat_white.
                         eat_char ':'.
                         eat_white.
