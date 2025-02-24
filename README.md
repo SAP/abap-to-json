@@ -20,6 +20,7 @@ An original and current source version can be found in class /UI2/CL_JSON delive
 If for some reason the solution does not fit your purposes, there are other alternatives you may try:
 * [zJSON from Uwe Fetzer (aka se38)](https://github.com/se38/zJSON)
 * [aJSON from Alexander Tsybulsky (aka sbcgua)](https://github.com/sbcgua/ajson)
+* [ABAPify JSON ( ZCL_JSON )](https://github.com/abapify/json)
 
 ## Documentation
 * [Base Usage](docs/basic.md)
