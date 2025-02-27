@@ -1,6 +1,7 @@
 # FAQ
 
 * [GENERATE or DESERIALIZE into REF TO DATA vs. DESERIALIZE into a typed data structure](#generate-or-deserialize-into-ref-to-data-vs-deserialize-into-a-typed-data-structure)
+* [JSON to ABAP data type conversion when using GENERATE or DESERIALIZE into REF TO DATA](#json-to-abap-data-type-conversion-when-using-generate-or-deserialize-into-ref-to-data)
 * [Serialize huge data objects into JSON and short dumps](#serialize-huge-data-objects-into-json-and-short-dumps)
 * [Encoding of Unicode characters (for example Chinese)](#encoding-of-unicode-characters-for-example-chinese)
 * [Incompatible change for initial date/time fields serializing with PL16](#incompatible-change-for-initial-datetime-fields-serializing-with-pl16)
