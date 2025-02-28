@@ -7,7 +7,7 @@ If standard class functionality does not fit your requirements there are two way
 
 The advantage of the first approach is that you are completely free in what you may change and have full control of the class lifecycle. The disadvantage is that you must merge your changes with /UI2/CL_JSON updates. 
 
-For the second approach, you can use /UI2/CL_JSON directly (the prerequisite is the latest version of note 2330592), you do not need to care about the merge but can override only some methods. The methods are:
+For the second approach, you can use /UI2/CL_JSON directly (the prerequisite is the latest version of note [2330592](https://github.com/SAP/abap-to-json/blob/main/docs/history.md#note-2330592)), you do not need to care about the merge but can override only some methods. The methods are:
 
 ## IS_COMPRESSIBLE 
 IS_COMPRESSIBLE is called to check, if the given type output may be suppressed during ABAP to JSON serialization when a value is initial. 
@@ -21,7 +21,7 @@ PRETTY_NAME – called to format ABAP field name written to **JSON** or deserial
 
 * \> **IN** (CSEQUENCE) – Field name to pretty print.
 * \< **OUT** (STRING) – Pretty printed field name
-The default implementation applies camelCase formatting using the “_” symbol. To output, the “_” symbol, use the double “__” symbol in the field name.
+The default implementation applies camelCase formatting using the “\_” symbol. To output, the “\_” symbol, use the double “\_\_” symbol in the field name.
 
 ## PRETTY_NAME_EX
 PRETTY_NAME_EX – called to format ABAP field name written to JSON or deserialized from JSON to ABAP field, when the pretty_name parameter of *SERIALIZE/DESERIALIZE*  method equal to *PRETTY_MODE-EXTENDED*.
