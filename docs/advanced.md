@@ -10,11 +10,11 @@
 - [JSON to ABAP transformation with the use of CALL TRANSFORMATION](#json-to-abap-transformation-with-the-use-of-call-transformation)
 
 # CONSTRUCTOR and using instance methods
-For simplicity reason the class provides you static SERIALIZE/DESERIALIZE methods that can be used without explicit creation of of the class instance. However, the instance of the class is still created implicitly inside of the static method. If you have multiple usages of the class and would like to benefit from better performance and single initialization you may create the class instance manually, initialize the constructor once, and use the instance methods instead (SERIALIZE_INT/DESERIALIZE_INT/GENERATE_INT). Instance methods have fewer parameters than static ones, while the instance setting is provided in the constructor. In addition to performance gains, you also get more flexibility in class behavior customizing. The class CONSTRUCTOR has more flags as it is exposed in static methods. 
+For simplicity, the class provides static SERIALIZE/DESERIALIZE methods that can be used without explicitly creating the class instance. However, the instance of the class is still created implicitly inside of the static method. If you have multiple usages of the class and would like to benefit from better performance and single initialization you may create the class instance manually, initialize the constructor once, and use the instance methods instead (SERIALIZE_INT/DESERIALIZE_INT/GENERATE_INT). Instance methods have fewer parameters than static ones, while the instance setting is provided in the constructor. In addition to performance gains, you also get more flexibility in class behavior customizing. The class CONSTRUCTOR has more flags as it is exposed in static methods. 
 
 ## CONSTRUCTOR
 
-### Common settings exposed also in dedicated static API
+### Common settings also exposed in dedicated static API
  * \> **COMPRESS** (bool, default = false) - Skip empty elements
  * \> **PRETTY_NAME** (PRETTY_NAME_MODE, default = PRETTY_MODE-NONE) - Pretty Print property names
  * \> **ASSOC_ARRAYS** (bool, default = false) - C_BOOL-FALSE	Serialize tables with unique keys as associative array
@@ -390,8 +390,8 @@ CALL TRANSFORMATION id SOURCE text = lt_flight RESULT XML lo_writer.
 DATA(lv_jsonx) = lo_writer->get_output( ).
 DATA(lv_json) = /ui2/cl_json=>raw_to_string( lv_jsonx ).
 
- * JSON to ABAP
- CALL TRANSFORMATION id SOURCE XML lv_jsonx RESULT text = lt_flight.
+* JSON to ABAP
+CALL TRANSFORMATION id SOURCE XML lv_jsonx RESULT text = lt_flight.
 ```
 The transformation above uses the built-in ID transformation, that produces "ABAP JSON" output - that may be ok for you if you own the sender and receiver side and need the best performance. If you want your custom transformation rules you can use [this project](https://github.com/timostark/abap-json-serialization) to create an XSLT transformation for your data structure.
 If transformation for some reason does not work, please assist with the following notes: [1650141](http://service.sap.com/sap/support/notes/2368774) and [1648418](http://service.sap.com/sap/support/notes/2368774).
