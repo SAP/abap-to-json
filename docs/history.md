@@ -39,7 +39,7 @@
 * Fixed: enhanced processing of deserialization into typed TYPE REFs
 * Fixed: deserialization of JSON 'null' into complex, not reference ABAP fields does not lead to exception in strict mode ([details](https://github.com/SAP/abap-to-json/pull/5))
 * Fixed: Support for ABAP_BOOLEAN type was added.
-* Fixed: performance optimization for deserializing strings with escaped line breaks and special characters. When you have escaped "\", e.g. "\\" it is still slow.
+* Fixed: performance optimization for deserializing strings with escaped line breaks and special characters. When you have escaped "\\", e.g. "\\\\" it is still slow.
 * Fixed: short dump in conversion exits routines on SERIALIZE/DESERIALIZE because of the wrong data type (OBJECTS_NOT_CHAR).
 * Fixed. Added support for the timezone offsets for ISO8601.
 * Fixed: rounding bug when deserializing timestamps with sub-seconds into short timestamps (seconds)
