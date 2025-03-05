@@ -2507,103 +2507,21 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
   METHOD unescape.
 
-    DATA: lv_offset          TYPE i,
-          lv_match           TYPE i,
-          lv_delta           TYPE i,
-          lv_length          TYPE i,
-          lv_offset_e        TYPE i,
-          lv_length_e        TYPE i,
-          lv_unicode_symb    TYPE c,
-          lv_unicode_escaped TYPE string,
-          lt_matches         TYPE match_result_tab.
-
-    FIELD-SYMBOLS: <match> LIKE LINE OF lt_matches.
+    DATA: lv_json TYPE string.
 
     " see reference for escaping rules in JSON RFC
     " https://www.ietf.org/rfc/rfc4627.txt
 
-    unescaped = escaped.
-    lv_offset = offset.
+    " CALL TRANSFORMATION id for JSON supported from SAP_BASIS 7.40
+    " It was also downported to Release 7.02 and 7.31 via kernel patch 116,
+    " as mentioned in SAP Notes 1648418 and 1650141
+    " because of that we do not have here fallback code (for < 7.30)
 
-    FIND FIRST OCCURRENCE OF '\\' IN unescaped+offset RESPECTING CASE.
-    IF sy-subrc IS INITIAL. " complex case - there are escaped "\"
-
-      FIND ALL OCCURRENCES OF REGEX so_regex_unescape_spec_char IN SECTION OFFSET offset OF unescaped RESULTS lt_matches.
-      IF sy-subrc IS INITIAL.
-        lv_length = strlen( unescaped ).
-        LOOP AT lt_matches ASSIGNING <match>.
-          lv_match  = <match>-offset - lv_delta.
-          lv_offset = lv_match + 1.
-          CASE unescaped+lv_offset(1).
-            WHEN 'r'.
-              REPLACE SECTION OFFSET lv_match LENGTH 2 OF unescaped WITH cl_abap_char_utilities=>cr_lf(1).
-              lv_delta = lv_delta + 1.
-            WHEN 'n'.
-              REPLACE SECTION OFFSET lv_match LENGTH 2 OF unescaped WITH cl_abap_char_utilities=>newline.
-              lv_delta = lv_delta + 1.
-            WHEN 't'.
-              REPLACE SECTION OFFSET lv_match LENGTH 2 OF unescaped WITH cl_abap_char_utilities=>horizontal_tab.
-              lv_delta = lv_delta + 1.
-            WHEN 'f'.
-              REPLACE SECTION OFFSET lv_match LENGTH 2 OF unescaped WITH cl_abap_char_utilities=>form_feed.
-              lv_delta = lv_delta + 1.
-            WHEN 'b'.
-              REPLACE SECTION OFFSET lv_match LENGTH 2 OF unescaped WITH cl_abap_char_utilities=>backspace.
-              lv_delta = lv_delta + 1.
-            WHEN 'u'.
-              lv_offset   = lv_offset + 1.
-              lv_offset_e = lv_offset + 4.
-              lv_length_e = lv_length + lv_delta.
-              IF lv_offset_e LE lv_length_e.
-                lv_unicode_escaped = unescaped+lv_offset(4).
-                TRANSLATE lv_unicode_escaped TO UPPER CASE.
-                lv_unicode_symb = cl_abap_conv_in_ce=>uccp( lv_unicode_escaped ).
-                IF lv_unicode_symb NE mc_cov_error OR lv_unicode_escaped EQ '0000'.
-                  REPLACE SECTION OFFSET lv_match LENGTH 6 OF unescaped WITH lv_unicode_symb.
-                  lv_delta = lv_delta + 5.
-                ENDIF.
-              ENDIF.
-          ENDCASE.
-        ENDLOOP.
-      ENDIF.
-
-    ELSE. " easy case, we can go with plain text replace
-
-      REPLACE ALL OCCURRENCES OF '\r' IN SECTION OFFSET offset OF unescaped WITH cl_abap_char_utilities=>cr_lf(1).
-      REPLACE ALL OCCURRENCES OF '\n' IN SECTION OFFSET offset OF unescaped WITH cl_abap_char_utilities=>newline.
-      REPLACE ALL OCCURRENCES OF '\t' IN SECTION OFFSET offset OF unescaped WITH cl_abap_char_utilities=>horizontal_tab.
-      REPLACE ALL OCCURRENCES OF '\f' IN SECTION OFFSET offset OF unescaped WITH cl_abap_char_utilities=>form_feed.
-      REPLACE ALL OCCURRENCES OF '\b' IN SECTION OFFSET offset OF unescaped WITH cl_abap_char_utilities=>backspace.
-
-      FIND ALL OCCURRENCES OF '\u' IN SECTION OFFSET offset OF unescaped RESULTS lt_matches.
-      IF sy-subrc IS INITIAL.
-        lv_length = strlen( unescaped ).
-        LOOP AT lt_matches ASSIGNING <match>.
-          lv_match  = <match>-offset - lv_delta.
-          lv_offset = lv_match + 1.
-          IF unescaped+lv_offset(1) EQ 'u'.
-            lv_offset   = lv_offset + 1.
-            lv_offset_e = lv_offset + 4.
-            lv_length_e = lv_length + lv_delta.
-            IF lv_offset_e LE lv_length_e.
-              lv_unicode_escaped = unescaped+lv_offset(4).
-              TRANSLATE lv_unicode_escaped TO UPPER CASE.
-              lv_unicode_symb = cl_abap_conv_in_ce=>uccp( lv_unicode_escaped ).
-              IF lv_unicode_symb NE mc_cov_error OR lv_unicode_escaped EQ '0000'.
-                REPLACE SECTION OFFSET lv_match LENGTH 6 OF unescaped WITH lv_unicode_symb.
-                lv_delta = lv_delta + 5.
-              ENDIF.
-            ENDIF.
-          ENDIF.
-        ENDLOOP.
-      ENDIF.
-
-    ENDIF.
-
-    " based on RFC mentioned above, _any_ character can be escaped, and so shall be unenscaped
-    " the only exception is Unicode symbols, that shall be kept untouched, while serializer does not handle them
-    " unescaped singe characters, e.g \\, \", \/ etc
-    REPLACE ALL OCCURRENCES OF REGEX '\\(.)' IN SECTION OFFSET offset OF unescaped WITH '$1' ##REGEX_POSIX ##NO_TEXT.
+    CONCATENATE '{"TEXT":"' escaped '"}' INTO lv_json.
+    TRY.
+        CALL TRANSFORMATION id SOURCE XML lv_json RESULT text = unescaped.
+      CATCH cx_root ##CATCH_ALL ##NO_HANDLER.
+    ENDTRY.
 
   ENDMETHOD.
 

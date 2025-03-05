@@ -2708,12 +2708,12 @@ CLASS abap_unit_testclass IMPLEMENTATION.
       lv_json TYPE json,
       lv_len  TYPE i.
 
-    lv_json = `{"str":"Subject \u EN\u00a0\ud83e\udd14  \u4f1f\u5bb6  \u6210"}`.
+    lv_json = `{"str":"Subject \\u EN\u00a0\ud83e\udd14  \u4f1f\u5bb6  \u6210"}`.
     deserialize( EXPORTING json = lv_json CHANGING data = ls_data ).
 
     " we only support unescaping of unicode symbols, but not escaping
     lv_len = strlen( ls_data-str ).
-    cl_aunit_assert=>assert_equals( act = lv_len exp = 22 msg = 'Unescapment of Unicode characters fails!' ).
+    cl_aunit_assert=>assert_equals( act = lv_len exp = 23 msg = 'Unescapment of Unicode characters fails!' ).
 
     lv_json = `{"str":"\u6210"}`.
     deserialize( EXPORTING json = lv_json CHANGING data = ls_data ).
