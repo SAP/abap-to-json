@@ -27,6 +27,7 @@
 ### /UI2/CL_JSON
 * Fixed: Wrong elementary type is used when generating data for REF TO data (TIMESTAMP instead of string)
 * Fixed: attribute names created from table key values are not escaped/unescaped when using the ASSOC_ARRAYS option.
+* Fixed: additional performance optimization for deserializing long strings with escaped characters. Because of the use of CALL TRANSFORMATION id for JSON, requires kernel updates for SAP_BASIS 7.02 and 7.31 (SAP Notes 1648418 and 1650141).
 
 ## Note [3515438](https://launchpad.support.sap.com/#/notes/3515438) - PL20
 ### /UI2/CL_JSON
