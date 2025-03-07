@@ -234,6 +234,39 @@ Output JSON
 ```
 For deserialization, the flag tells the deserializer that the value shall be placed in a non-key field of the structure.
 
+
+Here is an example of deserialization, in which mentioned above two options can be used:
+```json
+{
+  "id": "509e28db-6794-4e02-91d3-e35f4c7310e9",
+  "form": {
+      "Authorised": "TBB ENTERPRISE SDN. BHD.",
+      "Fax No:": "92225491",
+      "Issued Date :": "02-10-2024",
+      "Voluntary Excess": "0.00",
+      "Page": "2",
+      "Allianz General Insurance Company (Malaysia) Berhad": "(200601015674)",
+    }
+}
+```
+Look into sub-attributes of the "form" field. They can not be easily mapped into any ABAP structure, because attribute names contain spaces, special characters, etc. The best way would be to deserialize this fragment in a table with a key, corresponding to the attribute name. The example code for deserialization then will look like this:
+```abap
+TYPES: BEGIN OF ts_name_value,
+         name TYPE string,
+         value TYPE string,
+       END OF ts_name_value,
+       BEGIN OF ts_data,
+         id TYPE string,
+         form TYPE SORTED TABLE OF ts_name_value WITH UNIQUE KEY name,
+       END OF ts_data.
+
+DATA: ls_data TYPE ts_data.
+/ui2/cl_json=>deserialize( EXPORTING json = lv_json
+                                     assoc_array = abap_true
+                                     assoc_array_opt = abap_true
+                           CHANGING  data = ls_data ). 
+```
+
 # Supported SAP_BASIS releases
 The code was tested from SAP_BASIS 7.00 and higher, but I do not see the reasons why it cannot be downported on lower releases either. But if you plan to use it on SAP_BASIS 7.02 and higher (and do not need property name pretty-printing) better consider the standard solution for **ABAP**, using [CALL TRANSFORMATION](advanced.md#json-to-abap-transformation-with-the-use-of-call-transformation). It shall be faster, while implemented in the kernel. Maybe the best will be, if you need support in lower SAP_BASIS releases as well as in 7.02 and higher, to modify the provided class in a way to generate the same **JSON** format as standard ABAP CALL TRANSFORMATION for JSON does and redirect flow to home-made code or built-in **ABAP** transformation depending on SAP_BASIS release.
 
