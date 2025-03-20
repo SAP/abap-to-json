@@ -13,6 +13,9 @@
 * [You get a short dump OBJECTS_NOT_CHAR when serializing data with enabled conversion exits](#you-get-a-short-dump-objects_not_char-when-serializing-data-with-enabled-conversion-exits)
 * [Why special characters in JSON attribute names are not escaped or unescaped?](#why-are-special-characters-in-json-attribute-names-not-escaped-or-unescaped)
 
+## It is slow
+It is as fast as possible to achieve it in pure ABAP. If you have suggestions on how to make it faster - you are welcome. Features like type conversions, type detections, renaming, data generation, etc require processing time, and even if they are not active you may pay the penalty because the class design allows this feature. Operation on strings is not fast in ABAP, calling of the methods is not cheap (that is why the class uses macros). More to come...
+
 ## GENERATE or DESERIALIZE into REF TO DATA vs. DESERIALIZE into a typed data structure
 It is always better to deserialize into explicit data structure but not into anonymous reference:
 
