@@ -1,5 +1,6 @@
 # FAQ
 
+* [It is slow](#it-is-slow)
 * [GENERATE or DESERIALIZE into REF TO DATA vs. DESERIALIZE into a typed data structure](#generate-or-deserialize-into-ref-to-data-vs-deserialize-into-a-typed-data-structure)
 * [JSON to ABAP data type conversion when using GENERATE or DESERIALIZE into REF TO DATA](#json-to-abap-data-type-conversion-when-using-generate-or-deserialize-into-ref-to-data)
 * [Serialize huge data objects into JSON and short dumps](#serialize-huge-data-objects-into-json-and-short-dumps)
