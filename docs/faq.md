@@ -15,7 +15,14 @@
 * [Why special characters in JSON attribute names are not escaped or unescaped?](#why-are-special-characters-in-json-attribute-names-not-escaped-or-unescaped)
 
 ## It is slow
-It is as fast as possible to achieve it in pure ABAP. If you have suggestions on how to make it faster - you are welcome. Features like type conversions, type detections, renaming, data generation, etc require processing time, and even if they are not active you may pay the penalty because the class design allows this feature. Operation on strings is not fast in ABAP, calling of the methods is not cheap (that is why the class uses macros). More to come...
+It is as fast as possible to achieve it in pure ABAP and already heavily optimized. If you have suggestions on how to make it faster - you are welcome. Features like type conversions, type detections, renaming, data generation, etc require processing time, and even if they are not active you may pay the penalty because the class design allows this feature. Operations on strings are not fast in ABAP, and method calls are costly, which is why macros are used within the class. However, the class is robust and can handle any data type for serialization and deserialization, offering many convenient functions that would otherwise need to be implemented manually. It performs well in numerous use cases.
+
+In scenarios where extensive functionality and flexibility are unnecessary, such as with simple, flat tables requiring fast JSON serialization/deserialization, tweaking /ui2/cl_json for speed by disabling flags is not viable. No other universal classes with comparable functionality are known to be faster. The best solutions currently are:
+
+* **CALL TRANSFORMATION id**: This is the fastest alternative (10x), but it requires accepting a proprietary JSON format with missing type conversions and UPPER case attribute names. It can be suitable if you control the other side and can parse the proprietary JSON.
+* **CALL TRANSFORMATION with custom XSLT**: This option is slower (~7x, depending on XSLT complexity) but allows control over the JSON format through custom XSLT, including attribute names and values. However, it works only with ABAP component names and values, without RTTI information. You need to write, deliver, and synchronize your XSLT with your data structures.
+
+For more details, please refer to the documentation: [JSON to ABAP transformation with the use of CALL TRANSFORMATION](https://github.com/SAP/abap-to-json/blob/main/docs/advanced.md#json-to-abap-transformation-with-the-use-of-call-transformation)
 
 ## GENERATE or DESERIALIZE into REF TO DATA vs. DESERIALIZE into a typed data structure
 It is always better to deserialize into explicit data structure but not into anonymous reference:
