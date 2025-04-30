@@ -23,16 +23,16 @@
    * [Note 2429758](#note-2429758)
    * [Note 2480119](#note-2480119)
 
-## Note [3568088](https://launchpad.support.sap.com/#/notes/3568088) - PL21 (planned)
+## Note [3568088](https://launchpad.support.sap.com/#/notes/3568088) - PL21
 ### /UI2/CL_JSON
-* Fixed: Wrong elementary type is used when generating data for REF TO data (TIMESTAMP instead of string)
+* Fixed: The wrong elementary type is used when generating data for REF TO data (TIMESTAMP instead of string)
 * Fixed: attribute names created from table key values are not escaped/unescaped when using the ASSOC_ARRAYS option.
-* Fixed: additional performance optimization for deserializing long strings with escaped characters. Because of the use of CALL TRANSFORMATION id for JSON, requires kernel updates for SAP_BASIS 7.02 and 7.31 (SAP Notes 1648418 and 1650141).
+* Fixed: additional performance optimization for deserializing long strings with escaped characters. Because of the use of CALL TRANSFORMATION id for JSON, it requires kernel updates for SAP_BASIS 7.02 and 7.31 (SAP Notes 1648418 and 1650141).
 
 ## Note [3515438](https://launchpad.support.sap.com/#/notes/3515438) - PL20
 ### /UI2/CL_JSON
 * Fixed: Empty objects ( "a":{} ) are not initialized when using GENERATE or DESERIALIZE into REF TO data, taking the value of the previous field
-* Added: support of PascalCase for pretty printing.
+* Added: Support for PascalCase for pretty printing was added.
 * Fixed. The logic for OUTPUT conversion exits reverted to the state of PL18 ([details](https://github.com/SAP/abap-to-json/issues/10)). 
 
 ## Note [3414589](https://launchpad.support.sap.com/#/notes/3414589) - PL19
@@ -45,7 +45,7 @@
 * Fixed. Added support for the timezone offsets for ISO8601.
 * Fixed: rounding bug when deserializing timestamps with sub-seconds into short timestamps (seconds)
 * New: Information about the invalid field added to the exception data of move_cast_error ([details](https://github.com/SAP/abap-to-json/pull/8))
-* New: serialization now can detect "timestamps" defined with the help of data domains ([details](https://github.com/SAP/abap-to-json/pull/9))
+* New: Serialization now can detect "timestamps" defined with the help of data domains ([details](https://github.com/SAP/abap-to-json/pull/9))
 * New: new switch for GENERATE (optimize) and DESERIALIZE (gen_optimize) that enables optimization of generated ABAP data for REF TO DATA (fewer references, easily readable and accessible). Results in longer processing.
 * New: added detection of time, date, and timestamp values on generation/deserialization into TYPE REF TO data.
 
@@ -53,7 +53,7 @@
 * Added: Open Source version of the /ui2/cl_data_access as Z_UI2_DATA_ACCESS
 
 ## Note [3424850](https://launchpad.support.sap.com/#/notes/3424850) - /UI2/CL_JSON - Release API for Cloud Development
-You can not use the class in the Private Cloud, because the class has not been released for Cloud Development (for the Public Cloud it was already released).
+You can not use the class in the Private Cloud, because the class has not been released for Cloud Development (for the Public Cloud, it was already released).
 Delivered with OP 2025 and OP 2023 FPS2. Note for OP 2023 (SAP_BASIS 758)
 
 ## Note [3315430](https://launchpad.support.sap.com/#/notes/3315430) - PL18
@@ -84,14 +84,14 @@ Delivered with OP 2025 and OP 2023 FPS2. Note for OP 2023 (SAP_BASIS 758)
 * Fixed: Method serialize produces corrupt data when an initial date or time field is serialized (something like "--" or "::" ).
 * Fixed: Performance for serializing and deserializing dynamic data objects (REF TO DATA) is greatly improved. 
 * New: You can apply text formatting/beautifying to serialized JSON with the new parameter format_output.
-* New: You can control the format of how hex values are serialized or deserialized with the new parameter hex_as_base64 for SERIALIAZE and DESERIALIZE methods. If hex_as_base64 is set to abap_true, binary/hex values are processed as base64 (default, compatible behavior). If hex_as_base64 is set to abap_false value processed in raw hex form.
+* New: You can control the format of how hex values are serialized or deserialized with the new parameter hex_as_base64 for the SERIALIZE and DESERIALIZE methods. If hex_as_base64 is set to abap_true, binary/hex values are processed as base64 (default, compatible behavior). If hex_as_base64 is set to abap_false value is processed in raw hex form.
 * New: Now you can provide bool types (true, false), 3 bool types (true, false, undefined), initial timestamp, initial time, and initial date (JSON value for initial ABAP value) in the instance constructor. This would allow you to not inherit class but just parametrize (better performance). 
 
 ## Note [2944398](https://launchpad.support.sap.com/#/notes/2944398 ) - PL15
 ### /UI2/CL_JSON
-* Fixed. Generating of ABAP structures for JSON attributes which include special characters like "/\:;~.,-+=><|()[]{}@+\*?!&$#%^'§\`" fails.
+* Fixed. Generating ABAP structures for JSON attributes that include special characters like "/\:;~.,-+=><|()[]{}@+\*?!&$#%^'§\`" fails.
 * Fixed. Edm.Guid with the mixed or lowercase is not recognized.
-* Fixed. Iterating and data assignments for the generated data object (REF TO DATA), produced by GENERATE and DESERIALIZE methods fail in ABAP Cloud. 
+* Fixed. Iterating and data assignments for the generated data object (REF TO DATA), produced by the GENERATE and DESERIALIZE methods, fail in ABAP Cloud. 
 
 ### /UI2/CL_DATA_ACCESS
 * Fixed. Index access to generated tables in LOOP construction fails.
@@ -99,7 +99,7 @@ Delivered with OP 2025 and OP 2023 FPS2. Note for OP 2023 (SAP_BASIS 758)
 ## Note [2904870](https://launchpad.support.sap.com/#/notes/2904870 ) - PL14
 ### /UI2/CL_JSON
 * Fixed. Unescaping of strings with a single Unicode entity (e.g "\uXXXX") does not work 
-* New. More robust logic for handling invalid JSON (e.g cases with extra "," without further element  { "a": 1, } )
+* New. More robust logic for handling invalid JSON (e.g, cases with extra "," without further element  { "a": 1, } )
 
 ## Note [2870163](https://launchpad.support.sap.com/#/notes/2870163 ) - PL13
 ### /UI2/CL_JSON
@@ -130,26 +130,26 @@ Delivered with OP 2025 and OP 2023 FPS2. Note for OP 2023 (SAP_BASIS 758)
 ## Note [2650040](https://launchpad.support.sap.com/#/notes/2650040)
 ### /UI2/CL_JSON
 * New: Support for deserialization of OData Edm.Guid
-* New: Support of Enum data types in ABAP. From SAP_BASIS 7.51, below - the enums are ignored.
-* New: Support of conversion exits for serializing and deserializing.
-* Fixed: SERIALIZE method delivers an invalid JSON string, when NUMC type, filled with spaces is used.
+* New: Support for Enum data types in ABAP. From SAP_BASIS 7.51, below, the enums are ignored.
+* New: Support for conversion exits for serializing and deserializing.
+* Fixed: SERIALIZE method delivers an invalid JSON string when NUMC type, filled with spaces, is used.
 
 ## Note [2629179](https://launchpad.support.sap.com/#/notes/2629179)
 ### /UI2/CL_JSON
 * New: JSON timestamp fields, serialized in OData Edm.DateTime format (e.g. "\/Date(1467981296000)\/") is supported, and properly deserialized in ABAP date, time, or timestamp fields
-* New: JSON timestamp fields, serialized in OData Edm.Time format (e.g. "PT10H34M55S") is supported, and properly deserialized in ABAP date, time, or timestamp fields
+* New: JSON timestamp fields, serialized in OData Edm.Time format (e.g., "PT10H34M55S") is supported, and properly deserialized in ABAP date, time, or timestamp fields
 * Fixed: content is scrambled when using the GENERATE method for JSON objects with a name containing special characters (for example "__metadata")
 * Fixed: GENERATE method does not consider custom name mapping pairs passed as a parameter for CONSTRUCTOR or GENERATE methods
-* Fixed: generation of very long integers (serialized numeric date) fails, due to I type overflow (you get 0 instead of an expected number) 
+* Fixed: generation of very long integers (serialized numeric date) fails, due to I type overflow (you get 0 instead of the expected number) 
 
 ## Note [2526405](https://launchpad.support.sap.com/#/notes/2526405)
 ### /UI2/CL_JSON
 * Fixed: Deserialization of the inconsistent data (JSON string into ABAP table) leads to a short dump if the JSON string is empty.
 * Fixed: Serialization of data with includes defined suffix (RENAME WITH SUFFIX) dumps
-* Fixed: GENERATE method fails, if the JSON object contains duplicate attributes and PRETTY_MODE-CAMEL_CASE is not used.
-* Fixed: GENERATE method fails, if JSON object contains attribute names longer than 30 characters (allowed ABAP field length). This can also occur in case the name is shorter than 30 characters, but PRETTY_MODE-CAMEL_CASE is used.
+* Fixed: GENERATE method fails if the JSON object contains duplicate attributes and PRETTY_MODE-CAMEL_CASE is not used.
+* Fixed: GENERATE method fails if JSON object contains attribute names longer than 30 characters (allowed ABAP field length). This can also occur in case the name is shorter than 30 characters, but PRETTY_MODE-CAMEL_CASE is used.
 * New: methods DUMP_INT, DUMP_TYPE, RESTORE_TYPE, and RESTORE can be overridden now. So, you can introduce your data type conversion on serialization and deserialization.
-* New: now it is possible to pass the name mapping table as a parameter for the constructor/serialize/deserialize and control the way JSON names are formatted/mapped to ABAP names. This may help if you need special rules for name formatting (for special characters or two long JSON attributes) and standard pretty printing modes cannot help. With this feature, you may eliminate the need for the class extension and redefine PRETTY_NAME and PRETTY_NAME_EX methods. 
+* New: now it is possible to pass the name mapping table as a parameter for the constructor/serialize/deserialize and control the way JSON names are formatted/mapped to ABAP names. This may help if you need special rules for name formatting (for special characters or two long JSON attributes) and standard pretty printing modes cannot help. With this feature, you may eliminate the need for the class extension and redefine the PRETTY_NAME and PRETTY_NAME_EX methods. 
 * New: The PRETTY_NAME_EX method was extended to support the encoding of more special characters (characters needed in JSON names but can not be used as part of the ABAP name). The supported characters are: "!#$%&\*-~/:|@.". Used with pretty_mode-extended.
 
 ### /UI2/CL_DATA_ACCESS
@@ -168,20 +168,20 @@ Delivered with OP 2025 and OP 2023 FPS2. Note for OP 2023 (SAP_BASIS 758)
 * New: Added support for serializing named include structures from ABAP as embedded sub-objects in JSON
 
 ## Note [2368774](https://launchpad.support.sap.com/#/notes/2368774)
-* Fixed: /UI2/CL_JSON creates unnecessary wrapping JSON object around value for name/value (table with 2 fields) tables with 1 unique key
+* Fixed: /UI2/CL_JSON creates unnecessary wrapping JSON object around value for name/value (table with 2 fields), tables with 1 unique key
 * Fixed: Performance of serialization/deserialization of big tables into/from JSON associative arrays (maps) is slow
-* Fixed: When trying to deserialize invalid (not matching) structure from JSON to ABAP dump OBJECTS_MOVE_NOT_SUPPORTED occurs
+* Fixed: When trying to deserialize an invalid (not matching) structure from JSON to ABAP dump OBJECTS_MOVE_NOT_SUPPORTED occurs
 
 ## Note [2382783](https://launchpad.support.sap.com/#/notes/2382783)
 * Fixed: Unescape of symbol '\' on JSON deserialization does not work
 * Fixed: Short dump on serialization of classes with protected/private attributes
-* Fixed: Short dump when serializing dynamic, not existing, types
+* Fixed: Short dump when serializing dynamic, non-existing types
 
 ## Note [2429758](https://launchpad.support.sap.com/#/notes/2429758)
 * Fixed: Short Dump on deserialization of classes with read-only attributes
 * New: The serialization parameter was added to NUMC_AS_STRING, controlling the way NUMC fields are serialized. The default is FALSE. If set to TRUE, NUMC fields are serialized not as numbers, but as strings, with all leading zeroes. Deserialization works compatibly with both ways of NUMC serialized data.
 * New: GENERATE and GENERATE_INT methods are added for the on-the-fly creation of ABAP data objects from JSON, without the need to have a predefined ABAP structure. Supports automatic creation of ABAP structures, tables, and elementary types, concerning JSON types. Supports structure/table nesting.
-* New: DESERIALIZE_INT method throws an exception CX_SY_MOVE_CAST_ERROR and stops further processing in case of malformed data found and STRICT_MODE parameter in constructor set to TRUE.
+* New: DESERIALIZE_INT method throws an exception CX_SY_MOVE_CAST_ERROR and stops further processing in case of malformed data found, and the STRICT_MODE parameter in the constructor is set to TRUE.
 * New: Support for XSTRING was added as input for deserialization.
 
 ## Note [2480119](https://launchpad.support.sap.com/#/notes/2480119)
@@ -189,4 +189,4 @@ Delivered with OP 2025 and OP 2023 FPS2. Note for OP 2023 (SAP_BASIS 758)
 * New: GENERATE method creates a local custom class for deserialization (lc_json_custom), instead of standard /ui2/cl_json
 * Fixed: Internal tables are not initialized when deserializing JSON with empty arrays
 * New: Deserialization into a field with REF TO data type, if the field is bound, using a referenced data type
-* New: Deserialization uses automatic generation of the data if the field has "REF TO DATA" type and bound data is initial
+* New: Deserialization uses automatic generation of the data if the field has "REF TO DATA" type and the bound data is initial
