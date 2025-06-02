@@ -1,4 +1,5 @@
 # Version History
+   * [Note 3568088 - PL21](#note-3615316---pl22)
    * [Note 3568088 - PL21](#note-3568088---pl21)
    * [Note 3515438 - PL20](#note-3515438---pl20)
    * [Note 3414589 - PL19](#note-3414589---pl19)
@@ -23,6 +24,10 @@
    * [Note 2429758](#note-2429758)
    * [Note 2480119](#note-2480119)
 
+## Note [3615316](https://launchpad.support.sap.com/#/notes/3615316) - PL22 (not released)
+### /UI2/CL_JSON
+* Fixed: Bug with generation of the structures with similar field names (fex, "a", "bc" vs "ab", "c").
+
 ## Note [3568088](https://launchpad.support.sap.com/#/notes/3568088) - PL21
 ### /UI2/CL_JSON
 * Fixed: The wrong elementary type is used when generating data for REF TO data (TIMESTAMP instead of string)
@@ -40,7 +45,7 @@
 * Fixed: enhanced processing of deserialization into typed TYPE REFs
 * Fixed: deserialization of JSON 'null' into complex, not reference ABAP fields does not lead to exception in strict mode ([details](https://github.com/SAP/abap-to-json/pull/5))
 * Fixed: Support for ABAP_BOOLEAN type was added.
-* Fixed: performance optimization for deserializing strings with escaped line breaks and special characters. When you have escaped "\\", e.g. "\\\\" it is still slow.
+* Fixed: performance optimization for deserializing strings with escaped line breaks and special characters. When you have escaped "\\", e.g., "\\\\", it is still slow.
 * Fixed: short dump in conversion exits routines on SERIALIZE/DESERIALIZE because of the wrong data type (OBJECTS_NOT_CHAR).
 * Fixed. Added support for the timezone offsets for ISO8601.
 * Fixed: rounding bug when deserializing timestamps with sub-seconds into short timestamps (seconds)
@@ -70,7 +75,7 @@ Delivered with OP 2025 and OP 2023 FPS2. Note for OP 2023 (SAP_BASIS 758)
 * Fixed: added support for UTCLONG. This new built-in ABAP data type comes with SAP_BASIS 7.54 and adds native support for timestamps to ABAP. The type is always represented in ISO8601 and does not depend on the TS_AS_ISO8601 parameter.
 * Fixed: serialization of the timestamp fields into ISO8601 does not add any more sub-second sections into JSON, while it is always initial for timestamps.
 * Fixed: deserialization of the JSON strings with non-breakable spaces (nbsp)
-* Fixed: processing of the JSON attribute names with escaped double quotes ("abc efg \\\" etc" : "value")
+* Fixed: processing of the JSON attribute names with escaped double quotes ("abc efg \\\" etc": "value")
 * Fixed: deserialization (generation without typed output structure) does not consider exponential numeric values and tries to transform them into an integer and fails, resulting in 0.
 
 ### New language features used:
@@ -98,7 +103,7 @@ Delivered with OP 2025 and OP 2023 FPS2. Note for OP 2023 (SAP_BASIS 758)
 
 ## Note [2904870](https://launchpad.support.sap.com/#/notes/2904870 ) - PL14
 ### /UI2/CL_JSON
-* Fixed. Unescaping of strings with a single Unicode entity (e.g "\uXXXX") does not work 
+* Fixed. Unescaping of strings with a single Unicode entity (e.g., "\uXXXX") does not work 
 * New. More robust logic for handling invalid JSON (e.g, cases with extra "," without further element  { "a": 1, } )
 
 ## Note [2870163](https://launchpad.support.sap.com/#/notes/2870163 ) - PL13
@@ -109,14 +114,14 @@ Delivered with OP 2025 and OP 2023 FPS2. Note for OP 2023 (SAP_BASIS 758)
 ## Note [2798102](https://launchpad.support.sap.com/#/notes/2798102 ) - PL12
 ### /UI2/CL_JSON
 * New. DESERIALIZE and GENERATE methods supporting decoding of Unicode symbols (\u001F) 
-* Fixed. Invalid JSON causing <STING_OFFSET_TOO_LARGE> exception and dump.
+* Fixed. Invalid JSON causing <STRING_OFFSET_TOO_LARGE> exception and dump.
 ### /UI2/CL_DATA_ACCESS
-* Fixed. Access to fields with special characters in the name (e.g. "/BIC/YEAR") fails.
+* Fixed. Access to fields with special characters in the name (e.g., "/BIC/YEAR") fails.
 
 ## Note [2786259](https://launchpad.support.sap.com/#/notes/2786259 ) - PL11
 ### /UI2/CL_JSON
 * Optimized. Performance lost, introduced in PL10 (note 2763854) when unescaping special characters (\r\n\t\")
-* Fixed. Short dump, with <STRING_OFFSET_TOO_LARGE> when running GENERATE method with empty or invalid input
+* Fixed. Short dump, with <STRING_OFFSET_TOO_LARGE> when running the GENERATE method with empty or invalid input
 
 ### /UI2/CL_DATA_ACCESS
 * Fixed. Short dump, when accessing elements of a null array
@@ -189,4 +194,4 @@ Delivered with OP 2025 and OP 2023 FPS2. Note for OP 2023 (SAP_BASIS 758)
 * New: GENERATE method creates a local custom class for deserialization (lc_json_custom), instead of standard /ui2/cl_json
 * Fixed: Internal tables are not initialized when deserializing JSON with empty arrays
 * New: Deserialization into a field with REF TO data type, if the field is bound, using a referenced data type
-* New: Deserialization uses automatic generation of the data if the field has "REF TO DATA" type and the bound data is initial
+* New: Deserialization uses automatic generation of the data if the field has a "REF TO DATA" type and the bound data is initial
