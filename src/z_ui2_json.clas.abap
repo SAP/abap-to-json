@@ -51,7 +51,7 @@ public section.
   constants MC_KEY_SEPARATOR type STRING value `-` ##NO_TEXT.
   class-data MC_BOOL_TYPES type STRING read-only value `\TYPE-POOL=ABAP\TYPE=ABAP_BOOL\TYPE=BOOLEAN\TYPE=BOOLE_D\TYPE=XFELD\TYPE=XSDBOOLEAN\TYPE=WDY_BOOLEAN` ##NO_TEXT.
   class-data MC_BOOL_3STATE type STRING read-only value `\TYPE=BOOLEAN` ##NO_TEXT.
-  constants VERSION type I value 21 ##NO_TEXT.
+  constants VERSION type I value 22 ##NO_TEXT.
   class-data MC_JSON_TYPE type STRING read-only .
 
   class-methods CLASS_CONSTRUCTOR .
@@ -571,8 +571,6 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     create_regexp so_regex_generate_camel_case '([a-z])([A-Z])'.
     create_regexp so_regex_generate_type_detect '^"(?:(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:[\.,]\d{0,9})?(?:Z|(?:[+-]\d{2}:\d{2})))|(?:\d{4}-\d{2}-\d{2})|(?:\d{2}:\d{2}:\d{2}))"'.
 
-    create_regexp so_regex_unescape_spec_char '\\[rntfbu\\]'.
-
   ENDMETHOD.                    "class_constructor
 
 
@@ -703,6 +701,54 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     ENDTRY.
 
   ENDMETHOD.                    "deserialize
+
+
+  METHOD detect_typekind.
+
+    DATA: domain_name     TYPE domname,
+          inner_elemdescr TYPE REF TO cl_abap_elemdescr.
+
+    IF convexit IS NOT INITIAL.
+      rv_type = e_typekind-convexit.
+    ELSE.
+      rv_type = type_descr->type_kind.
+      IF rv_type EQ cl_abap_typedescr=>typekind_packed AND mv_ts_as_iso8601 EQ c_bool-true.
+
+        IF type_descr->help_id IS NOT INITIAL AND NOT contains( val = type_descr->absolute_name end = type_descr->help_id ).
+          TRY.
+              inner_elemdescr ?= cl_abap_elemdescr=>describe_by_name( type_descr->help_id ).
+              IF inner_elemdescr->is_ddic_type( ) EQ abap_true.
+                domain_name = inner_elemdescr->get_ddic_field( )-domname.
+              ENDIF.
+            CATCH cx_root.                               "#EC CATCH_ALL
+              domain_name = ''.
+          ENDTRY.
+        ELSE.
+          IF type_descr->is_ddic_type( ) EQ abap_true.
+            domain_name = type_descr->get_ddic_field( )-domname.
+          ENDIF.
+        ENDIF.
+
+        IF domain_name EQ 'TZNTSTMPS' OR domain_name EQ 'XSDDATETIME_Z'. " domain of TIMESTAMP is TZNTSTMPS
+          rv_type = e_typekind-ts_iso8601.
+        ELSEIF domain_name EQ 'TZNTSTMPL' OR domain_name EQ 'XSDDATETIME_LONG_Z'.
+          rv_type = e_typekind-tsl_iso8601.
+        ENDIF.
+
+      ELSEIF rv_type EQ cl_abap_typedescr=>typekind_num AND mv_numc_as_string EQ abap_true.
+        rv_type = e_typekind-numc_string.
+      ELSEIF rv_type EQ cl_abap_typedescr=>typekind_string AND type_descr->absolute_name EQ mc_json_type.
+        rv_type = e_typekind-json.
+      ELSEIF rv_type EQ cl_abap_typedescr=>typekind_char AND type_descr->output_length EQ 1 AND mv_bool_types CS type_descr->absolute_name.
+        IF mv_bool_3state CS type_descr->absolute_name.
+          rv_type = e_typekind-tribool.
+        ELSE.
+          rv_type = e_typekind-bool.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+
+  ENDMETHOD.                    "DETECT_EXT_TYPE_KIND
 
 
   METHOD dump.
@@ -1358,7 +1404,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
       APPEND <field>-type->absolute_name TO lt_keys.
     ENDLOOP.
 
-    CONCATENATE LINES OF lt_keys INTO ls_type-keys.
+    CONCATENATE LINES OF lt_keys INTO ls_type-keys SEPARATED BY '-'.
     ls_type-keys = lcl_util=>to_md5( ls_type-keys ).
 
     READ TABLE mt_struct_type WITH TABLE KEY keys = ls_type-keys INTO ls_type.
@@ -2546,52 +2592,4 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     ENDIF.
 
   ENDMETHOD.                    "xstring_to_string
-
-
-  METHOD detect_typekind.
-
-    DATA: domain_name     TYPE domname,
-          inner_elemdescr TYPE REF TO cl_abap_elemdescr.
-
-    IF convexit IS NOT INITIAL.
-      rv_type = e_typekind-convexit.
-    ELSE.
-      rv_type = type_descr->type_kind.
-      IF rv_type EQ cl_abap_typedescr=>typekind_packed AND mv_ts_as_iso8601 EQ c_bool-true.
-
-        IF type_descr->help_id IS NOT INITIAL AND NOT contains( val = type_descr->absolute_name end = type_descr->help_id ).
-          TRY.
-              inner_elemdescr ?= cl_abap_elemdescr=>describe_by_name( type_descr->help_id ).
-              IF inner_elemdescr->is_ddic_type( ) EQ abap_true.
-                domain_name = inner_elemdescr->get_ddic_field( )-domname.
-              ENDIF.
-            CATCH cx_root.                               "#EC CATCH_ALL
-              domain_name = ''.
-          ENDTRY.
-        ELSE.
-          IF type_descr->is_ddic_type( ) EQ abap_true.
-            domain_name = type_descr->get_ddic_field( )-domname.
-          ENDIF.
-        ENDIF.
-
-        IF domain_name EQ 'TZNTSTMPS' OR domain_name EQ 'XSDDATETIME_Z'. " domain of TIMESTAMP is TZNTSTMPS
-          rv_type = e_typekind-ts_iso8601.
-        ELSEIF domain_name EQ 'TZNTSTMPL' OR domain_name EQ 'XSDDATETIME_LONG_Z'.
-          rv_type = e_typekind-tsl_iso8601.
-        ENDIF.
-
-      ELSEIF rv_type EQ cl_abap_typedescr=>typekind_num AND mv_numc_as_string EQ abap_true.
-        rv_type = e_typekind-numc_string.
-      ELSEIF rv_type EQ cl_abap_typedescr=>typekind_string AND type_descr->absolute_name EQ mc_json_type.
-        rv_type = e_typekind-json.
-      ELSEIF rv_type EQ cl_abap_typedescr=>typekind_char AND type_descr->output_length EQ 1 AND mv_bool_types CS type_descr->absolute_name.
-        IF mv_bool_3state CS type_descr->absolute_name.
-          rv_type = e_typekind-tribool.
-        ELSE.
-          rv_type = e_typekind-bool.
-        ENDIF.
-      ENDIF.
-    ENDIF.
-
-  ENDMETHOD.                    "DETECT_EXT_TYPE_KIND
 ENDCLASS.
