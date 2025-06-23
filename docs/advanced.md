@@ -29,7 +29,7 @@ For simplicity, the class provides static SERIALIZE/DESERIALIZE methods that can
  * \> **GEN_OPTIMIZE** (bool, default = false) - Optimize generated structures for REF TO DATA
 
 ### Advanced settings available only with explicit constructor initialization
- * \> **STRICT_MODE** (bool, default = false) - Stop further processing on error
+ * \> **STRICT_MODE** (bool, default = false) - Stop further processing on error. [ => Exception Handling in /UI2/CL_JSON](#exception-handling-in-ui2cl_json)
  * \> **BOOL_TYPES** (string, default = MC_BOOL_TYPES) - List of known boolean types
  * \> **BOOL_3STATE** (string, default = MC_BOOL_3STATE) - List of known 3state boolean types
  * \> **INITIAL_TS** (string, default = "") - Initial timestamp as JSON
