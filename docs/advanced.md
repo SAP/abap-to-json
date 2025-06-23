@@ -378,6 +378,8 @@ By default, /UI2/CL_JSON tries to hide from consumer code thrown exceptions (tha
 
 If you want to get a report in case of error, use the instance method DESERIALIZE_INT, which may fire CX_SY_MOVE_CAST_ERROR. The reporting is rather limited - all errors are translated into CX_SY_MOVE_CAST_ERROR, and no additional information is available. But from PL19, you will also get extra details reported in the target (ABAP) and source (JSON) fields, as the type of ABAP field that is not filled and the JSON node leading to the error. More details can be found in [this issue](https://github.com/SAP/abap-to-json/pull/8).
 
+In addition, you may (and should) pass STRICT_MODE = ABAP_TRUE to the class constructor to get more exceptions and more details passed through.
+
 # JSON to ABAP transformation with the use of CALL TRANSFORMATION
 Below is a small example of CALL TRANSFORMATION usage to produce JSON from ABAP structures. Don't ask me for details - I do not know them. (smile) It was just a small test for me.
 ```abap
