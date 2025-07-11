@@ -94,20 +94,30 @@ DEFINE dump_type_int.
         CONCATENATE '"' utcl(10) 'T' utcl+11(16) 'Z"'  INTO &3.
       ENDIF.
     WHEN e_typekind-ts_iso8601.
-      IF &1 IS INITIAL.
-        &3 = mv_initial_ts.
+      IF mv_ts_as_iso8601 EQ c_bool-true.
+        IF &1 IS INITIAL.
+          &3 = mv_initial_ts.
+        ELSE.
+          DATA: ts TYPE c LENGTH 14.
+          ts = &1.
+          CONCATENATE '"' ts(4) '-' ts+4(2) '-' ts+6(2) 'T' ts+8(2) ':' ts+10(2) ':' ts+12(2) 'Z"'  INTO &3.
+        ENDIF.
       ELSE.
-        DATA: ts TYPE c LENGTH 14.
-        ts = &1.
-        CONCATENATE '"' ts(4) '-' ts+4(2) '-' ts+6(2) 'T' ts+8(2) ':' ts+10(2) ':' ts+12(2) 'Z"'  INTO &3.
+        &3 = &1.
+        CONDENSE &3.
       ENDIF.
     WHEN e_typekind-tsl_iso8601.
-      IF &1 IS INITIAL.
-        &3 = mv_initial_ts.
+      IF mv_ts_as_iso8601 EQ c_bool-true.
+        IF &1 IS INITIAL.
+          &3 = mv_initial_ts.
+        ELSE.
+          DATA: tsl TYPE c LENGTH 22.
+          tsl = &1.
+          CONCATENATE '"' tsl(4) '-' tsl+4(2) '-' tsl+6(2) 'T' tsl+8(2) ':' tsl+10(2) ':' tsl+12(2) '.' tsl+15(7) 'Z"'  INTO &3.
+        ENDIF.
       ELSE.
-        DATA: tsl TYPE c LENGTH 22.
-        tsl = &1.
-        CONCATENATE '"' tsl(4) '-' tsl+4(2) '-' tsl+6(2) 'T' tsl+8(2) ':' tsl+10(2) ':' tsl+12(2) '.' tsl+15(7) 'Z"'  INTO &3.
+        &3 = &1.
+        CONDENSE &3.
       ENDIF.
     WHEN e_typekind-float.
       IF &1 IS INITIAL.
@@ -238,7 +248,7 @@ DEFINE restore_reference_ex. " &1 - data, &2 - type_descr
   ENDIF.
   data_ref ?= &1.
   ASSIGN data_ref->* TO <data>.
-  restore_type( EXPORTING json = json length = length type_descr = data_descr CHANGING data = <data> offset = offset ).
+  restore_type( EXPORTING json = json length = length type_descr = data_descr typekind = data_descr->type_kind CHANGING data = <data> offset = offset ).
 END-OF-DEFINITION.
 
 DEFINE throw_error.

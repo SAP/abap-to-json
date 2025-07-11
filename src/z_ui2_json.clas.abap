@@ -420,6 +420,7 @@ protected section.
       value(TYPE_DESCR) type ref to CL_ABAP_TYPEDESCR optional
       !FIELD_CACHE type T_T_FIELD_CACHE optional
       !CONVEXIT type STRING optional
+      !TYPEKIND type TYPEKIND optional
     changing
       !DATA type DATA optional
       !OFFSET type I default 0
@@ -712,7 +713,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
       rv_type = e_typekind-convexit.
     ELSE.
       rv_type = type_descr->type_kind.
-      IF rv_type EQ cl_abap_typedescr=>typekind_packed AND mv_ts_as_iso8601 EQ c_bool-true.
+      IF rv_type EQ cl_abap_typedescr=>typekind_packed.
 
         IF type_descr->help_id IS NOT INITIAL AND NOT contains( val = type_descr->absolute_name end = type_descr->help_id ).
           TRY.
@@ -1064,20 +1065,30 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           CONCATENATE '"' utcl(10) 'T' utcl+11(16) 'Z"'  INTO r_json.
         ENDIF.
       WHEN e_typekind-ts_iso8601.
-        IF data IS INITIAL.
-          r_json = mv_initial_ts.
+        IF mv_ts_as_iso8601 EQ c_bool-true.
+          IF data IS INITIAL.
+            r_json = mv_initial_ts.
+          ELSE.
+            DATA: ts TYPE c LENGTH 14.
+            ts = data.
+            CONCATENATE '"' ts(4) '-' ts+4(2) '-' ts+6(2) 'T' ts+8(2) ':' ts+10(2) ':' ts+12(2) 'Z"'  INTO r_json.
+          ENDIF.
         ELSE.
-          DATA: ts TYPE c LENGTH 14.
-          ts = data.
-          CONCATENATE '"' ts(4) '-' ts+4(2) '-' ts+6(2) 'T' ts+8(2) ':' ts+10(2) ':' ts+12(2) 'Z"'  INTO r_json.
+          r_json = data.
+          CONDENSE r_json.
         ENDIF.
       WHEN e_typekind-tsl_iso8601.
-        IF data IS INITIAL.
-          r_json = mv_initial_ts.
+        IF mv_ts_as_iso8601 EQ c_bool-true.
+          IF data IS INITIAL.
+            r_json = mv_initial_ts.
+          ELSE.
+            DATA: tsl TYPE c LENGTH 22.
+            tsl = data.
+            CONCATENATE '"' tsl(4) '-' tsl+4(2) '-' tsl+6(2) 'T' tsl+8(2) ':' tsl+10(2) ':' tsl+12(2) '.' tsl+15(7) 'Z"'  INTO r_json.
+          ENDIF.
         ELSE.
-          DATA: tsl TYPE c LENGTH 22.
-          tsl = data.
-          CONCATENATE '"' tsl(4) '-' tsl+4(2) '-' tsl+6(2) 'T' tsl+8(2) ':' tsl+10(2) ':' tsl+12(2) '.' tsl+15(7) 'Z"'  INTO r_json.
+          r_json = data.
+          CONDENSE r_json.
         ENDIF.
       WHEN e_typekind-float.
         IF data IS INITIAL.
@@ -1263,7 +1274,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
     CASE json+offset(1).
       WHEN '{'."result must be a structure
-        restore_type( EXPORTING json = json length = length type_descr = so_type_t_name_value CHANGING offset = offset data = lt_json_fields ).
+        restore_type( EXPORTING json = json length = length type_descr = so_type_t_name_value typekind = so_type_t_name_value->type_kind CHANGING offset = offset data = lt_json_fields ).
         LOOP AT lt_json_fields ASSIGNING <name_json>.
           ls_name_data-name = <name_json>-name.
           generate_int( EXPORTING json = <name_json>-value CHANGING data = ls_name_data-data type = ls_name_data-type ).
@@ -1284,7 +1295,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           ENDLOOP.
         ENDIF.
       WHEN '['."result must be a table of ref
-        restore_type( EXPORTING json = json length = length type_descr = so_type_t_json CHANGING offset = offset data = lt_json ).
+        restore_type( EXPORTING json = json length = length type_descr = so_type_t_json typekind = so_type_t_json->type_kind CHANGING offset = offset data = lt_json ).
         type = so_type_reftab.
         CREATE DATA data TYPE HANDLE type.
         ASSIGN data->* TO <table>.
@@ -1908,7 +1919,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
           IF sy-subrc IS INITIAL.
             ASSIGN <field_cache>-value->* TO <value>.
-            restore_type( EXPORTING json = json length = length type_descr = <field_cache>-type convexit = <field_cache>-convexit_in CHANGING data = <value> offset = offset ).
+            restore_type( EXPORTING json = json length = length type_descr = <field_cache>-type typekind = <field_cache>-typekind convexit = <field_cache>-convexit_in CHANGING data = <value> offset = offset ).
           ELSE.
             restore_type( EXPORTING json = json length = length CHANGING offset = offset ).
           ENDIF.
@@ -1966,6 +1977,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           lt_fields          LIKE field_cache,
           ls_symbols         TYPE t_s_struct_cache_res,
           lv_convexit        LIKE convexit,
+          lv_typekind        LIKE typekind,
           lo_exp             TYPE REF TO cx_root,
           elem_descr         TYPE REF TO cl_abap_elemdescr,
           table_descr        TYPE REF TO cl_abap_tabledescr,
@@ -1989,12 +2001,22 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                    <value_sym> TYPE t_s_symbol.
 
     lv_convexit = convexit.
+    lv_typekind = typekind.
 
     IF type_descr IS INITIAL AND data IS SUPPLIED.
       type_descr = cl_abap_typedescr=>describe_by_data( data ).
       IF mv_conversion_exits EQ abap_true AND lv_convexit IS INITIAL AND type_descr->kind EQ cl_abap_typedescr=>kind_elem.
         elem_descr ?= type_descr.
         lv_convexit = get_convexit_func( elem_descr = elem_descr input = abap_true ).
+      ENDIF.
+    ENDIF.
+
+    IF type_descr IS NOT INITIAL AND lv_typekind IS INITIAL.
+      IF type_descr->kind EQ cl_abap_typedescr=>kind_elem.
+        elem_descr ?= type_descr.
+        lv_typekind = detect_typekind( type_descr = elem_descr convexit = lv_convexit ).
+      ELSE.
+        lv_typekind = type_descr->type_kind.
       ENDIF.
     ENDIF.
 
@@ -2050,10 +2072,10 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                         eat_white.
                         IF <value_sym> IS ASSIGNED.
                           ASSIGN <value_sym>-value->* TO <value>.
-                          restore_type( EXPORTING json = json length = length type_descr = <value_sym>-type convexit = <value_sym>-convexit_in
+                          restore_type( EXPORTING json = json length = length type_descr = <value_sym>-type typekind = <value_sym>-typekind convexit = <value_sym>-convexit_in
                                         CHANGING data = <value> offset = offset ).
                         ELSE.
-                          restore_type( EXPORTING json = json length = length type_descr = data_descr field_cache = lt_fields
+                          restore_type( EXPORTING json = json length = length type_descr = data_descr typekind = data_descr->type_kind field_cache = lt_fields
                                         CHANGING data = <line> offset = offset ).
                         ENDIF.
                         IF table_descr->key_defkind EQ table_descr->keydefkind_user.
@@ -2099,7 +2121,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                     data_ref ?= data.
                     type_descr = cl_abap_typedescr=>describe_by_data_ref( data_ref ).
                     ASSIGN data_ref->* TO <data>.
-                    restore_type( EXPORTING json = json length = length type_descr = type_descr CHANGING data = <data> offset = offset ).
+                    restore_type( EXPORTING json = json length = length type_descr = type_descr typekind = type_descr->type_kind CHANGING data = <data> offset = offset ).
                   ENDIF.
                 ELSE.
                   restore( EXPORTING json = json length = length type_descr = type_descr field_cache = field_cache
@@ -2119,7 +2141,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                     CREATE DATA data TYPE HANDLE data_descr.
                     data_ref ?= data.
                     ASSIGN data_ref->* TO <data>.
-                    restore_type( EXPORTING json = json length = length type_descr = data_descr CHANGING data = <data> offset = offset ).
+                    restore_type( EXPORTING json = json length = length type_descr = data_descr typekind = data_descr->type_kind CHANGING data = <data> offset = offset ).
                   ELSE. "invlaid type - skip
                     restore_type( EXPORTING json = json length = length CHANGING offset = offset ).
                   ENDIF.
@@ -2127,7 +2149,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                   data_ref ?= data.
                   type_descr = cl_abap_typedescr=>describe_by_data_ref( data_ref ).
                   ASSIGN data_ref->* TO <data>.
-                  restore_type( EXPORTING json = json length = length type_descr = type_descr CHANGING data = <data> offset = offset ).
+                  restore_type( EXPORTING json = json length = length type_descr = type_descr typekind = type_descr->type_kind CHANGING data = <data> offset = offset ).
                 ENDIF.
               ELSE.
                 eat_char '['.
@@ -2145,7 +2167,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                     WHILE offset < length AND json+offset(1) NE ']'.
                       array_index = sy-index.
                       CLEAR <line>.
-                      restore_type( EXPORTING json = json length = length type_descr = data_descr field_cache = lt_fields
+                      restore_type( EXPORTING json = json length = length type_descr = data_descr typekind = data_descr->type_kind field_cache = lt_fields
                                     CHANGING data = <line> offset = offset ).
                       INSERT <line> INTO TABLE <table>.
                       eat_white.
@@ -2206,25 +2228,28 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                               CLEAR data.
                             ENDIF.
                             RETURN.
-                          CATCH cx_root ##CATCH_ALL ##NO_HANDLER.
+                          CATCH cx_root INTO lo_exp.
+                            CLEAR data.
+                            IF mv_strict_mode EQ abap_true.
+                              RAISE EXCEPTION TYPE cx_sy_move_cast_error EXPORTING previous = lo_exp.
+                            ELSE.
+                              RETURN.
+                            ENDIF.
                         ENDTRY.
                       ENDIF.
 
-                      CASE type_descr->type_kind.
-                        WHEN cl_abap_typedescr=>typekind_char.
-                          elem_descr ?= type_descr.
-                          IF elem_descr->output_length EQ 1 AND mv_bool_types CS type_descr->absolute_name.
-                            IF sdummy(1) CA 'XxTt1'.
-                              data = c_bool-true.
-                            ELSE.
-                              data = c_bool-false.
-                            ENDIF.
-                            RETURN.
+                      CASE lv_typekind.
+                        WHEN e_typekind-bool OR e_typekind-tribool.
+                          IF sdummy(1) CA 'XxTt1'.
+                            data = c_bool-true.
+                          ELSE.
+                            data = c_bool-false.
                           ENDIF.
-                        WHEN cl_abap_typedescr=>typekind_xstring.
+                          RETURN.
+                        WHEN e_typekind-xstring.
                           string_to_xstring_int sdummy data.
                           RETURN.
-                        WHEN cl_abap_typedescr=>typekind_hex.
+                        WHEN e_typekind-hex.
                           " support for Edm.Guid
                           FIND FIRST OCCURRENCE OF REGEX so_regex_guid IN sdummy SUBMATCHES guid guid+8 guid+12 guid+16 guid+20.
                           IF sy-subrc EQ 0.
@@ -2234,7 +2259,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                             string_to_xstring_int sdummy data.
                           ENDIF.
                           RETURN.
-                        WHEN cl_abap_typedescr=>typekind_date.
+                        WHEN e_typekind-date.
                           FIND FIRST OCCURRENCE OF REGEX so_regex_date IN sdummy SUBMATCHES date date+4 date+6.
                           IF sy-subrc EQ 0. " => ABAP standard
                             data = date.
@@ -2254,7 +2279,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                               ENDIF.
                             ENDIF.
                           ENDIF.
-                        WHEN cl_abap_typedescr=>typekind_time.
+                        WHEN e_typekind-time.
                           FIND FIRST OCCURRENCE OF REGEX so_regex_time IN sdummy SUBMATCHES time time+2 time+4.
                           IF sy-subrc EQ 0. " => ABAP standard
                             data = time.
@@ -2274,7 +2299,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                               ENDIF.
                             ENDIF.
                           ENDIF.
-                        WHEN mc_typekind_utclong.
+                        WHEN e_typekind-utclong.
                           tstml = lcl_util=>read_iso8601( sdummy ).
                           IF tstml IS INITIAL.
                             tstml = lcl_util=>read_edm_datetime( sdummy ).
@@ -2293,7 +2318,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                           ELSE.
                             throw_error. " Wrong ISO8601 format
                           ENDIF.
-                        WHEN cl_abap_typedescr=>typekind_packed.
+                        WHEN e_typekind-ts_iso8601 OR e_typekind-tsl_iso8601.
                           tstml = lcl_util=>read_iso8601( sdummy ).
                           IF tstml IS INITIAL.
                             tstml = lcl_util=>read_edm_datetime( sdummy ).
@@ -2311,7 +2336,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                             ENDIF.
                             RETURN.
                           ENDIF.
-                        WHEN 'k'. "cl_abap_typedescr=>typekind_enum
+                        WHEN e_typekind-enum.
                           TRY.
                               CALL METHOD ('CL_ABAP_XSD')=>('TO_VALUE')
                                 EXPORTING
@@ -2355,7 +2380,13 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                           CLEAR data.
                         ENDIF.
                         RETURN.
-                      CATCH cx_root ##CATCH_ALL ##NO_HANDLER.
+                      CATCH cx_root INTO lo_exp.
+                        CLEAR data.
+                        IF mv_strict_mode EQ abap_true.
+                          RAISE EXCEPTION TYPE cx_sy_move_cast_error EXPORTING previous = lo_exp.
+                        ELSE.
+                          RETURN.
+                        ENDIF.
                     ENDTRY.
                   ENDIF.
                   eat_number data.

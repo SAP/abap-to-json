@@ -278,15 +278,19 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     "+"2016-07-08
     "+"T12:34:56Z
     "+"T09:30Z
-                                                            "+"T0930Z
+    "+"T0930Z
     "+"T14:45:15Z
     "+"2023-03-08T00:00:00
+
     "?"2024-01-06T11:30:00-ABS
+
     "-"20151002134450.5545900
     "-"50
     "-"-10
     "-"+05
     "-"-10.00
+    "-"12345678 " for quantity field
+
 
     CALL FUNCTION 'GUID_CREATE'
       IMPORTING
@@ -407,6 +411,20 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     cl_aunit_assert=>assert_equals( act = lv_act_tsmp exp = lv_exp_tsmp msg = 'Deserialization of EDM Date Time with rounding fails' ).
 
+    lv_act = '"12345678"'.
+
+    deserialize( EXPORTING json = lv_act CHANGING data = lv_act_tsmp ).
+    lv_exp_tsmp = '12345678000000' ##LITERAL.
+
+    cl_aunit_assert=>assert_equals( act = lv_act_tsmp exp = lv_exp_tsmp msg = 'Deserialization of simplified timestamp fails' ).
+
+    lv_act = '"12345678"'.
+
+    DATA: lv_exp_quant TYPE p VALUE '12345678',
+          lv_act_quant LIKE lv_exp_quant.
+
+    deserialize( EXPORTING json = lv_act CHANGING data = lv_act_quant ).
+    cl_aunit_assert=>assert_equals( act = lv_act_quant exp = lv_exp_quant msg = 'Deserialization of quantity field of length 8 fails (timetamp false positive)' ).
 
   ENDMETHOD.                    "serialize_types
 
