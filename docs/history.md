@@ -30,6 +30,7 @@
 * Fixed: No exception is propagated when fired from within the conversion exit routine (deserialize)
 * Fixed: Problems with deserialization of packed fields with length 8 from a string value
 * Fixed: Bug during conversion from EDM time into Unix time (it shall be truncation for seconds extraction instead of rounding)
+* Added: new parameter for code page for DESERIALIZE/DESERIALIZE_INT methods for proper internal conversion from XSTRING to STRING. 
 
 ## Note [3568088](https://launchpad.support.sap.com/#/notes/3568088) - PL21
 ### /UI2/CL_JSON
