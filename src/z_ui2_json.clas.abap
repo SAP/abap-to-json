@@ -91,6 +91,7 @@ public section.
     importing
       !JSON type JSON optional
       !JSONX type XSTRING optional
+      !JSONX_CP type STRING default `UTF-8`
       !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
       !ASSOC_ARRAYS type BOOL default C_BOOL-FALSE
       !ASSOC_ARRAYS_OPT type BOOL default C_BOOL-FALSE
@@ -122,6 +123,7 @@ public section.
     importing
       !JSON type JSON optional
       !JSONX type XSTRING optional
+      !JSONX_CP type STRING default `UTF-8`
     changing
       !DATA type DATA
     raising
@@ -682,7 +684,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     CHECK  json IS NOT INITIAL OR jsonx IS NOT INITIAL.
 
     IF jsonx IS NOT INITIAL.
-      lv_json =  cl_abap_codepage=>convert_from( jsonx ).
+      lv_json =  cl_abap_codepage=>convert_from( EXPORTING source = jsonx codepage = jsonx_cp ).
     ELSE.
       lv_json = json.
     ENDIF.
@@ -1197,7 +1199,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           lv_timestamp  TYPE timestampl VALUE `19700101000000.0000000`.
 
     lv_ticks     = ticks.
-    lv_seconds   = lv_ticks / 1000. " in seconds
+    lv_seconds   = lv_ticks DIV 1000. " in seconds
     lv_subsec    = lv_ticks MOD 1000. " in subsec
     IF lv_subsec GT 0.
       lv_timestamps = lv_subsec.
