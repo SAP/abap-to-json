@@ -422,7 +422,7 @@ protected section.
       value(TYPE_DESCR) type ref to CL_ABAP_TYPEDESCR optional
       !FIELD_CACHE type T_T_FIELD_CACHE optional
       !CONVEXIT type STRING optional
-      !TYPEKIND type TYPEKIND optional
+      !TYPEKIND type ABAP_TYPEKIND optional
     changing
       !DATA type DATA optional
       !OFFSET type I default 0
@@ -684,7 +684,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     CHECK  json IS NOT INITIAL OR jsonx IS NOT INITIAL.
 
     IF jsonx IS NOT INITIAL.
-      lv_json =  cl_abap_codepage=>convert_from( EXPORTING source = jsonx codepage = jsonx_cp ).
+      lv_json =  cl_abap_codepage=>convert_from( source = jsonx codepage = jsonx_cp ).
     ELSE.
       lv_json = json.
     ENDIF.
@@ -2230,7 +2230,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                               CLEAR data.
                             ENDIF.
                             RETURN.
-                          CATCH cx_root INTO lo_exp.
+                          CATCH cx_root INTO lo_exp. "#EC CATCH_ALL
                             CLEAR data.
                             IF mv_strict_mode EQ abap_true.
                               RAISE EXCEPTION TYPE cx_sy_move_cast_error EXPORTING previous = lo_exp.
@@ -2382,7 +2382,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                           CLEAR data.
                         ENDIF.
                         RETURN.
-                      CATCH cx_root INTO lo_exp.
+                      CATCH cx_root INTO lo_exp. "#EC CATCH_ALL
                         CLEAR data.
                         IF mv_strict_mode EQ abap_true.
                           RAISE EXCEPTION TYPE cx_sy_move_cast_error EXPORTING previous = lo_exp.
