@@ -168,7 +168,7 @@ CLASS lcl_util IMPLEMENTATION.
     CHECK sy-subrc IS INITIAL.
 
     pticks     = ticks.
-    pseconds   = pticks / 1000. " in seconds
+    pseconds   = pticks DIV 1000. " in seconds
     psubsec    = pticks MOD 1000. " in subsec
 
     stimestmp = psubsec.
