@@ -15,7 +15,7 @@
 * [Why are special characters in JSON attribute names not escaped or unescaped?](#why-are-special-characters-in-json-attribute-names-not-escaped-or-unescaped)
 
 ## It is slow
-It is as fast as possible to achieve it in pure ABAP and is already heavily optimized. If you have suggestions on how to make it faster, you are welcome. Features like type conversions, type detections, renaming, data generation, etc require processing time, and even if they are not active, you may pay the penalty because the class design allows this feature. Operations on strings are not fast in ABAP, and method calls are costly, which is why macros are used within the class. However, the class is robust and can handle any data type for serialization and deserialization, offering many convenient functions that would otherwise need to be implemented manually. It performs well in numerous use cases.
+It is as fast as possible to achieve it in pure ABAP and is already heavily optimized. If you have suggestions on how to make it faster, you are welcome. Features like type conversions, type detections, renaming, data generation, etc, require processing time, and even if they are not active, you may pay the penalty because the class design allows this feature. Operations on strings are not fast in ABAP, and method calls are costly, which is why macros are used within the class. However, the class is robust and can handle any data type for serialization and deserialization, offering many convenient functions that would otherwise need to be implemented manually. It performs well in numerous use cases.
 
 In scenarios where extensive functionality and flexibility are unnecessary, such as with simple, flat tables requiring fast JSON serialization/deserialization, tweaking /ui2/cl_json for speed by disabling flags is not viable. No other universal classes with comparable functionality are known to be faster. The best solutions currently are:
 
@@ -30,10 +30,43 @@ It is always better to deserialize into an explicit data structure, but not into
 1. It is faster
 2. It is type-safe
 3. Processing deserialized results is much easier.
-Deserializing into REF TO data is the same as using the GENERATE method and results in generating real-time ABAP types, which is quite slow. You can not specify the resulting types for data elements and the deserializer needs to guess types. To process generated results, you always use dynamic programming, which is, by default, slow (or [/UI2/CL_DATA_ACCESS](https://github.com/SAP/abap-to-json/blob/main/docs/data-access.md), which is more comfortable but still uses dynamic programming inside).
+Deserializing into REF TO data is the same as using the GENERATE method and results in generating real-time ABAP types, which is quite slow. You can not specify the resulting types for data elements, and the deserializer needs to guess types. To process generated results, you always use dynamic programming, which is, by default, slow (or [/UI2/CL_DATA_ACCESS](https://github.com/SAP/abap-to-json/blob/main/docs/data-access.md), which is more comfortable but still uses dynamic programming inside).
 
 ## JSON to ABAP data type conversion when using GENERATE or DESERIALIZE into REF TO DATA
 The data type selection logic of the GENERATE method (DESERIALIZE into REF TO data) is not guaranteed or defined. The class makes the best guess for the resulting ABAP data type based on the JSON value and the best-fitting data type on the ABAP side. For example, JSON booleans convert to ABAP_BOOL, JSON numbers can convert to I, P, or F types depending on the value, and JSON strings convert to date, time, or timestampl if the value matches a pattern; otherwise, they convert to a string. A new type of conversion may be introduced in the future. If you do not provide a fixed ABAP structure, you must be prepared to work with any of the generated types. Additionally, if you use the GEN_OPTIMIZE flag, you may receive direct types instead of references. For getting explicit data types, deserialize into a fixed structure.
+
+## Timestamp is not deserialized after PL22
+The difference that causes the changed deserialization behaviour is in the method RESTORE_TYPE. This code block:
+```abap
+WHEN e_typekind-ts_iso8601 OR e_typekind-tsl_iso8601.
+  tstml = lcl_util=>read_iso8601( sdummy ).
+  IF tstml IS INITIAL.
+    tstml = lcl_util=>read_edm_datetime( sdummy ).
+    IF tstml IS INITIAL.
+      REPLACE FIRST OCCURRENCE OF REGEX so_regex_edm_time IN sdummy WITH '$1$2$3$4$5$6.$7' REPLACEMENT LENGTH match.
+      IF sy-subrc EQ 0. " => Edm.Time
+        tstml = sdummy(match).
+      ENDIF.
+    ENDIF.
+  ENDIF.
+```
+It was like this in PL21:
+```abap
+WHEN cl_abap_typedescr=>typekind_packed.
+  tstml = lcl_util=>read_iso8601( sdummy ).
+  IF tstml IS INITIAL.
+    tstml = lcl_util=>read_edm_datetime( sdummy ).
+    IF tstml IS INITIAL.
+      REPLACE FIRST OCCURRENCE OF REGEX so_regex_edm_time IN sdummy WITH '$1$2$3$4$5$6.$7' REPLACEMENT LENGTH match.
+      IF sy-subrc EQ 0. " => Edm.Time
+        tstml = sdummy(match).
+      ENDIF.
+    ENDIF.
+  ENDIF.
+```
+E.g., in PL21 recognized timestamp is written as ISO8601/Edm.DateTime/Edm.Time in a JSON string was assigned to any packed variable. This was causing errors in cases when a packed variable was not actually a real timestamp data type, but the value was still parsed as a timestamp and wrongly assigned to the packed variable (an example error in PL21, packed values with 8 digits were assigned, but with 9 not). Because of that, I have modified the logic to do a stricter check for output data type and only extract from serialized timestamps for specific data types (see method DETECT_TYPEKIND). 
+If, in your case, you get an initial value in the "timestamp" variable that was filled before PL22, probably your  data type is not one of the known timestamp types and does not inherit from them. That is why from PL22 it is not filled anymore. Fallback logic to move a string value into packed does not work here, because the string is an ISO8601 timestamp indeed. 
+Supported types for now are everything that inherits (has a domain name) from TZNTSTMPS, XSDDATETIME_Z, TZNTSTMPL, XSDDATETIME_LONG_Z (see method DETECT_TYPEKIND for explicit detection logic).
 
 ## Serialize huge data objects into JSON and short dumps
 You are using the class to serialize your data into JSON. Unfortunately, sometimes you pass too big tables, which results in too long a JSON string (for example, longer than 1GB), and this leads to dumps like SYSTEM_NO_ROLL, STRING_SIZE_TOO_LARGE, and MEMORY_NO_MORE_PAGING, while the system can not allocate such a big continuous memory chunk. This specific case could be solved by increasing the memory allocation limit, but you would still end up with an INT4 size limit for string length, which can not be more than 2GB.
@@ -50,12 +83,12 @@ Even if you select another format for serialization (XML or ABAP JSON), you will
 If you still need to serialize everything, you may split the data into chunks and give them to the serializer one by one. Then, deserialize all fragments into the same data object for merging.
 
 ## Encoding of Unicode characters (for example, Chinese)
-The serializer does not do any explicit character encoding; this is done by ABAP. Normally, ABAP works with UTF-16, a 2-byte Unicode encoding that can represent any character (also Chinese). That is why you see Chinese characters in the debugger. Later on, after serializing in JSON (you may also check in debugger JSON and see that Chinese characters are still in), you pass the JSON string further, maybe as a REST response. And there is, probably, converted into UTF8 encoding, which is a multibyte encoding, where some characters (Latin) are encoded with one byte and some (Chinese, Russian, etc.) as multibyte. Then the viewer of such UTF8 text shall be able to interpret and display them properly. If you do not see characters as expected in your viewer tool, then, probably, nothing is corrupt and the receiver will get them fine. It is just an issue of the viewer that does not recognize UTF8, or probably, lost an encoding ID interpreted wrong.
+The serializer does not do any explicit character encoding; this is done by ABAP. Normally, ABAP works with UTF-16, a 2-byte Unicode encoding that can represent any character (also Chinese). That is why you see Chinese characters in the debugger. Later on, after serializing in JSON (you may also check in the debugger JSON and see that Chinese characters are still in), you pass the JSON string further, maybe as a REST response. And there is, probably, converted into UTF8 encoding, which is a multibyte encoding, where some characters (Latin) are encoded with one byte and some (Chinese, Russian, etc.) as multibyte. Then the viewer of such UTF-8 text shall be able to interpret and display it properly. If you do not see characters as expected in your viewer tool, then, probably, nothing is corrupt and the receiver will get them fine. It is just an issue of the viewer that does not recognize UTF-8, or has probably lost an encoding ID interpreted wrong.
 
 ## Incompatible change for initial date/time fields serializing with PL16
 First of all, I would agree that this is an incompatible change, and I am asking you to excuse me for your efforts. It was an intentional change, and I was aware that someone could already rely on the current behavior and may have issues. 
 
-The reason for this change of default was a customer complaint regarding the handling of initial date-time values, which are not 0000-00-00 or 00:00:00. In general, 0000-00-00 is an invalid date, 00:00:00 is valid, but how to understand that it is an initial but not explicit midnight?
+The reason for this change of default was a customer complaint regarding the handling of initial date-time values, which are not 0000-00-00 or 00:00:00. In general, 0000-00-00 is an invalid date, 00:00:00 is valid, but how to understand that it is an initial but not an explicit midnight?
 
 Because of that, I have decided not to render initial values for date/time and give a receiver a way to understand that it is initial and has its default/initial processing. I know that it is incompatible, but I want a default behavior to be the best and most common choice, even with the cost of modification of the consumer code that relies on the old behavior :/.
 
@@ -81,7 +114,7 @@ But there is no easy way in the latest releases of the class.
 If you still want a predefined sequence of the fields in the generated structure, you may inherit the class and prefill the structure buffer (mt_struct_type) in your inherited class constructor. See method GENERATE_STRUCT for details. In this case, later deserialize/generate calls will use your structure type, but not one created with default logic.
 
 ## Is it possible to display the currency amount (CURR fields) formatted in the JSON output based on the related currency (CUKY field)?
-No, there is no built-in support for currency fields. Potentially one can add it in a derived class, overwriting dump_int and restore_type methods, but I do not want to have it in by default, because of implementation complexity and performance penalty. 
+No, there is no built-in support for currency fields. Potentially, one can add it in a derived class, overwriting dump_int and restore_type methods, but I do not want to have it by default, because of implementation complexity and performance penalty. 
 
 Only single-field conversion exits are supported. 
 
@@ -123,7 +156,7 @@ ENDFUNCTION.
 Use of output buffer TYPE C LENGHT ... in code of /ui2/cl_json would require an additional CONDENSE call that would negatively impact the performance of serialization and may still lead to incorrect data rendering (the logic with TYPE C LENGHT... was in PL19, but is reverted with PL 20, because on [this issue](issues/10)). 
 
 ## Why are special characters in JSON attribute names not escaped or unescaped?
-This is a known limitation. Escaping, and especially unescaping, is very performance-critical and will significantly influence parsing time. Cases where attribute names contain special characters are quite unique — ABAP field names do not allow special characters. So, to optimize overall performance, I have decided not to support this. The only cases when the parser does escaping and unescaping the attribute names are usages of the ASSOC_ARRAYS flag when table key values are converted into leading attribute names (associative arrays in terms of JSON) and generation of the structures (internally it also uses ASSOC_ARRAY flag). 
+This is a known limitation. Escaping, and especially unescaping, is very performance-critical and will significantly influence parsing time. Cases where attribute names contain special characters are unique — ABAP field names do not allow special characters. So, to optimize overall performance, I have decided not to support this. The only cases when the parser does escaping and unescaping the attribute names are usages of the ASSOC_ARRAYS flag when table key values are converted into leading attribute names (associative arrays in terms of JSON) and generation of the structures (internally it also uses ASSOC_ARRAY flag). 
 
 # Continue reading
 * [Basic usage of the class](basic.md)
