@@ -14,9 +14,10 @@
 * [I can not use /UI2/CL_JSON for ABAP Cloud BADi development](#i-can-not-use-ui2cl_json-for-abap-cloud-badi-development)
 * [You get a short dump OBJECTS_NOT_CHAR when serializing data with enabled conversion exits](#you-get-a-short-dump-objects_not_char-when-serializing-data-with-enabled-conversion-exits)
 * [Why are special characters in JSON attribute names not escaped or unescaped?](#why-are-special-characters-in-json-attribute-names-not-escaped-or-unescaped)
+* [How to define receiving structures for my JSON?](#how-to-define-receiving-structures-for-my-json)
 
 ## It is slow
-It is as fast as possible to achieve it in pure ABAP and is already heavily optimized. If you have suggestions on how to make it faster, you are welcome. Features like type conversions, type detections, renaming, data generation, etc, require processing time, and even if they are not active, you may pay the penalty because the class design allows this feature. Operations on strings are not fast in ABAP, and method calls are costly, which is why macros are used within the class. However, the class is robust and can handle any data type for serialization and deserialization, offering many convenient functions that would otherwise need to be implemented manually. It performs well in numerous use cases.
+It is as fast as possible to achieve, and it is already heavily optimized in pure ABAP. If you have suggestions on how to make it faster, we welcome them. Features like type conversions, type detections, renaming, data generation, etc, require processing time, and even if they are not active, you may pay the penalty because the class design allows this feature. Operations on strings are not fast in ABAP, and method calls are costly, which is why macros are used within the class. However, the class is robust and can handle any data type for serialization and deserialization, offering many convenient functions that would otherwise need to be implemented manually. It performs well in numerous use cases.
 
 In scenarios where extensive functionality and flexibility are unnecessary, such as with simple, flat tables requiring fast JSON serialization/deserialization, tweaking /ui2/cl_json for speed by disabling flags is not viable. No other universal classes with comparable functionality are known to be faster. The best solutions currently are:
 
@@ -158,6 +159,9 @@ Use of output buffer TYPE C LENGHT ... in code of /ui2/cl_json would require an 
 
 ## Why are special characters in JSON attribute names not escaped or unescaped?
 This is a known limitation. Escaping, and especially unescaping, is very performance-critical and will significantly influence parsing time. Cases where attribute names contain special characters are unique — ABAP field names do not allow special characters. So, to optimize overall performance, I have decided not to support this. The only cases when the parser does escaping and unescaping the attribute names are usages of the ASSOC_ARRAYS flag when table key values are converted into leading attribute names (associative arrays in terms of JSON) and generation of the structures (internally it also uses ASSOC_ARRAY flag). 
+
+## How to define receiving structures for my JSON?
+This [online tool](https://www.findocs.xyz/tools/sap/json-to-abap) may help you to generate proper receiving ABAP structures for your input JSON.
 
 # Continue reading
 * [Basic usage of the class](basic.md)
