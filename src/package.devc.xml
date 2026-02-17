@@ -4,6 +4,8 @@
   <asx:values>
    <DEVC>
     <CTEXT>Open Source version of /UI2/CL_JSON</CTEXT>
+    <LANGUAGE>E</LANGUAGE>
+    <MASTERLANG>E</MASTERLANG>
     <SRV_CHECK>X</SRV_CHECK>
    </DEVC>
   </asx:values>

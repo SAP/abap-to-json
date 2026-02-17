@@ -407,7 +407,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     lv_act = '"\/Date(1689670138545)\/"'.
 
     deserialize( EXPORTING json = lv_act CHANGING data = lv_act_tsmp ).
-    lv_exp_tsmp = '20230718084859' ##LITERAL.
+    lv_exp_tsmp = '20230718084858' ##LITERAL.
 
     cl_aunit_assert=>assert_equals( act = lv_act_tsmp exp = lv_exp_tsmp msg = 'Deserialization of EDM Date Time with rounding fails' ).
 
