@@ -1,5 +1,5 @@
 # Version History
-   * [Note 3568088 - PL22](#note-3615316---pl22)
+   * [Note 3615316 - PL22](#note-3615316---pl22)
    * [Note 3568088 - PL21](#note-3568088---pl21)
    * [Note 3515438 - PL20](#note-3515438---pl20)
    * [Note 3414589 - PL19](#note-3414589---pl19)
@@ -24,7 +24,7 @@
    * [Note 2429758](#note-2429758)
    * [Note 2480119](#note-2480119)
 
-## Note [3615316](https://launchpad.support.sap.com/#/notes/3615316) - PL22 (not released)
+## Note [3615316](https://launchpad.support.sap.com/#/notes/3615316) - PL22
 ### /UI2/CL_JSON
 * Fixed: Bug with generation of the structures with similar field names (fex, "a", "bc" vs "ab", "c").
 * Fixed: No exception is propagated when fired from within the conversion exit routine (deserialize)
