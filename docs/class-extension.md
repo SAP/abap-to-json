@@ -1,30 +1,30 @@
 # /UI2/CL_JSON extension
 
-If standard class functionality does not fit your requirements there are two ways how you can adapt it to your needs:
+If standard class functionality does not fit your requirements, there are two ways you can adapt it to your needs:
 
 * Use a local copy of the class /UI2/CL_JSON and modify logic directly by changing the original code.
 * Inherit from class /UI2/CL_JSON and override methods where another logic is required. 
 
 The advantage of the first approach is that you are completely free in what you may change and have full control of the class lifecycle. The disadvantage is that you must merge your changes with /UI2/CL_JSON updates. 
 
-For the second approach, you can use /UI2/CL_JSON directly (the prerequisite is the latest version of note [2330592](https://github.com/SAP/abap-to-json/blob/main/docs/history.md#note-2330592)), you do not need to care about the merge but can override only some methods. The methods are:
+For the second approach, you can use /UI2/CL_JSON directly (the prerequisite is the latest version of note [2330592](https://github.com/SAP/abap-to-json/blob/main/docs/history.md#note-2330592)); you do not need to care about the merge, but can override only some methods. The methods are:
 
 ## IS_COMPRESSIBLE 
-IS_COMPRESSIBLE is called to check, if the given type output may be suppressed during ABAP to JSON serialization when a value is initial. 
+IS_COMPRESSIBLE is called to check if the given type output may be suppressed during ABAP to JSON serialization when a value is initial. 
 
 * \> **TYPE_DESCR** (ref to CL_ABAP_TYPEDESCR) – value type
 * \< **RV_COMPRESS** (bool) – compress initial value
 The default implementation of the method allows compressing any initial value.
 
 ## PRETTY_NAME
-PRETTY_NAME – called to format ABAP field name written to **JSON** or deserialized from **JSON** to **ABAP** field, when the pretty_name parameter of SERIALIZE/DESERIALIZE method equal to PRETTY_MODE-CAMEL_CASE.
+PRETTY_NAME – called to format ABAP field name written to **JSON** or deserialized from **JSON** to **ABAP** field, when the pretty_name parameter of the SERIALIZE/DESERIALIZE method is equal to PRETTY_MODE-CAMEL_CASE.
 
 * \> **IN** (CSEQUENCE) – Field name to pretty print.
 * \< **OUT** (STRING) – Pretty printed field name
-The default implementation applies camelCase formatting using the “\_” symbol. To output, the “\_” symbol, use the double “\_\_” symbol in the field name.
+The default implementation applies camelCase formatting using the “\_” symbol. To output the “\_” symbol, use the double “\_\_” symbol in the field name.
 
 ## PRETTY_NAME_EX
-PRETTY_NAME_EX – called to format ABAP field name written to JSON or deserialized from JSON to ABAP field, when the pretty_name parameter of *SERIALIZE/DESERIALIZE*  method equal to *PRETTY_MODE-EXTENDED*.
+PRETTY_NAME_EX – called to format ABAP field name written to JSON or deserialized from JSON to ABAP field, when the pretty_name parameter of *SERIALIZE/DESERIALIZE*  method is equal to *PRETTY_MODE-EXTENDED*.
 
 * \> **IN** (CSEQUENCE) – Field name to pretty print.
 * \< **OUT** (STRING) – Pretty printed field name
@@ -38,7 +38,7 @@ DUMP_INT - called for recursive serialization of complex ABAP data objects (stru
 * \< **R_JSON** (JSON) – serialized JSON value
 
 ## DUMP_TYPE
-DUMP_TYPE - called for serialization of elementary ABAP data type (string, boolean, timestamp, etc) into the JSON attribute value. Overwrite it if you, for example, want to apply data output data conversion of currency rounding
+DUMP_TYPE - called for serialization of elementary ABAP data type (string, boolean, timestamp, etc) into the JSON attribute value. Overwrite it if you, for example, want to apply data output, data conversion of currency rounding
 * \> **DATA** (DATA) – Any data to serialize
 * \> **TYPE_DESCR** (ref to CL_ABAP_TYPEDESCR) – Type of data provided
 * \< **R_JSON** (JSON) – serialized JSON value
@@ -64,10 +64,10 @@ RESTORE_TYPE - called to deserialize simple JSON attributes and JSON arrays
 * \<\> **OFFSET** (I) – parsing start point in JSON string
 
 ## CLASS_CONSTRUCTOR
-CLASS_CONSTRUCTOR - used to initialize static variables. You can not overwrite it but implement your class constructor that adapts default globals. For example, add boolean types to be recognized during serialization/deserialization. 
+CLASS_CONSTRUCTOR - used to initialize static variables. You can not overwrite it, but implement your class constructor that adapts default globals. For example, add boolean types to be recognized during serialization/deserialization. 
 
 ## SERIALIZE/DESERIALIZE
-SERIALIZE/DESERIALIZE - these methods are static and cannot be redefined. Methods are helpers for a consumption code, hiding the construction of the class instance and further \*\_INT calls. So, if you would like to use something similar, in your custom class, you need to copy the mentioned methods to new ones e,g \*\_EX and overwrite there /UI2/CL_JSON type to your custom class name. And use these methods instead of standard.
+SERIALIZE/DESERIALIZE - these methods are static and cannot be redefined. Methods are helpers for a consumption code, hiding the construction of the class instance and further \*\_INT calls. So, if you would like to use something similar, in your custom class, you need to copy the mentioned methods to new ones e,g \*\_EX and overwrite the /UI2/CL_JSON type to your custom class name. And use these methods instead of the standard.
 
 Extension using inheritance:
 ```abap
