@@ -2,10 +2,10 @@
 
 # Why
 Sometimes you need to access [ABAP data objects dynamically](https://help.sap.com/http.svc/rc/abapdocu_751_index_htm/7.51/en-US/abendyn_access_data_obj_guidl.htm). For example, when:
-* you do not know the structure of the ABAP object and to dynamically access the value of the field, you are forced to use ASSIGN .. COMPONENT with field symbol
-* you do a cross-release development in ABAP and do not know if some field exists, so you need dynamic access to data
-*	you access data from the optional ABAP component and also need dynamic access to the ABAP structure field or internal table row
-*	you need a key or index access to a dynamic internal table
+* You do not know the structure of the ABAP object, and to dynamically access the value of the field, you are forced to use ASSIGN .. COMPONENT with a field symbol
+* You do a cross-release development in ABAP and do not know if some field exists, so you need dynamic access to data
+*	You access data from the optional ABAP component and also need dynamic access to the ABAP structure field or internal table row
+*	You need a key or index access to a dynamic internal table
 
 Normally, if you need to access ABAP fields/structure components dynamically, you will end up coding like this:
 
@@ -20,7 +20,7 @@ IF <field> IS ASSIGNED.
   WRITE: <field>.
 ENDIF.
 ```
-That may be OK (however still not very convenient), but if you have a dynamic ABAP object with a deeper structure, it becomes boring:
+That may be OK (however, still not very convenient), but if you have a dynamic ABAP object with a deeper structure, it becomes boring:
 
 ## Accessing Deeply Nested Data Objects Dynamically  
 ```abap
@@ -47,24 +47,24 @@ IF <field> IS ASSIGNED.
 ENDIF.
 ```
 
-And if one thinks about accessing dynamically elements from nested tables it would be at all - hell.
+And if one thinks about accessing dynamically elements from nested tables, it would be at all - hell.
 So, below one can find a helper class, which may help in such cases, in a lean and tasty way.  
-An original and actual version of the source can be found in class /UI2/CL_DATA_ACCESS delivered with UI2 Add-on (can be applied to SAP_BASIS 700 – 76X). So, you can use this ABAP JSON parser in your standard code mostly on any system. Delivered with a note [2526405](https://help.sap.com/http.svc/rc/abapdocu_751_index_htm/7.51/en-US/abendyn_access_data_obj_guidl.htm). 
+An original and actual version of the source can be found in class /UI2/CL_DATA_ACCESS delivered with UI2 Add-on (can be applied to SAP_BASIS 700 – 76X). So, you can use this ABAP JSON parser in your standard code, mostly on any system. Delivered with a note [2526405](https://help.sap.com/http.svc/rc/abapdocu_751_index_htm/7.51/en-US/abendyn_access_data_obj_guidl.htm). 
 
 # What it can
 The accessor is a single class, with the following features:
 *	traversing of any data object (classes are not yet supported) passed as a reference to data or as data.
 *	traversing nested objects without any level limitations
 *	automatically resolving reference variables (REF TO fields accessed the same way as standard fields)
-*	a method like or XPath-like ways of accessing data
+*	a method, like an XPath-like way of accessing data
 *	read/modification access to elementary types
 *	accessing table rows using index or key
 
 ## Limitations
 The code of the dynamic data accessor class does not pretend to be a complete and fully robust solution, but it may become like this if requests come  
 Current limitations are the following:
-*	only ABAP data structures are supported. Traversing of ABAP objects/classes not yet supported, however possible
-*	dynamic modification of tables (not data inside) is not supported. E.g you can not add/remove rows with API, but you can do it via reference to the table
+*	Only ABAP data structures are supported. Traversing of ABAP objects/classes is not yet supported; however, possible
+*	Dynamic modification of tables (not data inside) is not supported. e.g., you can not add/remove rows with API, but you can do it via reference to the table
 *	The syntax for key access of the rows in dynamic tables does not allow usage of the symbol "," as part of the query. No escaping is supported. 
 
 # Usage
@@ -192,7 +192,7 @@ WRITE: lv_value.
 
 # API description 
 
-## CREATE - Static Method Public Helper method for creating an instance of dynamic accessor
+## CREATE - Static Method Public Helper method for creating an instance of a dynamic accessor
 *	\> IR_DATA (ref to data) - Importing Type Ref To DATA Reference to data (allows modification of embedded data)
 *	\> IV_DATA (data) - any data (modification of embedded data not allowed)
 *	\> IV_COMPONENT (string) - Sub-component name (XPath-like syntax is supported)
@@ -212,7 +212,7 @@ WRITE: lv_value.
 ## REF  - Instance Method Public Returns a reference to the embedded object
 *	\< RV_DATA (ref to data) - Reference to embedded data
 
-## VALUE  - Instance Method Public Returns copy of the value
+## VALUE  - Instance Method Public Returns a copy of the value
 *	\< EV_DATA (data) - Copy of the embedded data value, or initial if data is not bound
 
 ## SET  - Instance Method Public Sets the value of the embedded object, if not initial
@@ -220,7 +220,7 @@ WRITE: lv_value.
 *	\< RV_SUCCESS (boolean) - ABAP_TRUE, if data was successfully modified
 
 # XPath-like dynamic data access
-To access nested components you can use a nice, object-oriented way, using nested calls of AT method (it is robust, and would not crash accessing not existing components), as
+To access nested components, you can use a nice, object-oriented way, using nested calls of the AT method (it is robust, and would not crash accessing non-existent components), as
 ```abap 
 lo_object->at('subcomp1')->at('subcomp11')->...
 ```
@@ -237,16 +237,16 @@ abap lo_object->at('subcomp1->subcomp11->subcomp111')
 
 ## The syntax:
 * You can use any symbol (or combinations of symbols) as a component separator, except "[", "]", "=", ",". The recommended separator symbol is "-".
-* For dynamic index access of rows in nested tables use "[index]" after the component name. E.g. "table_name[2]". The indexing starts from 1. If the accessor object references the table data object directly, you may skip the component name. E.g. "[2]". You may continue accessing components after index access, e.g.: "table_a[1]-struct-table_b[2]". If you do out-of-range access, you get an empty reference back. Index access works only with index tables (STANDARD, SORTED). 
+* For dynamic index access of rows in nested tables, use "[index]" after the component name. E.g. "table_name[2]". The indexing starts from 1. If the accessor object references the table data object directly, you may skip the component name. E.g. "[2]". You may continue accessing components after index access, e.g.: "table_a[1]-struct-table_b[2]". If you do out-of-range access, you get an empty reference back. Index access works only with index tables (STANDARD, SORTED). 
 * For dynamic key access of rows in nested tables use "(key=value)" for single key lookup, "(key1=value1, key2=value2)" for multi-key lookup, and "(value)" for table line lookup. You can NOT search for values containing ",". You can use nested lookups: "table_a(key1=value1)-table_b(key2=value2, key3=value3)". Values used in a query shall be assignable to field structures. 
 
 # Version History
 
 ## Note [2798102](https://launchpad.support.sap.com/#/notes/2798102) - PL12
-* Fixed. Access to fields with special characters in the name (e.g. "/BIC/YEAR") fails.
+* Fixed. Access to fields with special characters in the name (e.g,. "/BIC/YEAR") fails.
 
 ## Note [2786259](https://launchpad.support.sap.com/#/notes/2786259) - PL11
-* Fixed. Short dump, when accessing elements of a null array
+* Fixed. Short dump when accessing elements of a null array
 
 ## Note [2526405](https://launchpad.support.sap.com/#/notes/2526405)
 * New: /UI2/CL_DATA_ACCESS class for working with dynamic ABAP data object (generated with method /UI2/CL_JSON=>GENERATE). The class can be used as a replacement for multiple ASSIGN COMPONENT language constructions.
