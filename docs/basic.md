@@ -2,7 +2,7 @@
 
 # What the class can
 ## ABAP to JSON
-* Serialize classes, structures, internal tables, class and data references, and elementary types. Complex types, such as a table of structures/classes, classes with complex attributes, etc. are also supported and recursively processed.
+* Serialize classes, structures, internal tables, class and data references, and elementary types. Complex types, such as a table of structures/classes, classes with complex attributes, etc., are also supported and recursively processed.
 * **ABAP to JavaScript** adopted a way of data type serializations:
   * strings, character types to JavaScript string format (no length limitation),
   * ABAP_BOOL / BOOLEAN / XFELD / BOOLE_D to JavaScript Boolean,
