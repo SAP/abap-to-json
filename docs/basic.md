@@ -1,5 +1,7 @@
 # Basic Usage
 
+> **New: [Z_UI2_JSON2](z_ui2_json2.md)** — kernel API edition available for SAP_BASIS 7.57+. Same public API, better performance, strict JSON compliance. See [migration guide](z_ui2_json2.md#incompatible-changes-migration-checklist).
+
 # What the class can
 ## ABAP to JSON
 * Serialize classes, structures, internal tables, class and data references, and elementary types. Complex types, such as a table of structures/classes, classes with complex attributes, etc. are also supported and recursively processed.

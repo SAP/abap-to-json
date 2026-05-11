@@ -1,5 +1,5 @@
 # Version History
-   * [Z_UI2_JSON2 — VERSION 24](#z_ui2_json2--version-24)
+   * [Z_UI2_JSON2 — VERSION 1](#z_ui2_json2--version-1)
    * [Note 3568088 - PL22](#note-3615316---pl22)
    * [Note 3568088 - PL21](#note-3568088---pl21)
    * [Note 3515438 - PL20](#note-3515438---pl20)
@@ -25,7 +25,9 @@
    * [Note 2429758](#note-2429758)
    * [Note 2480119](#note-2480119)
 
-## Z_UI2_JSON2 — VERSION 24
+## Z_UI2_JSON2 — VERSION 1
+
+*Corresponds to Z_UI2_JSON PL22 feature-set, migrated to SAP kernel JSON APIs. Both classes have independent version tracks from this point forward.*
 
 ### Z_UI2_JSON2
 * New: Class `Z_UI2_JSON2` introduced as successor to `Z_UI2_JSON`. Both classes coexist; `Z_UI2_JSON` (VERSION 23) is unchanged.
