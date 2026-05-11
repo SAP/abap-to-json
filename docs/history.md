@@ -1,6 +1,6 @@
 # Version History
    * [Z_UI2_JSON2 — VERSION 1](#z_ui2_json2--version-1)
-   * [Note 3568088 - PL22](#note-3615316---pl22)
+   * [Note 3615316 - PL22](#note-3615316---pl22)
    * [Note 3568088 - PL21](#note-3568088---pl21)
    * [Note 3515438 - PL20](#note-3515438---pl20)
    * [Note 3414589 - PL19](#note-3414589---pl19)
@@ -73,7 +73,7 @@
 * Error reporting granularity: when a JSON value is syntactically invalid, the kernel reader throws before delivering the member name, reducing strict-mode error paths.
 * No tolerant/lenient mode for trailing commas — consumers must supply valid JSON per RFC 8259.
 
-## Note [3568088](https://launchpad.support.sap.com/#/notes/3568088) - PL22 (not released)
+## Note [3615316](https://launchpad.support.sap.com/#/notes/3615316) - PL22
 ### /UI2/CL_JSON
 * Fixed: Bug with generation of the structures with similar field names (fex, "a", "bc" vs "ab", "c").
 * Fixed: No exception is propagated when fired from within the conversion exit routine (deserialize)
