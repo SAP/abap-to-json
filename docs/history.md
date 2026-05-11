@@ -1,4 +1,5 @@
 # Version History
+   * [Z_UI2_JSON2 — VERSION 24](#z_ui2_json2--version-24)
    * [Note 3568088 - PL22](#note-3615316---pl22)
    * [Note 3568088 - PL21](#note-3568088---pl21)
    * [Note 3515438 - PL20](#note-3515438---pl20)
@@ -24,7 +25,53 @@
    * [Note 2429758](#note-2429758)
    * [Note 2480119](#note-2480119)
 
-## Note [3615316](https://launchpad.support.sap.com/#/notes/3615316) - PL22 (not released)
+## Z_UI2_JSON2 — VERSION 24
+
+### Z_UI2_JSON2
+* New: Class `Z_UI2_JSON2` introduced as successor to `Z_UI2_JSON`. Both classes coexist; `Z_UI2_JSON` (VERSION 23) is unchanged.
+* New: Deserialization migrated from manual character-level parsing to SAP kernel JSON API (`IF_JSON_READER` / `CL_JSON_STRING_READER`). Minimum SAP_BASIS raised to 7.57.
+* New: Serialization migrated from string concatenation to `IF_JSON_WRITER` / `CL_JSON_STRING_WRITER`. No intermediate string allocation per field.
+* New: Macros `restore_dref` and `restore_convexit` extract repeated deserialization patterns (DREF handling, conversion exit invocation) for zero-cost reuse.
+* Changed: `DUMP_INT` and `DUMP_SYMBOLS` now accept `WRITER TYPE REF TO IF_JSON_WRITER` instead of returning a string fragment.
+* Changed: `RESTORE` / `RESTORE_TYPE` / `GENERATE_INT_EX` now accept `READER TYPE REF TO IF_JSON_READER` instead of `JSON / LENGTH / OFFSET`.
+* Changed: `GENERATE_INT_R` introduced as the reader-based workhorse for `GENERATE_INT`.
+* Changed: `FORMAT_OUTPUT` (pretty-print) now delegates indentation and line breaks to `IF_JSON_WRITER`; output format differs from VERSION 23 (accepted trade-off).
+* Changed: `DESERIALIZE_INT` and `GENERATE_INT` catch kernel reader parse exceptions. Non-strict mode silently returns; strict mode wraps as `cx_sy_move_cast_error` with original exception in `previous`.
+* Changed: Error path granularity in strict mode is reduced for certain malformed JSON patterns — the kernel reader throws atomically at `next_node()` before delivering field names, so error paths like `$.struct.field` may report only `$.struct` when the value is unparseable.
+* Changed: Input JSON must be valid per RFC 8259. Trailing commas (`,}` / `,]`) are no longer tolerated — unlike VERSION 23's lenient character parser. This is by design; tolerant mode is an IF_JSON_READER requirement.
+* Removed: `GEN_OPTIMIZE` parameter from `GENERATE`, `DESERIALIZE`, and the constructor. The optimized generation (typed tables, dereferenced struct fields) is now always active — this was the `gen_optimize = abap_true` behavior in VERSION 23. Incompatible change: generated data structures now contain typed values instead of `REF TO data` wrappers.
+* Removed: `BOOL_TO_TRIBOOL`, `TRIBOOL_TO_BOOL` — callers can inline.
+* Removed: `UNESCAPE` — `IF_JSON_READER` returns unescaped values natively; no wrapper needed.
+* Removed: `ESCAPE` — use `escape( val = ... format = cl_abap_format=>e_json_string )` directly.
+* Removed: `GET_INDENT` — indentation is handled by `IF_JSON_WRITER`.
+* Removed: `EDM_DATETIME_TO_TS` — moved to `lcl_util=>read_edm_datetime()` (private).
+* Removed: `DUMP` static method — was a thin alias for `SERIALIZE`; use `SERIALIZE` directly.
+* Removed: `RAW_TO_STRING` — no longer needed; use `cl_abap_codepage=>convert_from()` directly.
+* Removed: `STRING_TO_RAW` — no longer needed; use `cl_abap_codepage=>convert_to()` directly.
+* Changed: `GET_CONVEXIT_FUNC` moved from protected to private.
+* Changed: `DESERIALIZE_INT` now uses `CL_JSON_XSTRING_READER` directly when `JSONX` is supplied — no intermediate string conversion. `JSONX_CP` parameter is kept for API compatibility but is no longer used (the reader handles UTF-8 natively).
+* Changed: `XSTRING_TO_STRING` / `STRING_TO_XSTRING` (base64) now use `CL_HTTP_UTILITY=>ENCODE_X_BASE64` / `DECODE_X_BASE64` instead of `SSFC_BASE64_ENCODE` / `SSFC_BASE64_DECODE`.
+* Removed: `XSTRING_TO_STRING` and `STRING_TO_XSTRING` from public API — call sites inlined with `CL_HTTP_UTILITY` direct calls.
+* Removed: `JSONX_CP` parameter from `DESERIALIZE` and `DESERIALIZE_INT` — `CL_JSON_XSTRING_READER` handles encoding natively.
+* Changed: Dynamic `CALL METHOD lo_json->(lc_method)` in `SERIALIZE` and `DESERIALIZE` replaced with typed reference (`REF TO Z_UI2_JSON2`) and direct method calls. `CREATE OBJECT TYPE (mc_me_type)` is retained for subclass polymorphism.
+* Fixed: Packed field with length 8 and decimals ≠ 14 is no longer misidentified as a timestamp (ported from PL22).
+* Fixed: EDM DateTime milliseconds are truncated, not rounded (ported from PL22).
+* Fixed: `GENERATE_STRUCT` no longer overwrites the first occurrence of a duplicate JSON member name (ported from PL22).
+* Fixed: `GENERATE_STRUCT` field name normalization now uses a STRING intermediate to prevent overflow when camelCase expansion exceeds 30-char component name limit.
+
+### Performance optimizations
+* Replaced regex-based type detection in `GENERATE_INT_R` (date/time/timestamp) with direct character checks — eliminates regex engine invocation on every string value during generation.
+* Regex patterns optimized: `(?i)` flag for case-insensitive matching (GUID, EDM DateTime), `[^0-9a-zA-Z_]+` quantifier simplified.
+* Removed unused `so_regex_generate_type_detect` regex object — saves class_constructor initialization time.
+* `GENERATE_INT_R` always uses optimized path (typed tables, dereferenced struct fields) — no conditional branching per element.
+
+### Known limitations (pending IF_JSON_READER/WRITER enhancements)
+* NBSP (U+00A0) used as whitespace between JSON tokens causes parse errors. The kernel reader does not treat NBSP as whitespace.
+* `skip_node( writer )` does not correctly pipe a value subtree when the reader is positioned on an object member mid-document. Workaround: manual tree-walking with depth tracking.
+* Error reporting granularity: when a JSON value is syntactically invalid, the kernel reader throws before delivering the member name, reducing strict-mode error paths.
+* No tolerant/lenient mode for trailing commas — consumers must supply valid JSON per RFC 8259.
+
+## Note [3568088](https://launchpad.support.sap.com/#/notes/3568088) - PL22 (not released)
 ### /UI2/CL_JSON
 * Fixed: Bug with generation of the structures with similar field names (fex, "a", "bc" vs "ab", "c").
 * Fixed: No exception is propagated when fired from within the conversion exit routine (deserialize)
