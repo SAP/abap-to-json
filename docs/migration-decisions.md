@@ -7,10 +7,10 @@ This file records all architectural decisions, trade-offs, and deliberate modifi
 ## Context
 
 - **Source**: `z_ui2_json` VERSION 23 (`src/z_ui2_json.clas.abap`)
-- **Partial prior attempt**: `z_ui2_json2` on ER1 system (VERSION 21), deserialization partially migrated, serialization untouched
-- **Target**: `z_ui2_json` VERSION 24, full kernel API migration, in `src/` folder
+- **Target**: `z_ui2_json2` VERSION 1 (`src/z_ui2_json2.clas.abap`) — independent class, coexists with V23
 - **Minimum SAP_BASIS**: 7.57 (stable `SJSON` package with `IF_JSON_READER`, `IF_JSON_WRITER`, `CL_JSON_STRING_READER`, `CL_JSON_STRING_WRITER`)
 - **Deployment**: abapGit (no CI/CD, tests run in SAP system via SE80/ADT)
+- **Coexistence**: Both classes maintained long-term. V23 gets bug fixes only. V1 gets all new development.
 
 ---
 
@@ -24,11 +24,11 @@ This file records all architectural decisions, trade-offs, and deliberate modifi
 
 ## Decision 2 — Raw JSON Passthrough (e_typekind-json)
 
-**Decision**: Use `reader->skip_node( writer )` for raw JSON passthrough in `RESTORE_TYPE`, and `IF_JSON_WRITER` native output for `DUMP_TYPE`.
+**Decision**: Use `lcl_util=>read_json_to_string( reader )` for raw JSON passthrough in `RESTORE_TYPE`. This manually walks the tree with depth tracking, writing to a fresh `cl_json_string_writer`.
 
-**Rationale**: `skip_node(writer)` copies a complete subtree from reader to writer without re-parsing, providing correct round-trip semantics. This is Option C from evaluation. Option A (string search) was rejected as fragile. Option B (string-writer intermediate) was considered too slow. `skip_node` is the canonical solution from the kernel API.
+**Rationale**: `skip_node(writer)` does NOT work correctly when the reader is positioned on an object member mid-document — confirmed by testing. The manual tree-walking workaround is encapsulated in a single utility method. When `skip_node(writer)` is fixed by the IF_JSON_READER author, this method becomes a one-line replacement.
 
-**Impact**: `RESTORE_TYPE` for `e_typekind-json` calls `reader->skip_node( writer )` then `cast cl_json_string_writer(writer)->get_json()`. In `DUMP_TYPE`/`dump_type_int` for `e_typekind-json`, the raw JSON string is written via a reader that re-parses it, or written directly via `writer->write_raw` if available — otherwise via intermediate reader.
+**Impact**: `RESTORE_TYPE` for `e_typekind-json` calls `lcl_util=>read_json_to_string( reader )` for complex values, or `reader->node-value` for primitives.
 
 ---
 
@@ -317,3 +317,59 @@ The `value(LENGTH) TYPE i OPTIONAL` parameter was a leftover from the old offset
 ### Still Outstanding
 
 - **`e_typekind` constants: NOT moved to `lcl_util`** — `e_typekind` is referenced in macros (`dump_type_int`, `dump_type` — 15 occurrences) and in `lcl_util=>detect_typekind` (7 occurrences). Macros expand inline inside the class body and cannot use a `lcl_util=>` qualifier; moving would force every macro reference to become `z_ui2_json2=>e_typekind-*`, which is more verbose with no benefit. `lcl_util=>detect_typekind` already accesses it as `z_ui2_json2=>e_typekind-*` via the FRIENDS relationship. Additionally, `e_typekind` is part of the public API (subclasses use it). No action taken. — the previous parallel implementation of ~140 lines was a maintenance hazard: any fix to `dump_type_int` had to be mirrored manually in `dump_type`. The method now creates a local `CL_JSON_STRING_WRITER`, calls `dump_type_int` (same macro used by the non-inherited path), and returns `writer->get_json()`. This guarantees identical behaviour whether the class is inherited or not. The dispatch macro's `write_null` fallback (when `dump_type` returned initial) is now unreachable — `get_json()` always returns at least `"null"` — but is kept as a harmless safety net.
+
+---
+
+## Decision 10 — VERSION Reset to 1
+
+**Decision**: Z_UI2_JSON2 VERSION constant set to 1 (not 24).
+
+**Rationale**: Z_UI2_JSON2 is a new class with an independent lifecycle. VERSION 24 was an internal development number during migration. Both classes have separate version tracks going forward.
+
+---
+
+## Decision 11 — GEN_OPTIMIZE Removed (Always Optimized)
+
+**Decision**: Removed `GEN_OPTIMIZE` parameter from GENERATE, DESERIALIZE, and constructor. Optimized generation is always active.
+
+**Rationale**: The non-optimized path (REF TO data wrappers) produced awkward data structures. The optimized path (typed tables, dereferenced values) is what consumers want. Since V24 is a new class, incompatible changes are acceptable.
+
+---
+
+## Decision 12 — Trailing Commas Not Supported
+
+**Decision**: Input JSON must be valid per RFC 8259. Trailing commas (`,}` / `,]`) cause parse errors.
+
+**Rationale**: V23's lenient manual parser silently ignored them. The kernel reader is strict. Rather than adding a preprocessing workaround, we document this as a requirement and request tolerant mode from the IF_JSON_READER author.
+
+---
+
+## Decision 13 — generate_int_ex Removed
+
+**Decision**: Method `generate_int_ex` deleted entirely. Callers use `generate_int_r` directly.
+
+**Rationale**: `generate_int_ex` existed to temporarily set `mv_assoc_arrays = true` during generation. In V24, the generation path (generate_int_r) creates its own structures and never routes through restore_type's assoc_array handling for objects. The override was unnecessary.
+
+---
+
+## Decision 14 — Performance: Prefer Speed Over Modern Syntax
+
+**Decision**: Use CONCATENATE over string templates for formatting. Use direct character operations. Avoid modern syntax that creates heap allocations.
+
+**Rationale**: SAT profiling showed string templates (`|{ }|`) are significantly slower than CONCATENATE for fixed-format operations (timestamp/date/time serialization). For a performance-critical library, we choose the fastest approach and document the decision.
+
+---
+
+## Decision 15 — skip_node(writer) Workaround
+
+**Decision**: JSON passthrough uses manual tree-walking (`lcl_util=>read_json_to_string`) instead of `skip_node(writer)`.
+
+**Rationale**: `skip_node(writer)` does not correctly pipe a value subtree when the reader is positioned on an object member mid-document. This is a confirmed IF_JSON_READER defect. The workaround is encapsulated in a single utility method for easy replacement when the reader is fixed.
+
+---
+
+## Decision 16 — Cyclic References as null
+
+**Decision**: Cyclic data/object references serialize as `null` instead of `{}`.
+
+**Rationale**: `null` is the correct JSON representation for "cannot be serialized." An empty object `{}` is misleading — it suggests an empty structure, not an unresolvable reference.
