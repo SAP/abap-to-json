@@ -1,0 +1,319 @@
+# Migration Decisions Log — Z_UI2_JSON → Kernel JSON API
+
+This file records all architectural decisions, trade-offs, and deliberate modifications made during the migration of `Z_UI2_JSON` from manual character-level parsing to `IF_JSON_READER` / `IF_JSON_WRITER`.
+
+---
+
+## Context
+
+- **Source**: `z_ui2_json` VERSION 23 (`src/z_ui2_json.clas.abap`)
+- **Partial prior attempt**: `z_ui2_json2` on ER1 system (VERSION 21), deserialization partially migrated, serialization untouched
+- **Target**: `z_ui2_json` VERSION 24, full kernel API migration, in `src/` folder
+- **Minimum SAP_BASIS**: 7.57 (stable `SJSON` package with `IF_JSON_READER`, `IF_JSON_WRITER`, `CL_JSON_STRING_READER`, `CL_JSON_STRING_WRITER`)
+- **Deployment**: abapGit (no CI/CD, tests run in SAP system via SE80/ADT)
+
+---
+
+## Decision 1 — Target SAP_BASIS Version
+
+**Decision**: Minimum SAP_BASIS 7.57.
+
+**Rationale**: The `SJSON` package (containing `IF_JSON_READER`, `IF_JSON_WRITER`, `CL_JSON_STRING_READER`, `CL_JSON_STRING_WRITER`) is stable from 7.57. The previous minimum was 7.31. This is a deliberate break — the new class targets modern systems. Users on older systems keep the old `Z_UI2_JSON` (VERSION 23).
+
+---
+
+## Decision 2 — Raw JSON Passthrough (e_typekind-json)
+
+**Decision**: Use `reader->skip_node( writer )` for raw JSON passthrough in `RESTORE_TYPE`, and `IF_JSON_WRITER` native output for `DUMP_TYPE`.
+
+**Rationale**: `skip_node(writer)` copies a complete subtree from reader to writer without re-parsing, providing correct round-trip semantics. This is Option C from evaluation. Option A (string search) was rejected as fragile. Option B (string-writer intermediate) was considered too slow. `skip_node` is the canonical solution from the kernel API.
+
+**Impact**: `RESTORE_TYPE` for `e_typekind-json` calls `reader->skip_node( writer )` then `cast cl_json_string_writer(writer)->get_json()`. In `DUMP_TYPE`/`dump_type_int` for `e_typekind-json`, the raw JSON string is written via a reader that re-parses it, or written directly via `writer->write_raw` if available — otherwise via intermediate reader.
+
+---
+
+## Decision 3 — FORMAT_OUTPUT Output Difference Accepted
+
+**Decision**: The output of pretty-printed JSON (FORMAT_OUTPUT / `mv_format_output = true`) will differ from the old implementation. No attempt is made to match the old CRLF+2-space indentation exactly.
+
+**Rationale**: `IF_JSON_WRITER` has its own indentation logic controlled by `set_option( option_linebreaks )` and `set_option( option_indent )`. Replicating the exact old format would require post-processing the writer output, adding complexity for no functional benefit. FORMAT_OUTPUT is a display feature, not a contract.
+
+**Impact**: The test `serialize_associative_array` sub-test for FORMAT_OUTPUT has hardcoded CRLF+2-space indent. This test expectation must be updated to match the new writer output.
+
+---
+
+## Decision 4 — Public API Methods Removed
+
+The following public static methods are removed from the new class (were deprecated or subsumed):
+
+| Method | Reason |
+|--------|--------|
+| `DUMP` | Thin wrapper over `SERIALIZE`; callers use `SERIALIZE` |
+| `BOOL_TO_TRIBOOL` | Utility unrelated to JSON; callers can inline |
+| `TRIBOOL_TO_BOOL` | Same |
+| `UNESCAPE` | No longer needed — `IF_JSON_READER` returns unescaped values natively |
+| `GET_INDENT` | Only served pretty-printing; `IF_JSON_WRITER` handles indentation internally |
+| `GET_CONVEXIT_FUNC` | Moved to `lcl_util=>get_convexit_func()` (private) |
+| `EDM_DATETIME_TO_TS` | Moved to `lcl_util=>read_edm_datetime()` (was already there); public wrapper removed |
+| `ESCAPE` | Callers can use `escape()` BIF directly; no longer a meaningful wrapper |
+
+**Rationale**: The new class exposes less surface. Methods that existed only as compatibility shims or internal helpers are privatized. The user confirmed these can be dropped since this is a new class running in parallel with the old one.
+
+---
+
+## Decision 5 — Protected/Private Method Signature Changes
+
+**`RESTORE` / `RESTORE_TYPE`**:
+- Old signature: `EXPORTING json TYPE string, length TYPE i, offset TYPE i, type_descr, ...`
+- New signature: `EXPORTING reader TYPE REF TO if_json_reader, type_descr, ...` (no json/length/offset)
+- **Rationale**: The reader maintains its own position state. Passing offset/length was the manual parsing approach. All callers are internal — no public contract broken.
+
+**`DUMP_TYPE`** (virtual method for subclass override):
+- Old signature: `IMPORTING data TYPE data, type_descr TYPE REF TO cl_abap_elemdescr, typekind, convexit RETURNING r_json TYPE json`
+- New signature: `IMPORTING data TYPE data, type_descr TYPE REF TO cl_abap_elemdescr, typekind, convexit, writer TYPE REF TO if_json_writer`
+- **Rationale**: Writer-based serialization cannot return a string fragment — it must write to the shared writer. Adding `writer` as import parameter enables subclass overrides to write directly.
+
+**`DUMP_INT` / `DUMP_SYMBOLS`**:
+- Old: accumulate string fragments in internal table, CONCATENATE at end
+- New: accept `writer TYPE REF TO if_json_writer` and write directly
+- **Rationale**: Eliminates intermediate string allocation.
+
+---
+
+## Decision 6 — New Private Method GENERATE_INT_R
+
+**Decision**: Introduce `GENERATE_INT_R( reader TYPE REF TO if_json_reader ) RETURNING VALUE(result) TYPE REF TO data` as the reader-based workhorse for `GENERATE_INT`.
+
+**Rationale**: `GENERATE_INT` currently takes `json/length/offset` and builds ABAP data from unknown-type JSON. With the reader API, position is reader-managed. `GENERATE_INT_R` is the clean internal implementation; `GENERATE_INT` becomes a thin adapter that creates a reader and delegates.
+
+---
+
+## Decision 7 — Macro Strategy
+
+**Decision**: Keep the `dump_type_int` macro approach. Rewrite macro body to emit writer calls instead of string concatenation.
+
+**Rationale**: ABAP does not support method inlining. The macro is used for the fast-path (when `mv_extended IS INITIAL`) to avoid virtual method call overhead on every field. The `dump_type` dispatch macro already handles the `mv_extended` runtime check. Macros stay; their bodies change.
+
+**Specific change**: `dump_type_int` parameters `&1`=data, `&2`=typekind, `&3`=result-string, `&4`=convexit will change to `&1`=data, `&2`=typekind, `&3`=writer, `&4`=convexit. The `&3` parameter is now a writer reference, not an output string. All callsites updated accordingly.
+
+**Macros to remove**:
+- `escape_json` — no longer needed; writer escapes automatically
+- `xstring_to_string_int` / `string_to_xstring_int` — no longer needed for escaping (base64 path uses `cl_http_utility=>encode_base64` directly)
+
+**Macros to keep** (body changes only):
+- `dump_type_int` — core serialization, rewritten for writer
+- `dump_type` — dispatch macro, keep as-is (logic unchanged)
+- `is_compressable` — keep as-is
+- `format_name` — keep as-is
+- `format_list_output` — remove (no longer needed with writer approach)
+- `restore_reference` / `restore_reference_ex` — rewrite for reader
+- `throw_error` — keep as-is (exception raise)
+- `while_offset_cs` / `while_offset_not_cs` / `eat_white` / `eat_name` / `eat_number` / `eat_bool` / `eat_char` — **remove** (all manual parsing; replaced by reader API)
+- `create_regexp` — keep as-is (still used for ISO8601/OData regex)
+
+---
+
+## Decision 8 — escape_json Removal
+
+**Decision**: Remove the `escape_json` macro entirely.
+
+**Rationale**: `IF_JSON_WRITER` handles all string escaping internally. The macro was a compatibility shim around `escape( format = cl_abap_format=>e_json_string )`. With writer calls like `write_string( value )`, no explicit escaping is needed.
+
+---
+
+## Decision 9 — lcl_util Expansion
+
+**Decision**: Move the following from `Z_UI2_JSON` class-data/methods to `lcl_util`:
+
+| Item | Direction |
+|------|-----------|
+| `so_regex_unescape_spec_char` | Remove (no longer needed) |
+| `get_convexit_func` static method | Move to `lcl_util` |
+| `so_regex_iso8601` | Already in `lcl_util` — keep |
+| `so_regex_edm_date_time` | Already in `lcl_util` — keep |
+| RTTI descriptor caches for UTCLONG/ENUM types | Move to `lcl_util` class-data |
+
+**Rationale**: Reduces the public/protected surface of `Z_UI2_JSON`. `lcl_util` is a `FRIENDS z_ui2_json` class, so access is unrestricted internally.
+
+---
+
+## Decision 10 — Dynamic Calls
+
+**Decision**: Replace dynamic calls for UTCLONG and ENUM typekinds with direct static calls where possible.
+
+**Context**: Dynamic calls (`CALL METHOD ... TYPE (typename)`) were used to avoid syntax errors on older BASIS. Since minimum is now 7.57, `utclong` and `enum` types can be handled with direct statements.
+
+**Exception**: `CREATE OBJECT TYPE (mc_me_type)` — this is intentional polymorphism (the class instantiating itself vs. a subclass). Keep as-is.
+
+**Rationale**: Dynamic calls add overhead and obscure intent. Static calls are cleaner and allow syntax checking.
+
+---
+
+## Decision 11 — mv_initial_ts / mv_initial_date / mv_initial_time Quoting
+
+**Decision**: These instance variables store their initial-value strings WITH surrounding double-quotes (e.g., `mv_initial_ts = '"0001-01-01T00:00:00Z"'`). When passing to `writer->write_string()`, the quotes must be stripped.
+
+**Rationale**: The old code emitted these directly into string concatenation. With writer API, `write_string` adds quotes automatically. Stripping: `mid( mv_initial_ts, 2, strlen(mv_initial_ts) - 2 )`.
+
+---
+
+## Decision 12 — symbol-header Storage Format
+
+**Decision**: The `symbol-header` field in `mt_struct_cache` stores the plain ABAP field name (e.g., `FIELD_NAME`), not the JSON-formatted name. Pretty-name formatting is applied at serialization time.
+
+**Rationale**: This was already the case in VERSION 23. The reader approach uses `reader->node-name` which is the JSON key; lookup maps JSON key → ABAP field. Keep consistent.
+
+---
+
+## Decision 13 — Patch Sync (VERSION 22–23 → New Class)
+
+The following fixes from VERSION 22 and 23 (unreleased PL22 in `docs/history.md`) must be ported into the new class:
+
+1. **EDM DateTime rounding fix**: `read_edm_datetime` must TRUNCATE subseconds to milliseconds, not round. `psubsec = pticks MOD 1000` is correct; ensure no rounding arithmetic is introduced.
+
+2. **Packed field length 8 false-positive**: In `get_struct_info` / type classification, a packed field with length 8 (e.g., `p LENGTH 8`) must not be misidentified as a timestamp. The check must be `type_kind EQ typekind_packed AND length EQ 8 AND decimals EQ 14` — if decimals ≠ 14, it is not a timestamp.
+
+3. **Generate struct duplicate name**: In `GENERATE_STRUCT`, when a JSON object has duplicate member names, the second occurrence must not overwrite the first in the generated ABAP structure reference cache. Use `INSERT ... ACCEPTING DUPLICATES` or check before inserting.
+
+---
+
+## Decision 14 — Test Updates Required
+
+Tests that will need expected-output updates due to format changes:
+
+| Test Method | Reason |
+|-------------|--------|
+| `serialize_associative_array` (FORMAT_OUTPUT sub-test) | New indentation format from `IF_JSON_WRITER` |
+| Any test checking exact whitespace in pretty-printed output | Same |
+
+Tests that must continue to pass unchanged:
+- All `serialize_*` tests (field order, value format, number serialization, boolean, null)
+- All `deserialize_*` tests
+- All `roundtrip_*` tests
+- `deserialize_malformed` — must not crash, must return gracefully
+
+---
+
+## Decision 15 — VERSION Bump
+
+**Decision**: New class is VERSION 24.
+
+**Rationale**: VERSION 23 is the last manual-parser version. VERSION 24 marks the kernel API migration. `docs/history.md` entry to be added at the end of implementation.
+
+---
+
+## Open Questions (Resolved)
+
+1. **`write_raw` availability**: `IF_JSON_WRITER` does NOT expose `write_raw`. The `e_typekind-json` serialization path uses `CL_JSON_STRING_READER=>create(val)->skip_node(writer)` — resolved in `dump_type_int` macro.
+
+2. **`symbol-header` format**: The `header` field in symbol cache was changed from `"NAME":` (with embedded quotes and colon) to just the plain formatted name. Cache-building code updated in all three places (`get_symbols_class`, `get_symbols_struct` ×2). `dump_symbols` now calls `writer->open_member(header)`.
+
+3. **`DUMP` static method**: Delegated to `SERIALIZE` static method (which creates an instance and calls `serialize_int`). The old dynamic call to `DUMP_INT` was removed since `dump_int` no longer has a `RETURNING` clause.
+
+4. **`dump_type` dispatch macro extended path**: The `ELSE` branch (when `mv_extended` is set, i.e., virtual method override active) creates an intermediate `CL_JSON_STRING_READER` from the returned string and calls `skip_node(writer)` to pipe the result to the writer.
+
+5. **`serialize_int` with `name` parameter**: The `name` wrapping (emit `"name":value`) is handled by inline string template `|"{ name }":{ lv_value }|` after `dump_int` completes writing to the local writer and `get_json()` is called to retrieve the value.
+
+6. **SJSON author consultation**: Deferred to optimization phase. Not blocking initial migration.
+
+7. **`CL_JSON_XSTRING_READER`**: The `JSONX_CP` parameter was removed from `DESERIALIZE_INT` in z_ui2_json2. Decision to use `CL_JSON_STRING_READER` only (UTF-16 conversion done before calling, as before). `CL_JSON_XSTRING_READER` support can be added post-migration if needed.
+
+8. **`dump_type` method vs `dump_type_int` macro**: `dump_type_int` (macro, fast path) was correctly migrated to writer calls. `dump_type` (virtual protected method, used when `mv_extended` is set for subclass override support) was NOT migrated in the same step. Its body still uses the old string-building + `escape_json` approach. Decision: `dump_type` retains its current string-returning signature (subclass compatibility requires this — see Decision 5). The macro dispatch bridges the gap via intermediate reader. The method body must be modernized to use string templates instead of `CONCATENATE`/`escape_json`, but the return type stays `TYPE JSON`. The `escape_json` macro call in `dump_type` body must be replaced with a direct `escape(...)` BIF call since the macro will be deleted.
+
+---
+
+## Implementation Status (as of 2026-05-09)
+
+### Completed
+- Phase 1: Patch sync (EDM datetime truncation, packed field fix, generate_struct duplicate fix)
+- Phase 2: Deserialization migrated to `IF_JSON_READER` (`restore`, `restore_type`, `generate_int_r`, `generate_int_ex`)
+- Phase 3: Serialization migrated to `IF_JSON_WRITER` (`dump_int`, `dump_symbols`, `serialize_int`, `dump_type_int` macro rewritten)
+- `DUMP` static method delegated to `SERIALIZE`
+- Dynamic calls for UTCLONG and ENUM replaced with static calls
+- `symbol-header` format changed to plain name
+- VERSION bumped to 24
+- Clean-code pass: dead `read_string` removed, `lv_comp_name` removed, end-of-method comments removed, `CONCATENATE`/`EQ`/`NE` modernized, inline `DATA()` declarations where safe, `CREATE OBJECT` → `NEW` in `lc_json_custom`
+- **`throw_error` macro deleted** — inlined as `RAISE EXCEPTION TYPE cx_sy_move_cast_error` at all call sites in `restore_type`
+- **`restore_reference_ex` macro deleted** — body inlined at all 3 call sites in `restore_type`
+- **`create_regexp` macro deleted** — replaced with `cl_abap_regex=>create_pcre( pattern = ... )` direct calls in `class_constructor` and `lcl_util=>class_constructor`
+- **`escape_json` macro deleted** — `dump_type` method now uses `escape( val = ... format = cl_abap_format=>e_json_string )` BIF directly
+- **`_escape` method deleted** from `lcl_util`
+- **`get_convexit_func` moved to `lcl_util`** — all 9 call sites updated to `lcl_util=>get_convexit_func(...)`
+- **`SO_REGEX_*` and `SO_TYPE_*` moved to `lcl_util`** — declared as public class-data; initialization moved to `lcl_util=>class_constructor`; all callers in main class updated with `lcl_util=>` prefix; `so_type_reftab` removed from PRIVATE SECTION of main class
+- **`dump_int`, `dump_symbols`, `get_symbols*`, `get_fields`, `generate_int`, `generate_int_r`, `generate_int_ex`, `generate_struct` moved to PRIVATE SECTION**
+- **`dump_type_ex` method deleted**
+- **`MC_DEFAULT_INDENT`, `MC_NAME_SYMBOLS_MAP`, `mc_cov_error` deleted** (dead code)
+- **`ref_tab` type deleted** from PUBLIC SECTION — declared but never used in z_ui2_json2
+- **`SV_WHITE_SPACE` deleted** — was only used by `eat_white`/`while_offset_cs` macros which were removed in Phase 2; no callers remain in z_ui2_json2; initialization block removed from `class_constructor`
+- **`detect_typekind` moved to `lcl_util`** — instance variables `mv_numc_as_string`, `mv_bool_types`, `mv_bool_3state` passed as explicit parameters; `mc_json_type` accessed as `z_ui2_json2=>mc_json_type` (public class-data); all 5 call sites updated with `lcl_util=>detect_typekind( ... numc_as_string = mv_numc_as_string bool_types = mv_bool_types bool_3state = mv_bool_3state )`
+- **`RAW_TO_STRING` deleted** — not used internally; single test usage replaced with `cl_abap_codepage=>convert_from()` direct call
+- **`STRING_TO_RAW` deleted** — not used internally or in tests
+- **`DUMP` static method deleted** — was a thin alias for `SERIALIZE` with no callers in tests or internal code; callers should use `SERIALIZE` directly
+- **`CL_JSON_XSTRING_READER` in `deserialize_int`** — when `jsonx` is provided, `CL_JSON_XSTRING_READER=>create( jsonx )` is used directly instead of converting via `cl_abap_codepage=>convert_from()` + `CL_JSON_STRING_READER`. The reader handles encoding natively. The `jsonx_cp` parameter is retained in the public API for backwards compatibility but is no longer used internally (the xstring reader defaults to UTF-8, which is the JSON standard encoding).
+- **Base64 modernized** — `SSFC_BASE64_ENCODE` / `SSFC_BASE64_DECODE` (RFC-style FMs) replaced with `cl_http_utility=>encode_x_base64()` / `cl_http_utility=>decode_x_base64()` in `xstring_to_string` / `string_to_xstring`. Both are available from SAP_BASIS 7.0+. The `DECODE_X_BASE64` returns initial on invalid input; the existing fallback `IF out IS INITIAL. out = in.` is preserved.
+- **`XSTRING_TO_STRING` and `STRING_TO_XSTRING` deleted from public API** — inlined as `cl_http_utility=>encode_x_base64()` / `cl_http_utility=>decode_x_base64()` at all 3 call sites (2 in `restore_type`, 1 in `dump_type`). Macros `xstring_to_string_int` and `string_to_xstring_int` also deleted and their logic inlined directly.
+- **`JSONX_CP` parameter removed** from `DESERIALIZE` and `DESERIALIZE_INT` — no longer needed since `CL_JSON_XSTRING_READER` handles encoding natively (UTF-8 default, which is the JSON standard).
+- **`CREATE OBJECT TYPE (mc_me_type)` replaced with `NEW z_ui2_json2(...)`** in `SERIALIZE` and `DESERIALIZE`. `mc_me_type` is always `\CLASS=Z_UI2_JSON2` — the dynamic type was inherited from `/UI2/CL_JSON` where the pattern served copy-paste portability. In Z_UI2_JSON2 the type is fixed, so `NEW` is exact. `mc_me_type` is retained in the PROTECTED SECTION for the subclass detection check in `constructor` (`rtti->absolute_name <> mc_me_type` → sets `mv_extended`). The one remaining `CREATE OBJECT data TYPE (type_descr->absolute_name)` in `restore` is genuine runtime polymorphism (unknown target type at compile time) and stays.
+
+---
+
+## Decision 16 — Syntax Fixes During SAP System Import (2026-05-10)
+
+The following syntax errors were discovered and fixed during the first import into the SAP system:
+
+### `DATA(var) TYPE ...` invalid in macros
+`DATA(var) TYPE string.` is not valid ABAP — inline `DATA()` requires an initializer expression. All 15 occurrences in `dump_type_int` macro replaced with `DATA var TYPE ...`.
+
+### `FINAL` on private methods illegal
+`FINAL` on methods in the PRIVATE SECTION is a syntax error (private methods cannot be inherited, so `FINAL` is meaningless and rejected). Removed from all 7 private methods: `GENERATE_INT_R`, `DUMP_SYMBOLS`, `GET_SYMBOLS_STRUCT`, `GET_SYMBOLS_CLASS`, `GET_SYMBOLS`, `GET_FIELDS`, `GENERATE_INT_EX`.
+
+### `e_typekind` visibility — moved to PUBLIC
+`e_typekind` was in PROTECTED SECTION. `lcl_util=>detect_typekind` accesses it as `z_ui2_json2=>e_typekind-*` — but protected constants are not accessible via class name from a non-subclass (local helper class). Moved to PUBLIC SECTION and removed duplicate from PROTECTED. This is correct because subclasses and external callers already rely on it being public.
+
+### `mid()` not a valid BIF in this context
+`mid( var offset length )` is not a valid ABAP built-in function call syntax in method arguments. Replaced all 5 occurrences with `substring( val = var off = 1 len = strlen(var) - 2 )`.
+
+### String offset `var+1(len)` not allowed on TYPE STRING
+`TYPE STRING` fields do not support the `+offset(length)` syntax (only `TYPE C`/fixed-length types do). Replaced with `substring()` BIF. Removed intermediate `TYPE i` length variables that were introduced as an attempted workaround.
+
+### `write_boolean( abap_true/abap_false )` wrong type
+`IF_JSON_WRITER->write_boolean` takes `value TYPE string` (expected values: `'true'` / `'false'`), not `TYPE abap_bool`. Replaced `abap_true` → `` `true` `` and `abap_false` → `` `false` ``. Also removed a duplicate `write_boolean` call left by an earlier edit.
+
+### `cl_json_string_writer=>create()` return type is `REF TO if_json_writer`
+`CL_JSON_STRING_WRITER=>create()` is declared `RETURNING value(writer) TYPE REF TO if_json_writer` — it returns the interface, not the concrete class. Assigning to `REF TO cl_json_string_writer` therefore fails. Fixed in both `dump_type` and `serialize_int`:
+- Both `lo_writer` variables declared as `REF TO if_json_writer`
+- `get_json()` called via downcast: `CAST cl_json_string_writer( lo_writer )->get_json()`
+
+### `lt_symbols` forward reference in `get_fields`
+`FIELD-SYMBOLS: <sym> LIKE LINE OF lt_symbols` was declared before the inline `DATA(lt_symbols) = get_symbols(...)`. Inline `DATA()` is not visible before its statement. Fixed by declaring `lt_symbols TYPE t_t_symbol` explicitly before `FIELD-SYMBOLS`, and assigning via normal assignment.
+
+### `GENERATE_INT` moved to PROTECTED
+The test class (`abap_unit_testclass INHERITING FROM Z_UI2_JSON2`) calls `generate_int` directly. With `GENERATE_INT` in PRIVATE SECTION this is a syntax error. Moved to PROTECTED SECTION — it was already conceptually an internal method, and subclass test access is the intended use.
+
+### `detect_typekind` IF/ELSEIF structure in `lcl_util`
+The `ELSEIF` branches after the packed-field domain check were incorrectly indented in a prior edit (appeared to be after `ENDIF`). Verified correct: the `ELSEIF rv_type = typekind_num ...` chain is correctly part of the outer `IF rv_type = typekind_packed ... ELSEIF ...` block. No code change needed — structure was already correct.
+
+---
+
+## Implementation Status (as of 2026-05-10)
+
+### All items completed including syntax fixes from first SAP import.
+
+### Runtime fixes applied before first test run
+
+**Missing `next_node()` before `skip_node()` in two macro locations:**
+
+The kernel reader (`CL_JSON_STRING_READER`) starts positioned *before* the first node after `create()`. `skip_node()` requires the reader to already be positioned *at* a node. Two places in the macros created a fresh reader and called `skip_node()` without advancing first:
+
+1. `dump_type` macro (extended/inherited path): `cl_json_string_reader=>create( dump_type_ext_json )` → added `dump_type_ext_rdr->next_node( )` before `skip_node( &4 )`.
+2. `dump_type_int` macro (`e_typekind-json` branch): `cl_json_string_reader=>create( dump_type_int_jr )` → added `dump_type_int_rdr->next_node( )` before `skip_node( &3 )`.
+
+Note: `restore_type` and `generate_int_r` do NOT need `next_node()` before their first reader access because they receive the reader from a caller that already advanced it.
+
+**`LENGTH` parameter removed from `GENERATE_INT`:**
+
+The `value(LENGTH) TYPE i OPTIONAL` parameter was a leftover from the old offset-based `z_ui2_json` API. The `z_ui2_json2` implementation never uses it — the body always creates a reader from the full `json` string. Removed from the PROTECTED method declaration.
+
+### Still Outstanding
+
+- **`e_typekind` constants: NOT moved to `lcl_util`** — `e_typekind` is referenced in macros (`dump_type_int`, `dump_type` — 15 occurrences) and in `lcl_util=>detect_typekind` (7 occurrences). Macros expand inline inside the class body and cannot use a `lcl_util=>` qualifier; moving would force every macro reference to become `z_ui2_json2=>e_typekind-*`, which is more verbose with no benefit. `lcl_util=>detect_typekind` already accesses it as `z_ui2_json2=>e_typekind-*` via the FRIENDS relationship. Additionally, `e_typekind` is part of the public API (subclasses use it). No action taken. — the previous parallel implementation of ~140 lines was a maintenance hazard: any fix to `dump_type_int` had to be mirrored manually in `dump_type`. The method now creates a local `CL_JSON_STRING_WRITER`, calls `dump_type_int` (same macro used by the non-inherited path), and returns `writer->get_json()`. This guarantees identical behaviour whether the class is inherited or not. The dispatch macro's `write_null` fallback (when `dump_type` returned initial) is now unreachable — `get_json()` always returns at least `"null"` — but is kept as a harmless safety net.
