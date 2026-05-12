@@ -16,21 +16,7 @@ DEFINE dump_type.
   IF mv_extended IS INITIAL.
     dump_type_int &1 &3 &4 &5 &6.
   ELSE.
-    DATA dump_type_ext_json TYPE json.
-    dump_type_ext_json = dump_type( data = &1 type_descr = &2 typekind = &3 convexit = &5 ).
-    IF dump_type_ext_json IS NOT INITIAL.
-      IF &6 IS NOT INITIAL.
-        &4->open_member( &6 ).
-      ENDIF.
-      DATA(dump_type_ext_rdr) = cl_json_string_reader=>create( dump_type_ext_json ).
-      dump_type_ext_rdr->next_node( ).
-      dump_type_ext_rdr->skip_node( &4 ).
-      IF &6 IS NOT INITIAL.
-        &4->close_member( ).
-      ENDIF.
-    ELSE.
-      &4->write_null( &6 ).
-    ENDIF.
+    dump_type( data = &1 type_descr = &2 convexit = &5 typekind = &3 writer = &4 name = &6 ).
   ENDIF.
 END-OF-DEFINITION.
 
@@ -270,7 +256,7 @@ DEFINE restore_dref.
   ENDIF.
   data_ref ?= &2.
   ASSIGN data_ref->* TO <data>.
-  restore_type( EXPORTING reader = &1 type_descr = data_descr typekind = data_descr->type_kind CHANGING data = <data> ).
+  restore_type_int( EXPORTING reader = &1 type_descr = data_descr typekind = data_descr->type_kind CHANGING data = <data> ).
   RETURN.
 END-OF-DEFINITION.
 
@@ -297,9 +283,17 @@ END-OF-DEFINITION.
 
 DEFINE read_timestamp.
 " &1 = input string, &2 = output timestampl
-  &2 = lcl_util=>read_iso8601( &1 ).
-  IF &2 IS INITIAL.
-    &2 = lcl_util=>read_edm_datetime( &1 ).
+  IF &1 IS NOT INITIAL.
+    IF &1+0(1) CA '0123456789T'.
+      &2 = lcl_util=>read_iso8601( &1 ).
+    ELSE.
+      CLEAR &2.
+    ENDIF.
+    IF &2 IS INITIAL AND &1+0(1) = '/'.
+      &2 = lcl_util=>read_edm_datetime( &1 ).
+    ENDIF.
+  ELSE.
+    CLEAR &2.
   ENDIF.
 END-OF-DEFINITION.
 

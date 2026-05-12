@@ -218,11 +218,10 @@ protected section.
     BEGIN OF t_s_struct_cache,
       type_descr      TYPE REF TO cl_abap_structdescr,
       include_aliases	TYPE abap_bool,
-      level           TYPE i,
       result          TYPE t_s_struct_cache_res,
     END OF t_s_struct_cache .
   types:
-    t_t_struct_cache TYPE HASHED TABLE OF t_s_struct_cache WITH UNIQUE KEY type_descr include_aliases level .
+    t_t_struct_cache TYPE HASHED TABLE OF t_s_struct_cache WITH UNIQUE KEY type_descr include_aliases .
 
   data MV_BOOL_TYPES type STRING .
   data MV_BOOL_3STATE type STRING .
@@ -284,8 +283,8 @@ protected section.
       !TYPE_DESCR type ref to CL_ABAP_ELEMDESCR
       !CONVEXIT type STRING
       !TYPEKIND type ABAP_TYPEKIND optional
-    returning
-      value(R_JSON) type JSON .
+      !WRITER type ref to IF_JSON_WRITER
+      !NAME type STRING optional .
   methods PRETTY_NAME_EX
     importing
       !IN type CSEQUENCE
@@ -310,6 +309,19 @@ protected section.
     DATA mv_extended TYPE bool .
     CLASS-DATA mc_me_type TYPE string .
 
+  methods RESTORE_TYPE_INT
+    importing
+      !READER type ref to IF_JSON_READER
+      value(TYPE_DESCR) type ref to CL_ABAP_TYPEDESCR optional
+      !FIELD_CACHE type T_T_FIELD_CACHE optional
+      !CONVEXIT type STRING optional
+      !TYPEKIND type ABAP_TYPEKIND optional
+    changing
+      !DATA type DATA optional
+    raising
+      CX_SY_MOVE_CAST_ERROR
+      CX_SY_CONVERSION_NO_NUMBER
+      CX_SY_CONVERSION_OVERFLOW .
   methods GENERATE_INT_R
     importing
       !READER type ref to IF_JSON_READER
@@ -330,7 +342,6 @@ protected section.
       !TYPE_DESCR type ref to CL_ABAP_STRUCTDESCR
       !INCLUDE_ALIASES type ABAP_BOOL default ABAP_FALSE
       !DATA type ref to DATA optional
-      !LEVEL type I default 0
     returning
       value(RESULT) type T_S_STRUCT_CACHE_RES .
   methods GET_SYMBOLS_CLASS
@@ -589,9 +600,8 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
       WHEN cl_abap_typedescr=>kind_struct.
 
         lo_structdesc ?= type_descr.
-        ls_struct_sym = get_symbols_struct( type_descr = lo_structdesc level = level ).
-        ASSIGN ls_struct_sym-data->* TO <data>.
-        <data> = data.
+        GET REFERENCE OF data INTO lo_data_ref.
+        ls_struct_sym = get_symbols_struct( type_descr = lo_structdesc data = lo_data_ref ).
         dump_symbols( it_symbols = ls_struct_sym-symbols writer = writer level = level ).
 
       WHEN cl_abap_typedescr=>kind_table.
@@ -602,7 +612,7 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
 
         IF lo_typedesc->kind = cl_abap_typedescr=>kind_struct.
           lo_structdesc ?= lo_typedesc.
-          ls_struct_sym = get_symbols_struct( type_descr = lo_structdesc level = level ).
+          ls_struct_sym = get_symbols_struct( type_descr = lo_structdesc ).
           ASSIGN ls_struct_sym-data->* TO <line>.
 
           IF lo_tabledescr->has_unique_key IS NOT INITIAL AND mv_assoc_arrays IS NOT INITIAL.
@@ -696,7 +706,9 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
 
     LOOP AT it_symbols ASSIGNING <symbol>.
       ASSIGN <symbol>-value->* TO <value>.
-      CHECK <symbol>-compressable = abap_false OR <value> IS NOT INITIAL OR opt_array = abap_true.
+      IF mv_compress = abap_true.
+        CHECK <symbol>-compressable = abap_false OR <value> IS NOT INITIAL OR opt_array = abap_true.
+      ENDIF.
 
       IF opt_array = abap_false.
         lv_name = <symbol>-header.
@@ -727,8 +739,6 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   METHOD dump_type.
 
     DATA lv_typekind LIKE typekind.
-    DATA lo_writer   TYPE REF TO if_json_writer.
-    DATA lv_no_name  TYPE string.
 
     IF typekind IS INITIAL.
       lv_typekind = lcl_util=>detect_typekind( type_descr = type_descr convexit = convexit numc_as_string = mv_numc_as_string bool_types = mv_bool_types bool_3state = mv_bool_3state ).
@@ -736,9 +746,7 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
       lv_typekind = typekind.
     ENDIF.
 
-    lo_writer = cl_json_string_writer=>create( ).
-    dump_type_int data lv_typekind lo_writer convexit lv_no_name.
-    r_json = CAST cl_json_string_writer( lo_writer )->get_json( ).
+    dump_type_int data lv_typekind writer convexit name.
 
   ENDMETHOD.
 
@@ -921,18 +929,6 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
     ENDLOOP.
 
     CONCATENATE LINES OF lt_keys INTO ls_type-keys SEPARATED BY '-'.
-    DATA lv_md5 TYPE hash160.
-    CALL FUNCTION 'CALCULATE_HASH_FOR_CHAR'
-      EXPORTING
-        alg  = 'MD5'
-        data = ls_type-keys
-      IMPORTING
-        hash = lv_md5
-      EXCEPTIONS
-        OTHERS = 4.
-    IF sy-subrc = 0.
-      ls_type-keys = lv_md5.
-    ENDIF.
 
     READ TABLE mt_struct_type WITH TABLE KEY keys = ls_type-keys INTO ls_type.
     IF sy-subrc IS NOT INITIAL.
@@ -1103,12 +1099,11 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
                    <data>   TYPE data,
                    <field>  TYPE any.
 
-    READ TABLE mt_struct_cache WITH TABLE KEY type_descr = type_descr include_aliases = include_aliases level = level
+    READ TABLE mt_struct_cache WITH TABLE KEY type_descr = type_descr include_aliases = include_aliases
     ASSIGNING <struct>.
     IF sy-subrc IS NOT INITIAL.
       struct_cache-type_descr       = type_descr.
       struct_cache-include_aliases  = include_aliases.
-      struct_cache-level            = level.
 
       CREATE DATA struct_cache-result-data TYPE HANDLE type_descr.
       INSERT struct_cache INTO TABLE mt_struct_cache ASSIGNING <struct>.
@@ -1370,6 +1365,42 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
 
   METHOD restore_type.
 
+    DATA: lo_move_cast_error TYPE REF TO cx_sy_move_cast_error,
+          lo_exp             TYPE REF TO cx_root,
+          source_typename    TYPE string,
+          target_typename    TYPE string.
+
+    TRY.
+        restore_type_int( EXPORTING reader = reader type_descr = type_descr field_cache = field_cache convexit = convexit typekind = typekind CHANGING data = data ).
+      CATCH cx_sy_move_cast_error INTO lo_move_cast_error.
+        CLEAR data.
+        IF mv_strict_mode = abap_true.
+          source_typename = lo_move_cast_error->source_typename.
+          IF lo_move_cast_error->target_typename IS NOT INITIAL.
+            target_typename = lo_move_cast_error->target_typename.
+          ELSEIF type_descr IS BOUND.
+            target_typename = lcl_util=>describe_type( type_descr ).
+          ELSE.
+            target_typename = `?`.
+          ENDIF.
+          RAISE EXCEPTION TYPE cx_sy_move_cast_error
+            EXPORTING
+              previous        = lo_move_cast_error
+              source_typename = source_typename
+              target_typename = target_typename.
+        ENDIF.
+      CATCH cx_sy_conversion_no_number cx_sy_conversion_overflow INTO lo_exp.
+        CLEAR data.
+        IF mv_strict_mode = abap_true.
+          RAISE EXCEPTION TYPE cx_sy_move_cast_error EXPORTING previous = lo_exp.
+        ENDIF.
+    ENDTRY.
+
+  ENDMETHOD.
+
+
+  METHOD restore_type_int.
+
     DATA: sdummy             TYPE string,
           line               TYPE REF TO data,
           key_ref            TYPE REF TO data,
@@ -1405,7 +1436,6 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
     lv_convexit = convexit.
     lv_typekind = typekind.
 
-    TRY .
         IF data IS SUPPLIED AND lv_typekind = e_typekind-json.
           " raw JSON passthrough
           IF reader->node-type = if_json_node=>string OR reader->node-type = if_json_node=>number OR reader->node-type = if_json_node=>boolean OR reader->node-type = if_json_node=>null.
@@ -1449,10 +1479,10 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
                     key_value = reader->node-name.
                     IF <value_sym> IS ASSIGNED.
                       ASSIGN <value_sym>-value->* TO <value>.
-                      restore_type( EXPORTING reader = reader type_descr = <value_sym>-type typekind = <value_sym>-typekind convexit = <value_sym>-convexit_in
+                      restore_type_int( EXPORTING reader = reader type_descr = <value_sym>-type typekind = <value_sym>-typekind convexit = <value_sym>-convexit_in
                                     CHANGING data = <value> ).
                     ELSE.
-                      restore_type( EXPORTING reader = reader type_descr = data_descr typekind = data_descr->type_kind field_cache = lt_fields
+                      restore_type_int( EXPORTING reader = reader type_descr = data_descr typekind = data_descr->type_kind field_cache = lt_fields
                                     CHANGING data = <line> ).
                     ENDIF.
                     IF table_descr->key_defkind = table_descr->keydefkind_user.
@@ -1495,7 +1525,7 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
                 data_ref ?= data.
                 type_descr = cl_abap_typedescr=>describe_by_data_ref( data_ref ).
                 ASSIGN data_ref->* TO <data>.
-                restore_type( EXPORTING reader = reader type_descr = type_descr typekind = type_descr->type_kind CHANGING data = <data> ).
+                restore_type_int( EXPORTING reader = reader type_descr = type_descr typekind = type_descr->type_kind CHANGING data = <data> ).
               ENDIF.
 
             ELSEIF data IS SUPPLIED.
@@ -1518,7 +1548,7 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
                   CREATE DATA data TYPE HANDLE data_descr.
                   data_ref ?= data.
                   ASSIGN data_ref->* TO <data>.
-                  restore_type( EXPORTING reader = reader type_descr = data_descr typekind = data_descr->type_kind CHANGING data = <data> ).
+                  restore_type_int( EXPORTING reader = reader type_descr = data_descr typekind = data_descr->type_kind CHANGING data = <data> ).
                 ELSE. " invalid type - skip
                   reader->skip_node( ).
                 ENDIF.
@@ -1526,7 +1556,7 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
                 data_ref ?= data.
                 type_descr = cl_abap_typedescr=>describe_by_data_ref( data_ref ).
                 ASSIGN data_ref->* TO <data>.
-                restore_type( EXPORTING reader = reader type_descr = type_descr typekind = type_descr->type_kind CHANGING data = <data> ).
+                restore_type_int( EXPORTING reader = reader type_descr = type_descr typekind = type_descr->type_kind CHANGING data = <data> ).
               ENDIF.
 
             ELSE.
@@ -1545,24 +1575,30 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
                     array_index = array_index + 1.
                     CLEAR <line>.
                     TRY.
-                        restore_type( EXPORTING reader = reader type_descr = data_descr typekind = data_descr->type_kind field_cache = lt_fields
+                        restore_type_int( EXPORTING reader = reader type_descr = data_descr typekind = data_descr->type_kind field_cache = lt_fields
                                       CHANGING data = <line> ).
                         INSERT <line> INTO TABLE <table>.
                         reader->next_node( ).
                       CATCH cx_sy_move_cast_error INTO DATA(lx_arr_move).
-                        DATA(lv_arr_src) = |[{ array_index }]|.
-                        IF lx_arr_move->source_typename IS NOT INITIAL.
-                          IF lx_arr_move->source_typename(1) <> `[`.
-                            lv_arr_src = lv_arr_src && `.` && lx_arr_move->source_typename.
-                          ELSE.
-                            lv_arr_src = lv_arr_src && lx_arr_move->source_typename.
+                        IF mv_strict_mode = abap_true.
+                          DATA(lv_arr_src) = |[{ array_index }]|.
+                          IF lx_arr_move->source_typename IS NOT INITIAL.
+                            IF lx_arr_move->source_typename(1) <> `[`.
+                              lv_arr_src = lv_arr_src && `.` && lx_arr_move->source_typename.
+                            ELSE.
+                              lv_arr_src = lv_arr_src && lx_arr_move->source_typename.
+                            ENDIF.
                           ENDIF.
+                          RAISE EXCEPTION TYPE cx_sy_move_cast_error
+                            EXPORTING
+                              previous        = lx_arr_move
+                              source_typename = lv_arr_src
+                              target_typename = lx_arr_move->target_typename.
+                        ELSE.
+                          CLEAR <line>.
+                          INSERT <line> INTO TABLE <table>.
+                          reader->next_node( ).
                         ENDIF.
-                        RAISE EXCEPTION TYPE cx_sy_move_cast_error
-                          EXPORTING
-                            previous        = lx_arr_move
-                            source_typename = lv_arr_src
-                            target_typename = lx_arr_move->target_typename.
                       CATCH cx_root INTO DATA(lx_arr_parse) ##CATCH_ALL.
                         IF mv_strict_mode = abap_true.
                           RAISE EXCEPTION TYPE cx_sy_move_cast_error
@@ -1570,8 +1606,11 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
                               previous        = lx_arr_parse
                               source_typename = |[{ array_index + 1 }]|
                               target_typename = lcl_util=>describe_type( data_descr ).
+                        ELSE.
+                          CLEAR <line>.
+                          INSERT <line> INTO TABLE <table>.
+                          reader->next_node( ).
                         ENDIF.
-                        RETURN.
                     ENDTRY.
                   ENDWHILE.
                 ELSE.
@@ -1707,7 +1746,14 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
             ELSE.
               RAISE EXCEPTION TYPE cx_sy_move_cast_error. " Otherwise dumps with OBJECTS_MOVE_NOT_SUPPORTED
             ENDIF.
-            data = sdummy.
+            TRY.
+                data = sdummy.
+              CATCH cx_sy_move_cast_error cx_sy_conversion_no_number cx_sy_conversion_overflow INTO lo_exp.
+                CLEAR data.
+                IF mv_strict_mode = abap_true.
+                  RAISE EXCEPTION TYPE cx_sy_move_cast_error EXPORTING previous = lo_exp.
+                ENDIF.
+            ENDTRY.
 
           WHEN if_json_node=>number. " numeric value
 
@@ -1721,7 +1767,14 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
               IF lv_convexit IS NOT INITIAL.
                 restore_convexit lv_convexit sdummy data.
               ENDIF.
-              data = sdummy.
+              TRY.
+                  data = sdummy.
+                CATCH cx_sy_move_cast_error cx_sy_conversion_no_number cx_sy_conversion_overflow INTO lo_exp.
+                  CLEAR data.
+                  IF mv_strict_mode = abap_true.
+                    RAISE EXCEPTION TYPE cx_sy_move_cast_error EXPORTING previous = lo_exp.
+                  ENDIF.
+              ENDTRY.
             ELSE.
               RAISE EXCEPTION TYPE cx_sy_move_cast_error.
             ENDIF.
@@ -1769,35 +1822,6 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
             ENDIF.
 
         ENDCASE.
-
-      CATCH cx_sy_move_cast_error INTO lo_move_cast_error.
-        " + CX_SY_CONVERSION_NOT_SUPPORTED > 7.54
-        CLEAR data.
-        IF mv_strict_mode = abap_true.
-
-          source_typename = lo_move_cast_error->source_typename.
-          IF lo_move_cast_error->target_typename IS NOT INITIAL.
-            target_typename = lo_move_cast_error->target_typename.
-          ELSEIF type_descr IS BOUND.
-            target_typename = lcl_util=>describe_type( type_descr ).
-          ELSE.
-            target_typename = `?`.
-          ENDIF.
-
-          RAISE EXCEPTION TYPE cx_sy_move_cast_error
-            EXPORTING
-              previous        = lo_move_cast_error
-              source_typename = source_typename
-              target_typename = target_typename.
-
-        ENDIF.
-      CATCH cx_sy_conversion_no_number cx_sy_conversion_overflow INTO lo_exp.
-        " + CX_SY_CONVERSION_NOT_SUPPORTED > 7.54
-        CLEAR data.
-        IF mv_strict_mode = abap_true.
-          RAISE EXCEPTION TYPE cx_sy_move_cast_error EXPORTING previous = lo_exp.
-        ENDIF.
-    ENDTRY.
 
   ENDMETHOD.
 

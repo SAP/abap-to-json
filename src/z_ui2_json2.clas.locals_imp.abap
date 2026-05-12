@@ -461,24 +461,27 @@ CLASS lc_json_custom IMPLEMENTATION.
   METHOD dump_type.
 
     DATA: is_ddic    TYPE abap_bool,
-          ddic_field TYPE dfies.
+          ddic_field TYPE dfies,
+          lv_json    TYPE string.
 
     is_ddic = type_descr->is_ddic_type( ).
     IF is_ddic = abap_true.
       ddic_field = type_descr->get_ddic_field( ).
       IF mv_ts_as_iso8601 = c_bool-true AND ddic_field-domname = `TZNTSTMPL`.
-        r_json = data.
-        r_json = |"{ r_json(4) }-{ r_json+4(2) }-{ r_json+6(2) }T{ r_json+8(2) }:{ r_json+10(2) }:{ r_json+12(2) }.{ r_json+15(7) }Z"|.
+        lv_json = data.
+        CONCATENATE lv_json(4) '-' lv_json+4(2) '-' lv_json+6(2) 'T' lv_json+8(2) ':' lv_json+10(2) ':' lv_json+12(2) '.' lv_json+15(7) 'Z' INTO lv_json.
+        writer->write_string( name = name value = lv_json ).
         RETURN.
       ENDIF.
     ENDIF.
     IF mv_ts_as_iso8601 = c_bool-true AND type_descr->absolute_name = `\TYPE=LCM_CHANGED_ON`.
-      r_json = data.
-      r_json = |"{ r_json(4) }-{ r_json+4(2) }-{ r_json+6(2) }T{ r_json+8(2) }:{ r_json+10(2) }:{ r_json+12(2) }.{ r_json+15(7) }Z"|.
+      lv_json = data.
+      CONCATENATE lv_json(4) '-' lv_json+4(2) '-' lv_json+6(2) 'T' lv_json+8(2) ':' lv_json+10(2) ':' lv_json+12(2) '.' lv_json+15(7) 'Z' INTO lv_json.
+      writer->write_string( name = name value = lv_json ).
       RETURN.
     ENDIF.
 
-    r_json = super->dump_type( data = data type_descr = type_descr convexit = convexit ).
+    super->dump_type( data = data type_descr = type_descr convexit = convexit writer = writer name = name ).
 
   ENDMETHOD.
 
