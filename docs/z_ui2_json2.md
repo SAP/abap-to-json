@@ -103,8 +103,8 @@ If you have a subclass of `Z_UI2_JSON` and want to migrate it to inherit from `Z
 - New: `IMPORTING WRITER TYPE REF TO IF_JSON_WRITER` — writes directly, no return value
 
 **`DUMP_TYPE`** (protected, virtual — override this for custom value serialization):
-- Signature **unchanged**: `RETURNING value(R_JSON) TYPE JSON`
-- The returned string is valid JSON (e.g. `"hello"`, `42`, `true`, `null`). The dispatch macro pipes it to the writer via an intermediate reader.
+- Old (Z_UI2_JSON): `RETURNING value(R_JSON) TYPE JSON`
+- New: `IMPORTING WRITER TYPE REF TO IF_JSON_WRITER, NAME TYPE STRING optional, TYPEKIND TYPE ABAP_TYPEKIND` — writes directly to the writer. No intermediate serialization/parsing round-trip.
 
 **`RESTORE`** (protected, virtual):
 - Old: `IMPORTING JSON TYPE STRING, LENGTH TYPE I, CHANGING OFFSET TYPE I`
@@ -152,7 +152,7 @@ lo_json->deserialize_int( EXPORTING json = lv_json CHANGING data = ls_data ).
 
 Inheritance works the same as with `Z_UI2_JSON`. Override `DUMP_TYPE` to customize value serialization, or `IS_COMPRESSABLE` to control which fields are omitted when compress is on.
 
-**Important**: `DUMP_TYPE` must still return a complete JSON value string (with surrounding quotes for strings). The base class dispatch macro handles writing the returned value to the writer.
+**Important**: `DUMP_TYPE` now receives the writer directly. Write your custom value to the writer using `write_string`, `write_number`, `write_boolean`, or `write_null`. Call `super->dump_type(...)` for fallback handling.
 
 ```abap
 CLASS lcl_my_json DEFINITION INHERITING FROM z_ui2_json2.
@@ -164,16 +164,42 @@ CLASS lcl_my_json IMPLEMENTATION.
   METHOD dump_type.
     " Custom handling for a specific type
     IF type_descr->absolute_name EQ '\TYPE=MY_CUSTOM_TYPE'.
-      r_json = |"{ data }-custom"|.
+      writer->write_string( name = name value = |{ data }-custom| ).
       RETURN.
     ENDIF.
     " Fall through to base class
-    r_json = super->dump_type( data = data type_descr = type_descr convexit = convexit ).
+    super->dump_type( data = data type_descr = type_descr convexit = convexit typekind = typekind writer = writer name = name ).
   ENDMETHOD.
 ENDCLASS.
 ```
 
 For full extension examples see [class-extension.md](class-extension.md) — the patterns shown there apply equally to `Z_UI2_JSON2`, with the method signature changes noted above.
+
+---
+
+## Performance comparison (Z_UI2_JSON V23 vs Z_UI2_JSON2 V1)
+
+Measured on SAP_BASIS 7.57, same data sets, averaged over 5 runs (3 for generation):
+
+| Scenario | V23 (µs) | V1 (µs) | Difference |
+|----------|----------|---------|------------|
+| **Deserialize** SBOOK 20K lines | 13,320K | 7,855K | **+41% faster** |
+| **Deserialize** SBOOK camelCase | 5,899K | 3,097K | **+48% faster** |
+| **Deserialize** AllTypes 10K | 2,804K | 1,552K | **+45% faster** |
+| **Deserialize** Strings 10K | 967K | 512K | **+47% faster** |
+| **Deserialize** Deep struct 1K×10 | 723K | 433K | **+40% faster** |
+| **Deserialize** Timestamps 100K | 5,382K | 3,610K | **+33% faster** |
+| **Generate** SBOOK 5K lines | 6,622K | 1,482K | **+78% faster** |
+| Serialize SBOOK 20K lines | 2,258K | 2,372K | -5% slower |
+| Serialize SBOOK compressed+camelCase | 2,379K | 2,161K | +9% faster |
+| Serialize AllTypes 10K | 776K | 834K | -7% slower |
+| Serialize Strings 10K | 263K | 257K | +2% faster |
+| Serialize Deep struct 1K×10 | 209K | 227K | -9% slower |
+| Serialize Timestamps 100K | 1,159K | 1,425K | -23% slower |
+
+**Summary**: Deserialization is 33-48% faster. Generation is 78% faster. Serialization is 5-9% slower for uncompressed data (writer method call overhead), but faster for compressed+camelCase workloads and string-heavy data.
+
+The serialization gap is the inherent cost of `IF_JSON_WRITER` method calls vs. direct string concatenation. In typical round-trip scenarios (serialize + deserialize), V1 is significantly faster overall.
 
 ---
 

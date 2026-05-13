@@ -352,11 +352,11 @@ The `value(LENGTH) TYPE i OPTIONAL` parameter was a leftover from the old offset
 
 ---
 
-## Decision 14 — Performance: Prefer Speed Over Modern Syntax
+## Decision 14 — Performance: Writer API Constrains String Operations
 
-**Decision**: Use CONCATENATE over string templates for formatting. Use direct character operations. Avoid modern syntax that creates heap allocations.
+**Decision**: Use string templates (`|{ }|`) or `&&` concatenation for formatting timestamp/date/time values passed to the writer. Fixed-length `TYPE c` variables for intermediate timestamp storage.
 
-**Rationale**: SAT profiling showed string templates (`|{ }|`) are significantly slower than CONCATENATE for fixed-format operations (timestamp/date/time serialization). For a performance-critical library, we choose the fastest approach and document the decision.
+**Rationale**: Since `IF_JSON_WRITER` methods require `TYPE string` parameters, the choice between CONCATENATE and string templates is less impactful than originally thought — the writer method call itself dominates. String templates are more readable for fixed-format output. Fixed-length `TYPE c` is used for intermediate timestamp storage where offset/length access is needed.
 
 ---
 
@@ -373,3 +373,51 @@ The `value(LENGTH) TYPE i OPTIONAL` parameter was a leftover from the old offset
 **Decision**: Cyclic data/object references serialize as `null` instead of `{}`.
 
 **Rationale**: `null` is the correct JSON representation for "cannot be serialized." An empty object `{}` is misleading — it suggests an empty structure, not an unresolvable reference.
+
+---
+
+## Decision 17 — DUMP_TYPE Writes Directly to Writer
+
+**Decision**: `DUMP_TYPE` method signature changed to accept `WRITER` and `NAME` parameters. It writes directly to the writer instead of returning a JSON string. `TYPEKIND` is mandatory.
+
+**Rationale**: The original design returned a JSON string from `DUMP_TYPE`, which the dispatch macro then parsed via an intermediate reader and piped to the real writer — creating 2 extra objects per field for extended classes. The new signature eliminates this serialize-then-reparse round-trip entirely. Subclasses now call `writer->write_string()`/`write_number()` directly.
+
+---
+
+## Decision 18 — Struct Cache Without Level Key
+
+**Decision**: Removed `level` from the `mt_struct_cache` hash table key. The cache is keyed by `type_descr + include_aliases` only.
+
+**Rationale**: In V23, `level` was needed because `dump_symbols` embedded indentation strings into the result — the level determined whitespace. In V1, `IF_JSON_WRITER` handles indentation natively via `set_option(option_indent)`. The cached symbols, type metadata, and field references are level-independent. Removing `level` from the key eliminates duplicate cache entries for the same struct type at different nesting depths. For recursive structures, each call receives a value-copy of the symbol table with re-bound data references.
+
+---
+
+## Decision 19 — TRY/CATCH Restructured for Deserialization
+
+**Decision**: Extracted `restore_type_int` as a private method without TRY. `restore_type` is a thin wrapper that adds TRY/CATCH. Recursive calls use `restore_type_int` directly.
+
+**Rationale**: SAT profiling showed 7.37M TRY block entries consuming 14M µs. The TRY was entered on every recursive `restore_type` call, but exceptions are rare (only type mismatches in non-strict mode). Moving TRY to entry points only (855K calls from `restore`'s field loop + top-level callers) reduced TRY overhead by 68%. Leaf-level MOVE exceptions (`data = sdummy`) are caught locally with targeted TRY blocks.
+
+---
+
+## Decision 20 — detect_typekind Generalized
+
+**Decision**: `lcl_util=>detect_typekind` now accepts `cl_abap_typedescr` (base class) instead of `cl_abap_elemdescr`. `CONVEXIT` parameter is optional.
+
+**Rationale**: Eliminates caller-side type check and cast. The method handles non-elementary types by returning `type_kind` directly, and only performs element-specific detection (timestamp domains, bool types, JSON type) when `kind = kind_elem`.
+
+---
+
+## Decision 21 — Initial Value Defaults Without Quotes
+
+**Decision**: `INITIAL_TS`, `INITIAL_DATE`, `INITIAL_TIME` constructor defaults changed from `""` (with surrounding quotes) to `` `` (empty string). The writer adds quotes automatically.
+
+**Rationale**: In V23, initial values were stored with surrounding quotes because they were concatenated directly into the JSON string. In V1, values are passed to `write_string()` which handles quoting. Storing quotes in the value itself would produce double-quoting. The empty default means "serialize as empty string" — the writer outputs `""`.
+
+---
+
+## Decision 22 — Performance Trade-off: Serialization vs Deserialization
+
+**Decision**: Accept 5-9% serialization overhead from `IF_JSON_WRITER` method calls in exchange for 33-48% deserialization improvement and architectural cleanliness.
+
+**Rationale**: Profiling confirmed the serialization gap is purely from method call overhead (writer->write_string/write_number per field) vs V23's direct string concatenation. This is inherent to the writer API and cannot be eliminated without bypassing the writer. The deserialization gains (kernel reader, TRY restructure, cache improvements) more than compensate in typical round-trip scenarios. Compressed+camelCase serialization is actually faster due to fewer fields written.
