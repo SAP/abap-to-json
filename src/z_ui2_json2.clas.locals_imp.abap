@@ -8,52 +8,52 @@
 *
 *----------------------------------------------------------------------*
 
-CLASS lcl_util DEFINITION FINAL FRIENDS Z_UI2_JSON2.
+CLASS lcl_util DEFINITION FINAL FRIENDS z_ui2_json2.
 
   PUBLIC SECTION.
     CLASS-METHODS:
       class_constructor,
       detect_typekind
         IMPORTING
-          !TYPE_DESCR      TYPE REF TO cl_abap_elemdescr
-          !CONVEXIT        TYPE string
-          !NUMC_AS_STRING  TYPE abap_bool OPTIONAL
-          !BOOL_TYPES      TYPE string OPTIONAL
-          !BOOL_3STATE     TYPE string OPTIONAL
+          !type_descr     TYPE REF TO cl_abap_typedescr
+          !convexit       TYPE string OPTIONAL
+          !numc_as_string TYPE abap_bool OPTIONAL
+          !bool_types     TYPE string OPTIONAL
+          !bool_3state    TYPE string OPTIONAL
         RETURNING
-          VALUE(RV_TYPE)   TYPE abap_typekind,
+          VALUE(rv_type)  TYPE abap_typekind,
       get_convexit_func
         IMPORTING
-          !ELEM_DESCR TYPE REF TO cl_abap_elemdescr
-          !INPUT      TYPE abap_bool OPTIONAL
+          !elem_descr    TYPE REF TO cl_abap_elemdescr
+          !input         TYPE abap_bool OPTIONAL
         RETURNING
-          VALUE(RV_FUNC) TYPE string,
+          VALUE(rv_func) TYPE string,
       read_json_to_string
-        IMPORTING reader TYPE REF TO if_json_reader
+        IMPORTING reader         TYPE REF TO if_json_reader
         RETURNING VALUE(rv_json) TYPE string,
       read_iso8601 IMPORTING in TYPE string RETURNING VALUE(rv_tstm) TYPE timestampl,
       read_edm_datetime IMPORTING in TYPE string RETURNING VALUE(rv_tstm) TYPE timestampl,
       describe_type IMPORTING io_type_descr TYPE REF TO cl_abap_typedescr RETURNING VALUE(rv_typename) TYPE string.
 
     CLASS-DATA:
-      so_regex_date                 TYPE REF TO cl_abap_regex,
-      so_regex_time                 TYPE REF TO cl_abap_regex,
-      so_regex_guid                 TYPE REF TO cl_abap_regex,
-      so_regex_edm_date_time        TYPE REF TO cl_abap_regex,
-      so_regex_edm_time             TYPE REF TO cl_abap_regex,
-      so_regex_generate_normalize   TYPE REF TO cl_abap_regex,
-      so_regex_generate_camel_case  TYPE REF TO cl_abap_regex,
-      so_regex_iso8601              TYPE REF TO cl_abap_regex,
-      so_type_s                     TYPE REF TO cl_abap_elemdescr,
-      so_type_f                     TYPE REF TO cl_abap_elemdescr,
-      so_type_p                     TYPE REF TO cl_abap_elemdescr,
-      so_type_i                     TYPE REF TO cl_abap_elemdescr,
-      so_type_b                     TYPE REF TO cl_abap_elemdescr,
-      so_type_d                     TYPE REF TO cl_abap_elemdescr,
-      so_type_t                     TYPE REF TO cl_abap_elemdescr,
-      so_type_ts                    TYPE REF TO cl_abap_elemdescr,
-      so_type_tsl                   TYPE REF TO cl_abap_elemdescr,
-      so_type_reftab                TYPE REF TO cl_abap_tabledescr.
+      so_regex_date                TYPE REF TO cl_abap_regex,
+      so_regex_time                TYPE REF TO cl_abap_regex,
+      so_regex_guid                TYPE REF TO cl_abap_regex,
+      so_regex_edm_date_time       TYPE REF TO cl_abap_regex,
+      so_regex_edm_time            TYPE REF TO cl_abap_regex,
+      so_regex_generate_normalize  TYPE REF TO cl_abap_regex,
+      so_regex_generate_camel_case TYPE REF TO cl_abap_regex,
+      so_regex_iso8601             TYPE REF TO cl_abap_regex,
+      so_type_s                    TYPE REF TO cl_abap_elemdescr,
+      so_type_f                    TYPE REF TO cl_abap_elemdescr,
+      so_type_p                    TYPE REF TO cl_abap_elemdescr,
+      so_type_i                    TYPE REF TO cl_abap_elemdescr,
+      so_type_b                    TYPE REF TO cl_abap_elemdescr,
+      so_type_d                    TYPE REF TO cl_abap_elemdescr,
+      so_type_t                    TYPE REF TO cl_abap_elemdescr,
+      so_type_ts                   TYPE REF TO cl_abap_elemdescr,
+      so_type_tsl                  TYPE REF TO cl_abap_elemdescr,
+      so_type_reftab               TYPE REF TO cl_abap_tabledescr.
 
 ENDCLASS.                    "lcl_util DEFINITION
 
@@ -93,8 +93,8 @@ CLASS lcl_util IMPLEMENTATION.
 
   METHOD describe_type.
 
-    DATA: lv_kind_name  TYPE string,
-          lv_pos        TYPE i.
+    DATA: lv_kind_name TYPE string,
+          lv_pos       TYPE i.
 
     rv_typename = `?`.
 
@@ -127,7 +127,7 @@ CLASS lcl_util IMPLEMENTATION.
 
     IF lv_kind_name IS NOT INITIAL.
       IF rv_typename IS NOT INITIAL.
-      rv_typename = |{ lv_kind_name }({ rv_typename })|.
+        rv_typename = |{ lv_kind_name }({ rv_typename })|.
       ELSE.
         rv_typename = lv_kind_name.
       ENDIF.
@@ -205,18 +205,19 @@ CLASS lcl_util IMPLEMENTATION.
 
   METHOD detect_typekind.
 
-    DATA: domain_name     TYPE domname,
-          inner_elemdescr TYPE REF TO cl_abap_elemdescr.
+    DATA: domain_name     TYPE domname.
+
+    rv_type = type_descr->type_kind.
 
     IF convexit IS NOT INITIAL.
       rv_type = z_ui2_json2=>e_typekind-convexit.
-    ELSE.
-      rv_type = type_descr->type_kind.
+    ELSEIF type_descr->kind EQ cl_abap_typedescr=>kind_elem.
+      DATA(lv_elem_type_descr) = CAST cl_abap_elemdescr( type_descr ).
       IF rv_type = cl_abap_typedescr=>typekind_packed.
 
-        IF type_descr->help_id IS NOT INITIAL AND NOT contains( val = type_descr->absolute_name end = type_descr->help_id ).
+        IF lv_elem_type_descr->help_id IS NOT INITIAL AND NOT contains( val = lv_elem_type_descr->absolute_name end = lv_elem_type_descr->help_id ).
           TRY.
-              inner_elemdescr ?= cl_abap_elemdescr=>describe_by_name( type_descr->help_id ).
+              DATA(inner_elemdescr) = CAST cl_abap_elemdescr( cl_abap_elemdescr=>describe_by_name( lv_elem_type_descr->help_id ) ).
               IF inner_elemdescr->is_ddic_type( ) = abap_true.
                 domain_name = inner_elemdescr->get_ddic_field( )-domname.
               ENDIF.
@@ -224,8 +225,8 @@ CLASS lcl_util IMPLEMENTATION.
               domain_name = ''.
           ENDTRY.
         ELSE.
-          IF type_descr->is_ddic_type( ) = abap_true.
-            domain_name = type_descr->get_ddic_field( )-domname.
+          IF lv_elem_type_descr->is_ddic_type( ) = abap_true.
+            domain_name = lv_elem_type_descr->get_ddic_field( )-domname.
           ENDIF.
         ENDIF.
 
@@ -237,10 +238,10 @@ CLASS lcl_util IMPLEMENTATION.
 
       ELSEIF rv_type = cl_abap_typedescr=>typekind_num AND numc_as_string = abap_true.
         rv_type = z_ui2_json2=>e_typekind-numc_string.
-      ELSEIF rv_type = cl_abap_typedescr=>typekind_string AND type_descr->absolute_name = z_ui2_json2=>mc_json_type.
+      ELSEIF rv_type = cl_abap_typedescr=>typekind_string AND lv_elem_type_descr->absolute_name = z_ui2_json2=>mc_json_type.
         rv_type = z_ui2_json2=>e_typekind-json.
-      ELSEIF rv_type = cl_abap_typedescr=>typekind_char AND type_descr->output_length = 1 AND bool_types CS type_descr->absolute_name.
-        IF bool_3state CS type_descr->absolute_name.
+      ELSEIF rv_type = cl_abap_typedescr=>typekind_char AND lv_elem_type_descr->output_length = 1 AND bool_types CS lv_elem_type_descr->absolute_name.
+        IF bool_3state CS lv_elem_type_descr->absolute_name.
           rv_type = z_ui2_json2=>e_typekind-tribool.
         ELSE.
           rv_type = z_ui2_json2=>e_typekind-bool.
@@ -359,7 +360,7 @@ ENDCLASS.                    "lcl_util IMPLEMENTATION
 *----------------------------------------------------------------------*
 *
 *----------------------------------------------------------------------*
-CLASS lcl_test DEFINITION FINAL FRIENDS Z_UI2_JSON2.
+CLASS lcl_test DEFINITION FINAL FRIENDS z_ui2_json2.
 
   PUBLIC SECTION.
     DATA: id TYPE i.
@@ -394,7 +395,7 @@ ENDCLASS.                    "lcl_test IMPLEMENTATION
 *----------------------------------------------------------------------*
 *
 *----------------------------------------------------------------------*
-CLASS lc_json_custom DEFINITION FINAL INHERITING FROM Z_UI2_JSON2.
+CLASS lc_json_custom DEFINITION FINAL INHERITING FROM z_ui2_json2.
   PUBLIC SECTION.
     CLASS-METHODS:
       serialize_ex IMPORTING data          TYPE data
@@ -481,7 +482,7 @@ CLASS lc_json_custom IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    super->dump_type( data = data type_descr = type_descr convexit = convexit writer = writer name = name ).
+    super->dump_type( data = data type_descr = type_descr convexit = convexit typekind = typekind writer = writer name = name ).
 
   ENDMETHOD.
 

@@ -12,7 +12,7 @@ DEFINE is_compressable.
 END-OF-DEFINITION.
 
 DEFINE dump_type.
-" &1 = data, &2 = type_descr, &3 = typekind, &4 = writer, &5 = convexit, &6 = name
+  " &1 = data, &2 = type_descr, &3 = typekind, &4 = writer, &5 = convexit, &6 = name
   IF mv_extended IS INITIAL.
     dump_type_int &1 &3 &4 &5 &6.
   ELSE.
@@ -21,7 +21,7 @@ DEFINE dump_type.
 END-OF-DEFINITION.
 
 DEFINE dump_type_int.
-" &1 = data, &2 = typekind, &3 = writer, &4 = convexit, &5 = name
+  " &1 = data, &2 = typekind, &3 = writer, &4 = convexit, &5 = name
 
   CASE &2.
     WHEN e_typekind-convexit.
@@ -48,47 +48,37 @@ DEFINE dump_type_int.
       ENDIF.
     WHEN e_typekind-utclong.
       IF &1 IS INITIAL.
-        DATA dump_type_int_its TYPE string.
-        dump_type_int_its = mv_initial_ts.
-        &3->write_string( name = &5 value = substring( val = dump_type_int_its off = 1 len = strlen( dump_type_int_its ) - 2 ) ).
+        &3->write_string( name = &5 value = mv_initial_ts ).
       ELSE.
         DATA dump_type_int_utcl TYPE c LENGTH 27.
         dump_type_int_utcl = &1.
-        DATA dump_type_int_sv TYPE string.
-        CONCATENATE dump_type_int_utcl(10) 'T' dump_type_int_utcl+11(16) 'Z' INTO dump_type_int_sv.
-        &3->write_string( name = &5 value = dump_type_int_sv ).
+        &3->write_string( name = &5 value = |{ dump_type_int_utcl(10) }T{ dump_type_int_utcl+11(16) }Z| ).
       ENDIF.
     WHEN e_typekind-ts_iso8601.
       IF mv_ts_as_iso8601 = c_bool-true.
         IF &1 IS INITIAL.
-          dump_type_int_its = mv_initial_ts.
-          &3->write_string( name = &5 value = substring( val = dump_type_int_its off = 1 len = strlen( dump_type_int_its ) - 2 ) ).
+          &3->write_string( name = &5 value = mv_initial_ts ).
         ELSE.
           DATA dump_type_int_ts TYPE c LENGTH 14.
           dump_type_int_ts = &1.
-          CONCATENATE dump_type_int_ts(4) '-' dump_type_int_ts+4(2) '-' dump_type_int_ts+6(2) 'T' dump_type_int_ts+8(2) ':' dump_type_int_ts+10(2) ':' dump_type_int_ts+12(2) 'Z' INTO dump_type_int_sv.
-          &3->write_string( name = &5 value = dump_type_int_sv ).
+          &3->write_string( name = &5 value = |{ dump_type_int_ts(4) }-{ dump_type_int_ts+4(2) }-{ dump_type_int_ts+6(2) }T{ dump_type_int_ts+8(2) }:{ dump_type_int_ts+10(2) }:{ dump_type_int_ts+12(2) }Z| ).
         ENDIF.
       ELSE.
-        DATA dump_type_int_tsn TYPE string.
-        dump_type_int_tsn = &1.
+        DATA(dump_type_int_tsn) = CONV string( &1 ).
         CONDENSE dump_type_int_tsn.
         &3->write_number( name = &5 value = dump_type_int_tsn ).
       ENDIF.
     WHEN e_typekind-tsl_iso8601.
       IF mv_ts_as_iso8601 = c_bool-true.
         IF &1 IS INITIAL.
-          dump_type_int_its = mv_initial_ts.
-          &3->write_string( name = &5 value = substring( val = dump_type_int_its off = 1 len = strlen( dump_type_int_its ) - 2 ) ).
+          &3->write_string( name = &5 value = mv_initial_ts ).
         ELSE.
           DATA dump_type_int_tsl TYPE c LENGTH 22.
           dump_type_int_tsl = &1.
-          CONCATENATE dump_type_int_tsl(4) '-' dump_type_int_tsl+4(2) '-' dump_type_int_tsl+6(2) 'T' dump_type_int_tsl+8(2) ':' dump_type_int_tsl+10(2) ':' dump_type_int_tsl+12(2) '.' dump_type_int_tsl+15(7) 'Z' INTO dump_type_int_sv.
-          &3->write_string( name = &5 value = dump_type_int_sv ).
+          &3->write_string( name = &5 value = |{ dump_type_int_tsl(4) }-{ dump_type_int_tsl+4(2) }-{ dump_type_int_tsl+6(2) }T{ dump_type_int_tsl+8(2) }:{ dump_type_int_tsl+10(2) }:{ dump_type_int_tsl+12(2) }.{ dump_type_int_tsl+15(7) }Z| ).
         ENDIF.
       ELSE.
-        DATA dump_type_int_tsln TYPE string.
-        dump_type_int_tsln = &1.
+        DATA(dump_type_int_tsln) = CONV string( &1 ).
         CONDENSE dump_type_int_tsln.
         &3->write_number( name = &5 value = dump_type_int_tsln ).
       ENDIF.
@@ -96,16 +86,14 @@ DEFINE dump_type_int.
       IF &1 IS INITIAL.
         &3->write_number( name = &5 value = `0` ).
       ELSE.
-        DATA dump_type_int_f TYPE string.
-        dump_type_int_f = &1.
+        DATA(dump_type_int_f) = CONV string( &1 ).
         &3->write_number( name = &5 value = dump_type_int_f ).
       ENDIF.
     WHEN e_typekind-int OR e_typekind-int1 OR e_typekind-int2 OR e_typekind-packed OR e_typekind-int8.
       IF &1 IS INITIAL.
         &3->write_number( name = &5 value = `0` ).
       ELSE.
-        DATA dump_type_int_n TYPE string.
-        dump_type_int_n = &1.
+        DATA(dump_type_int_n) = CONV string( &1 ).
         IF &1 LT 0.
           SHIFT dump_type_int_n RIGHT CIRCULAR.
         ELSE.
@@ -117,28 +105,22 @@ DEFINE dump_type_int.
       IF &1 IS INITIAL.
         &3->write_string( name = &5 value = `` ).
       ELSE.
-        DATA dump_type_int_nc TYPE string.
-        dump_type_int_nc = &1.
-        &3->write_string( name = &5 value = dump_type_int_nc ).
+        &3->write_string( name = &5 value = CONV string( &1 ) ).
       ENDIF.
     WHEN e_typekind-num.
       IF &1 IS INITIAL.
         &3->write_number( name = &5 value = `0` ).
       ELSE.
-        DATA dump_type_int_nu TYPE string.
-        dump_type_int_nu = &1.
+        DATA(dump_type_int_nu) = CONV string( &1 ).
         SHIFT dump_type_int_nu LEFT DELETING LEADING '0'.
         &3->write_number( name = &5 value = dump_type_int_nu ).
       ENDIF.
     WHEN e_typekind-json.
-      " raw JSON — use intermediate reader to pipe to writer
-      DATA dump_type_int_jr TYPE string.
-      dump_type_int_jr = &1.
-      IF dump_type_int_jr IS NOT INITIAL.
+      IF &1 IS NOT INITIAL.
         IF &5 IS NOT INITIAL.
           &3->open_member( &5 ).
         ENDIF.
-        DATA(dump_type_int_rdr) = cl_json_string_reader=>create( dump_type_int_jr ).
+        DATA(dump_type_int_rdr) = cl_json_string_reader=>create( CONV string( &1 ) ).
         dump_type_int_rdr->next_node( ).
         dump_type_int_rdr->skip_node( &3 ).
         IF &5 IS NOT INITIAL.
@@ -151,23 +133,17 @@ DEFINE dump_type_int.
       IF &1 IS INITIAL.
         &3->write_string( name = &5 value = `` ).
       ELSE.
-        DATA dump_type_int_s TYPE string.
-        dump_type_int_s = &1.
-        &3->write_string( name = &5 value = dump_type_int_s ).
+        &3->write_string( name = &5 value = CONV string( &1 ) ).
       ENDIF.
     WHEN cl_abap_typedescr=>typekind_xstring OR cl_abap_typedescr=>typekind_hex.
       IF &1 IS INITIAL.
         &3->write_string( name = &5 value = `` ).
       ELSE.
-        DATA dump_type_int_x TYPE string.
         IF mv_hex_as_base64 IS INITIAL.
-          MOVE &1 TO dump_type_int_x.
+          &3->write_string( name = &5 value = CONV string( &1 ) ).
         ELSE.
-          DATA dump_type_int_xraw TYPE xstring.
-          dump_type_int_xraw = &1.
-          dump_type_int_x = cl_http_utility=>encode_x_base64( dump_type_int_xraw ).
+          &3->write_string( name = &5 value = cl_http_utility=>encode_x_base64( CONV xstring( &1 ) ) ).
         ENDIF.
-        &3->write_string( name = &5 value = dump_type_int_x ).
       ENDIF.
     WHEN e_typekind-bool OR e_typekind-tribool.
       IF &1 = c_bool-true.
@@ -179,33 +155,23 @@ DEFINE dump_type_int.
       ENDIF.
     WHEN e_typekind-date.
       IF &1 IS INITIAL.
-        DATA dump_type_int_id TYPE string.
-        dump_type_int_id = mv_initial_date.
-        &3->write_string( name = &5 value = substring( val = dump_type_int_id off = 1 len = strlen( dump_type_int_id ) - 2 ) ).
+        &3->write_string( name = &5 value = mv_initial_date ).
       ELSE.
-        CONCATENATE &1(4) '-' &1+4(2) '-' &1+6(2) INTO dump_type_int_sv.
-        &3->write_string( name = &5 value = dump_type_int_sv ).
+        &3->write_string( name = &5 value = |{ &1(4) }-{ &1+4(2) }-{ &1+6(2) }| ).
       ENDIF.
     WHEN e_typekind-time.
       IF &1 IS INITIAL.
-        DATA dump_type_int_it TYPE string.
-        dump_type_int_it = mv_initial_time.
-        &3->write_string( name = &5 value = substring( val = dump_type_int_it off = 1 len = strlen( dump_type_int_it ) - 2 ) ).
+        &3->write_string( name = &5 value = mv_initial_time ).
       ELSE.
-        CONCATENATE &1(2) ':' &1+2(2) ':' &1+4(2) INTO dump_type_int_sv.
-        &3->write_string( name = &5 value = dump_type_int_sv ).
+        &3->write_string( name = &5 value = |{ &1(2) }:{ &1+2(2) }:{ &1+4(2) }| ).
       ENDIF.
     WHEN e_typekind-enum.
-      DATA dump_type_int_e TYPE string.
-      dump_type_int_e = &1.
-      &3->write_string( name = &5 value = dump_type_int_e ).
+      &3->write_string( name = &5 value = CONV string( &1 ) ).
     WHEN OTHERS.
       IF &1 IS INITIAL.
         &3->write_null( &5 ).
       ELSE.
-        DATA dump_type_int_o TYPE string.
-        dump_type_int_o = &1.
-        &3->write_string( name = &5 value = dump_type_int_o ).
+        &3->write_string( name = &5 value = CONV string( &1 ) ).
       ENDIF.
   ENDCASE.
 
@@ -243,7 +209,7 @@ DEFINE format_name.
 END-OF-DEFINITION.
 
 DEFINE restore_dref.
-" &1 = reader, &2 = data, &3 = type_descr (REF type)
+  " &1 = reader, &2 = data, &3 = type_descr (REF type)
   ref_descr ?= &3.
   data_descr ?= ref_descr->get_referenced_type( ).
   IF &2 IS INITIAL.
@@ -261,7 +227,7 @@ DEFINE restore_dref.
 END-OF-DEFINITION.
 
 DEFINE restore_convexit.
-" &1 = convexit func, &2 = input string, &3 = output data
+  " &1 = convexit func, &2 = input string, &3 = output data
   TRY .
       CALL FUNCTION &1
         EXPORTING input  = &2
@@ -271,7 +237,7 @@ DEFINE restore_convexit.
         CLEAR &3.
       ENDIF.
       RETURN.
-    CATCH cx_root INTO lo_exp. "#EC CATCH_ALL
+    CATCH cx_root INTO lo_exp.                           "#EC CATCH_ALL
       CLEAR &3.
       IF mv_strict_mode = abap_true.
         RAISE EXCEPTION TYPE cx_sy_move_cast_error EXPORTING previous = lo_exp.
@@ -282,7 +248,7 @@ DEFINE restore_convexit.
 END-OF-DEFINITION.
 
 DEFINE read_timestamp.
-" &1 = input string, &2 = output timestampl
+  " &1 = input string, &2 = output timestampl
   IF &1 IS NOT INITIAL.
     IF &1+0(1) CA '0123456789T'.
       &2 = lcl_util=>read_iso8601( &1 ).
@@ -296,4 +262,3 @@ DEFINE read_timestamp.
     CLEAR &2.
   ENDIF.
 END-OF-DEFINITION.
-

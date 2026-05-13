@@ -3,29 +3,29 @@
 *----------------------------------------------------------------------*
 *
 *----------------------------------------------------------------------*
-class Z_UI2_JSON2 definition
-  public
-  create public .
+CLASS z_ui2_json2 DEFINITION
+  PUBLIC
+  CREATE PUBLIC .
 
-public section.
-  type-pools ABAP .
-  class CL_ABAP_TSTMP definition load .
-  class CX_SY_CONVERSION_ERROR definition load .
+  PUBLIC SECTION.
+    TYPE-POOLS abap .
+    CLASS cl_abap_tstmp DEFINITION LOAD .
+    CLASS cx_sy_conversion_error DEFINITION LOAD .
 
-  types JSON type STRING .
-  types:
-    BEGIN OF name_mapping,
+    TYPES json TYPE string .
+    TYPES:
+      BEGIN OF name_mapping,
         abap TYPE abap_compname,
         json TYPE string,
       END OF name_mapping .
-  types:
-    name_mappings    TYPE HASHED TABLE OF name_mapping WITH UNIQUE KEY abap .
-  types BOOL type CHAR1 .
-  types TRIBOOL type CHAR1 .
-  types PRETTY_NAME_MODE type CHAR1 .
+    TYPES:
+      name_mappings    TYPE HASHED TABLE OF name_mapping WITH UNIQUE KEY abap .
+    TYPES bool TYPE char1 .
+    TYPES tribool TYPE char1 .
+    TYPES pretty_name_mode TYPE char1 .
 
-  constants:
-    BEGIN OF pretty_mode,
+    CONSTANTS:
+      BEGIN OF pretty_mode,
         none          TYPE char1  VALUE ``,
         low_case      TYPE char1  VALUE 'L',
         camel_case    TYPE char1  VALUE 'X',
@@ -34,349 +34,349 @@ public section.
         user          TYPE char1  VALUE 'U',
         user_low_case TYPE char1  VALUE 'C',
       END OF  pretty_mode .
-  constants:
-    BEGIN OF c_bool,
+    CONSTANTS:
+      BEGIN OF c_bool,
         true  TYPE bool  VALUE 'X',
         false TYPE bool  VALUE '',
       END OF  c_bool .
-  constants:
-    BEGIN OF c_tribool,
+    CONSTANTS:
+      BEGIN OF c_tribool,
         true      TYPE tribool  VALUE c_bool-true,
         false     TYPE tribool  VALUE '-',
         undefined TYPE tribool  VALUE ``,
       END OF  c_tribool .
-  constants MC_KEY_SEPARATOR type STRING value `-` ##NO_TEXT.
-  class-data MC_BOOL_TYPES type STRING read-only value `\TYPE-POOL=ABAP\TYPE=ABAP_BOOL\TYPE=BOOLEAN\TYPE=BOOLE_D\TYPE=XFELD\TYPE=XSDBOOLEAN\TYPE=WDY_BOOLEAN` ##NO_TEXT.
-  class-data MC_BOOL_3STATE type STRING read-only value `\TYPE=BOOLEAN` ##NO_TEXT.
-  constants VERSION type I value 1 ##NO_TEXT.
-  class-data MC_JSON_TYPE type STRING read-only .
-  constants:
-    BEGIN OF e_typekind,
-      " new extended pseudo typekind, hack and can clash with standard if new enums come...
-      " always check for duplicates !!!
-      convexit    TYPE abap_typekind VALUE '1' ##NO_TEXT,
-      ts_iso8601  TYPE abap_typekind VALUE '2' ##NO_TEXT,
-      tsl_iso8601 TYPE abap_typekind VALUE '3' ##NO_TEXT,
-      numc_string TYPE abap_typekind VALUE '4' ##NO_TEXT,
-      json        TYPE abap_typekind VALUE '5' ##NO_TEXT,
-      bool        TYPE abap_typekind VALUE '6' ##NO_TEXT,
-      tribool     TYPE abap_typekind VALUE '7' ##NO_TEXT,
+    CONSTANTS mc_key_separator TYPE string VALUE `-` ##NO_TEXT.
+    CLASS-DATA mc_bool_types TYPE string READ-ONLY VALUE `\TYPE-POOL=ABAP\TYPE=ABAP_BOOL\TYPE=BOOLEAN\TYPE=BOOLE_D\TYPE=XFELD\TYPE=XSDBOOLEAN\TYPE=WDY_BOOLEAN` ##NO_TEXT.
+    CLASS-DATA mc_bool_3state TYPE string READ-ONLY VALUE `\TYPE=BOOLEAN` ##NO_TEXT.
+    CONSTANTS version TYPE i VALUE 1 ##NO_TEXT.
+    CLASS-DATA mc_json_type TYPE string READ-ONLY .
+    CONSTANTS:
+      BEGIN OF e_typekind,
+        " new extended pseudo typekind, hack and can clash with standard if new enums come...
+        " always check for duplicates !!!
+        convexit    TYPE abap_typekind VALUE '1' ##NO_TEXT,
+        ts_iso8601  TYPE abap_typekind VALUE '2' ##NO_TEXT,
+        tsl_iso8601 TYPE abap_typekind VALUE '3' ##NO_TEXT,
+        numc_string TYPE abap_typekind VALUE '4' ##NO_TEXT,
+        json        TYPE abap_typekind VALUE '5' ##NO_TEXT,
+        bool        TYPE abap_typekind VALUE '6' ##NO_TEXT,
+        tribool     TYPE abap_typekind VALUE '7' ##NO_TEXT,
 
-      " redefine for existing typekinds for lower releases
-      utclong     TYPE abap_typekind VALUE 'p' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_UTCLONG -> 'p' only from 7.54
-      int8        TYPE abap_typekind VALUE '8' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_INT8 -> '8' only from 7.40
-      enum        TYPE abap_typekind VALUE 'k' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_ENUM -> 'k'
+        " redefine for existing typekinds for lower releases
+        utclong     TYPE abap_typekind VALUE 'p' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_UTCLONG -> 'p' only from 7.54
+        int8        TYPE abap_typekind VALUE '8' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_INT8 -> '8' only from 7.40
+        enum        TYPE abap_typekind VALUE 'k' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_ENUM -> 'k'
 
-      " just aliasing
-      float       TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_float,
-      int         TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_int,
-      int1        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_int1,
-      int2        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_int2,
-      packed      TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_packed,
-      num         TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_num,
-      string      TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_string,
-      csequence   TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_csequence,
-      clike       TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_clike,
-      char        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_char,
-      date        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_date,
-      time        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_time,
-      xstring     TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_xstring,
-      hex         TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_hex,
-    END OF e_typekind .
+        " just aliasing
+        float       TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_float,
+        int         TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_int,
+        int1        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_int1,
+        int2        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_int2,
+        packed      TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_packed,
+        num         TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_num,
+        string      TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_string,
+        csequence   TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_csequence,
+        clike       TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_clike,
+        char        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_char,
+        date        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_date,
+        time        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_time,
+        xstring     TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_xstring,
+        hex         TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_hex,
+      END OF e_typekind .
 
-  class-methods CLASS_CONSTRUCTOR .
-  class-methods DESERIALIZE
-    importing
-      !JSON type JSON optional
-      !JSONX type XSTRING optional
-      !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
-      !ASSOC_ARRAYS type BOOL default C_BOOL-FALSE
-      !ASSOC_ARRAYS_OPT type BOOL default C_BOOL-FALSE
-      !NAME_MAPPINGS type NAME_MAPPINGS optional
-      !CONVERSION_EXITS type BOOL default C_BOOL-FALSE
-      !HEX_AS_BASE64 type BOOL default C_BOOL-TRUE
-    changing
-      !DATA type DATA .
-  class-methods SERIALIZE
-    importing
-      !DATA type DATA
-      !COMPRESS type BOOL default C_BOOL-FALSE
-      !NAME type STRING optional
-      !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
-      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR optional
-      !ASSOC_ARRAYS type BOOL default C_BOOL-FALSE
-      !TS_AS_ISO8601 type BOOL default C_BOOL-FALSE
-      !EXPAND_INCLUDES type BOOL default C_BOOL-TRUE
-      !ASSOC_ARRAYS_OPT type BOOL default C_BOOL-FALSE
-      !NUMC_AS_STRING type BOOL default C_BOOL-FALSE
-      !NAME_MAPPINGS type NAME_MAPPINGS optional
-      !CONVERSION_EXITS type BOOL default C_BOOL-FALSE
-      !FORMAT_OUTPUT type BOOL default C_BOOL-FALSE
-      !HEX_AS_BASE64 type BOOL default C_BOOL-TRUE
-    returning
-      value(R_JSON) type JSON .
-  methods DESERIALIZE_INT
-    importing
-      !JSON type JSON optional
-      !JSONX type XSTRING optional
-    changing
-      !DATA type DATA
-    raising
-      CX_SY_MOVE_CAST_ERROR .
-  class-methods GENERATE
-    importing
-      !JSON type JSON optional
-      !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
-      !NAME_MAPPINGS type NAME_MAPPINGS optional
-      !JSONX type XSTRING optional
-    preferred parameter JSON
-    returning
-      value(RR_DATA) type ref to DATA .
-  methods SERIALIZE_INT
-    importing
-      !DATA type DATA
-      !NAME type STRING optional
-      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR optional
-    returning
-      value(R_JSON) type JSON .
-  methods CONSTRUCTOR
-    importing
-      !COMPRESS type BOOL default C_BOOL-FALSE
-      !PRETTY_NAME type PRETTY_NAME_MODE default PRETTY_MODE-NONE
-      !ASSOC_ARRAYS type BOOL default C_BOOL-FALSE
-      !TS_AS_ISO8601 type BOOL default C_BOOL-FALSE
-      !EXPAND_INCLUDES type BOOL default C_BOOL-TRUE
-      !ASSOC_ARRAYS_OPT type BOOL default C_BOOL-FALSE
-      !STRICT_MODE type BOOL default C_BOOL-FALSE
-      !NUMC_AS_STRING type BOOL default C_BOOL-FALSE
-      !NAME_MAPPINGS type NAME_MAPPINGS optional
-      !CONVERSION_EXITS type BOOL default C_BOOL-FALSE
-      !FORMAT_OUTPUT type BOOL default C_BOOL-FALSE
-      !HEX_AS_BASE64 type BOOL default C_BOOL-TRUE
-      !BOOL_TYPES type STRING default MC_BOOL_TYPES
-      !BOOL_3STATE type STRING default MC_BOOL_3STATE
-      !INITIAL_TS type STRING default `""`
-      !INITIAL_DATE type STRING default `""`
-      !INITIAL_TIME type STRING default `""`
-      !TIME_ZONE like SY-ZONLO default 'UTC' .
-protected section.
+    CLASS-METHODS class_constructor .
+    CLASS-METHODS deserialize
+      IMPORTING
+        !json             TYPE json OPTIONAL
+        !jsonx            TYPE xstring OPTIONAL
+        !pretty_name      TYPE pretty_name_mode DEFAULT pretty_mode-none
+        !assoc_arrays     TYPE bool DEFAULT c_bool-false
+        !assoc_arrays_opt TYPE bool DEFAULT c_bool-false
+        !name_mappings    TYPE name_mappings OPTIONAL
+        !conversion_exits TYPE bool DEFAULT c_bool-false
+        !hex_as_base64    TYPE bool DEFAULT c_bool-true
+      CHANGING
+        !data             TYPE data .
+    CLASS-METHODS serialize
+      IMPORTING
+        !data             TYPE data
+        !compress         TYPE bool DEFAULT c_bool-false
+        !name             TYPE string OPTIONAL
+        !pretty_name      TYPE pretty_name_mode DEFAULT pretty_mode-none
+        !type_descr       TYPE REF TO cl_abap_typedescr OPTIONAL
+        !assoc_arrays     TYPE bool DEFAULT c_bool-false
+        !ts_as_iso8601    TYPE bool DEFAULT c_bool-false
+        !expand_includes  TYPE bool DEFAULT c_bool-true
+        !assoc_arrays_opt TYPE bool DEFAULT c_bool-false
+        !numc_as_string   TYPE bool DEFAULT c_bool-false
+        !name_mappings    TYPE name_mappings OPTIONAL
+        !conversion_exits TYPE bool DEFAULT c_bool-false
+        !format_output    TYPE bool DEFAULT c_bool-false
+        !hex_as_base64    TYPE bool DEFAULT c_bool-true
+      RETURNING
+        VALUE(r_json)     TYPE json .
+    METHODS deserialize_int
+      IMPORTING
+        !json  TYPE json OPTIONAL
+        !jsonx TYPE xstring OPTIONAL
+      CHANGING
+        !data  TYPE data
+      RAISING
+        cx_sy_move_cast_error .
+    CLASS-METHODS generate
+      IMPORTING
+        !json          TYPE json OPTIONAL
+        !pretty_name   TYPE pretty_name_mode DEFAULT pretty_mode-none
+        !name_mappings TYPE name_mappings OPTIONAL
+        !jsonx         TYPE xstring OPTIONAL
+          PREFERRED PARAMETER json
+      RETURNING
+        VALUE(rr_data) TYPE REF TO data .
+    METHODS serialize_int
+      IMPORTING
+        !data         TYPE data
+        !name         TYPE string OPTIONAL
+        !type_descr   TYPE REF TO cl_abap_typedescr OPTIONAL
+      RETURNING
+        VALUE(r_json) TYPE json .
+    METHODS constructor
+      IMPORTING
+        !compress         TYPE bool DEFAULT c_bool-false
+        !pretty_name      TYPE pretty_name_mode DEFAULT pretty_mode-none
+        !assoc_arrays     TYPE bool DEFAULT c_bool-false
+        !ts_as_iso8601    TYPE bool DEFAULT c_bool-false
+        !expand_includes  TYPE bool DEFAULT c_bool-true
+        !assoc_arrays_opt TYPE bool DEFAULT c_bool-false
+        !strict_mode      TYPE bool DEFAULT c_bool-false
+        !numc_as_string   TYPE bool DEFAULT c_bool-false
+        !name_mappings    TYPE name_mappings OPTIONAL
+        !conversion_exits TYPE bool DEFAULT c_bool-false
+        !format_output    TYPE bool DEFAULT c_bool-false
+        !hex_as_base64    TYPE bool DEFAULT c_bool-true
+        !bool_types       TYPE string DEFAULT mc_bool_types
+        !bool_3state      TYPE string DEFAULT mc_bool_3state
+        !initial_ts       TYPE string DEFAULT ``
+        !initial_date     TYPE string DEFAULT ``
+        !initial_time     TYPE string DEFAULT ``
+        !time_zone        LIKE sy-zonlo DEFAULT 'UTC' .
+  PROTECTED SECTION.
 
-  types:
-    BEGIN OF t_s_field_cache,
-      name         TYPE string,
-      type         TYPE REF TO cl_abap_datadescr,
-      elem_type    TYPE REF TO cl_abap_elemdescr,
-      typekind     TYPE abap_typekind,
-      convexit_out TYPE string,
-      convexit_in  TYPE string,
-      value        TYPE REF TO data,
-    END OF t_s_field_cache .
-  types:
-    BEGIN OF t_s_symbol,
-      header       TYPE string,
-      compressable TYPE abap_bool,
-      read_only    TYPE abap_bool.
-      INCLUDE TYPE t_s_field_cache.
-  TYPES: END OF t_s_symbol .
-  types:
-    t_t_symbol TYPE STANDARD TABLE OF t_s_symbol WITH DEFAULT KEY .
-  types:
-    t_t_field_cache  TYPE HASHED TABLE OF t_s_field_cache WITH UNIQUE KEY name .
-  types:
-    name_mappings_ex TYPE HASHED TABLE OF name_mapping WITH UNIQUE KEY json .
-  types:
-    BEGIN OF t_s_name_json,
-      name  TYPE string,
-      value TYPE json,
-    END OF t_s_name_json .
-  types:
-    t_t_name_json TYPE SORTED TABLE OF t_s_name_json WITH UNIQUE KEY name .
-  types:
-    BEGIN OF t_s_name_value,
-      name  TYPE string,
-      value TYPE json,
-      data  TYPE REF TO data,
-      type  TYPE REF TO cl_abap_datadescr,
-    END OF t_s_name_value .
-  types:
-    t_t_name_value TYPE SORTED TABLE OF t_s_name_value WITH UNIQUE KEY name .
-  types:
-    t_t_json TYPE STANDARD TABLE OF json WITH DEFAULT KEY .
-  types:
-    BEGIN OF t_s_struct_type,
-      keys TYPE string,
-      type TYPE REF TO cl_abap_datadescr,
-    END OF t_s_struct_type .
-  types:
-    t_t_struct_type TYPE SORTED TABLE OF t_s_struct_type WITH UNIQUE KEY keys .
-  types:
-    BEGIN OF t_s_struct_cache_res,
-      data    TYPE REF TO data,
-      symbols TYPE t_t_symbol,
-    END OF t_s_struct_cache_res .
-  types:
-    BEGIN OF t_s_struct_cache,
-      type_descr      TYPE REF TO cl_abap_structdescr,
-      include_aliases	TYPE abap_bool,
-      result          TYPE t_s_struct_cache_res,
-    END OF t_s_struct_cache .
-  types:
-    t_t_struct_cache TYPE HASHED TABLE OF t_s_struct_cache WITH UNIQUE KEY type_descr include_aliases .
+    TYPES:
+      BEGIN OF t_s_field_cache,
+        name         TYPE string,
+        type         TYPE REF TO cl_abap_datadescr,
+        elem_type    TYPE REF TO cl_abap_elemdescr,
+        typekind     TYPE abap_typekind,
+        convexit_out TYPE string,
+        convexit_in  TYPE string,
+        value        TYPE REF TO data,
+      END OF t_s_field_cache .
+    TYPES:
+      BEGIN OF t_s_symbol,
+        header       TYPE string,
+        compressable TYPE abap_bool,
+        read_only    TYPE abap_bool.
+        INCLUDE TYPE t_s_field_cache.
+    TYPES: END OF t_s_symbol .
+    TYPES:
+      t_t_symbol TYPE STANDARD TABLE OF t_s_symbol WITH DEFAULT KEY .
+    TYPES:
+      t_t_field_cache  TYPE HASHED TABLE OF t_s_field_cache WITH UNIQUE KEY name .
+    TYPES:
+      name_mappings_ex TYPE HASHED TABLE OF name_mapping WITH UNIQUE KEY json .
+    TYPES:
+      BEGIN OF t_s_name_json,
+        name  TYPE string,
+        value TYPE json,
+      END OF t_s_name_json .
+    TYPES:
+      t_t_name_json TYPE SORTED TABLE OF t_s_name_json WITH UNIQUE KEY name .
+    TYPES:
+      BEGIN OF t_s_name_value,
+        name  TYPE string,
+        value TYPE json,
+        data  TYPE REF TO data,
+        type  TYPE REF TO cl_abap_datadescr,
+      END OF t_s_name_value .
+    TYPES:
+      t_t_name_value TYPE SORTED TABLE OF t_s_name_value WITH UNIQUE KEY name .
+    TYPES:
+      t_t_json TYPE STANDARD TABLE OF json WITH DEFAULT KEY .
+    TYPES:
+      BEGIN OF t_s_struct_type,
+        keys TYPE string,
+        type TYPE REF TO cl_abap_datadescr,
+      END OF t_s_struct_type .
+    TYPES:
+      t_t_struct_type TYPE SORTED TABLE OF t_s_struct_type WITH UNIQUE KEY keys .
+    TYPES:
+      BEGIN OF t_s_struct_cache_res,
+        data    TYPE REF TO data,
+        symbols TYPE t_t_symbol,
+      END OF t_s_struct_cache_res .
+    TYPES:
+      BEGIN OF t_s_struct_cache,
+        type_descr      TYPE REF TO cl_abap_structdescr,
+        include_aliases	TYPE abap_bool,
+        result          TYPE t_s_struct_cache_res,
+      END OF t_s_struct_cache .
+    TYPES:
+      t_t_struct_cache TYPE HASHED TABLE OF t_s_struct_cache WITH UNIQUE KEY type_descr include_aliases .
 
-  data MV_BOOL_TYPES type STRING .
-  data MV_BOOL_3STATE type STRING .
-  data MV_INITIAL_TS type STRING value `""` ##NO_TEXT.
-  data MV_INITIAL_DATE type STRING value `""` ##NO_TEXT.
-  data MV_INITIAL_TIME type STRING value `""` ##NO_TEXT.
-  data MV_TIME_ZONE type TIMEZONE value `UTC` ##NO_TEXT.
-  data MV_COMPRESS type BOOL .
-  data MV_PRETTY_NAME type PRETTY_NAME_MODE .
-  data MV_ASSOC_ARRAYS type BOOL .
-  data MV_TS_AS_ISO8601 type BOOL .
-  data MV_EXPAND_INCLUDES type BOOL .
-  data MV_ASSOC_ARRAYS_OPT type BOOL .
-  data MV_STRICT_MODE type BOOL .
-  data MV_NUMC_AS_STRING type BOOL .
-  data MV_FORMAT_OUTPUT type BOOL .
-  data MV_CONVERSION_EXITS type BOOL .
-  data MV_HEX_AS_BASE64 type BOOL .
-  data MT_NAME_MAPPINGS type NAME_MAPPINGS .
-  data MT_NAME_MAPPINGS_EX type NAME_MAPPINGS_EX .
-  data MT_STRUCT_TYPE type T_T_STRUCT_TYPE .
-  data MT_STRUCT_CACHE type T_T_STRUCT_CACHE .
-  data:
-    mt_ref_dump_idx TYPE SORTED TABLE OF REF TO data WITH UNIQUE DEFAULT KEY .
-  data:
-    mt_obj_dump_idx TYPE SORTED TABLE OF REF TO object WITH UNIQUE DEFAULT KEY .
-  constants MC_TYPEKIND_UTCLONG type ABAP_TYPEKIND value 'p' ##NO_TEXT.   " CL_ABAP_TYPEDESCR=>TYPEKIND_UTCLONG -> 'p' only from 7.54
-  constants MC_TYPEKIND_INT8 type ABAP_TYPEKIND value '8' ##NO_TEXT.   " TYPEKIND_INT8 -> '8' only from 7.40
+    DATA mv_bool_types TYPE string .
+    DATA mv_bool_3state TYPE string .
+    DATA mv_initial_ts TYPE string VALUE `` ##NO_TEXT.
+    DATA mv_initial_date TYPE string VALUE `` ##NO_TEXT.
+    DATA mv_initial_time TYPE string VALUE `` ##NO_TEXT.
+    DATA mv_time_zone TYPE timezone VALUE `UTC` ##NO_TEXT.
+    DATA mv_compress TYPE bool .
+    DATA mv_pretty_name TYPE pretty_name_mode .
+    DATA mv_assoc_arrays TYPE bool .
+    DATA mv_ts_as_iso8601 TYPE bool .
+    DATA mv_expand_includes TYPE bool .
+    DATA mv_assoc_arrays_opt TYPE bool .
+    DATA mv_strict_mode TYPE bool .
+    DATA mv_numc_as_string TYPE bool .
+    DATA mv_format_output TYPE bool .
+    DATA mv_conversion_exits TYPE bool .
+    DATA mv_hex_as_base64 TYPE bool .
+    DATA mt_name_mappings TYPE name_mappings .
+    DATA mt_name_mappings_ex TYPE name_mappings_ex .
+    DATA mt_struct_type TYPE t_t_struct_type .
+    DATA mt_struct_cache TYPE t_t_struct_cache .
+    DATA:
+      mt_ref_dump_idx TYPE SORTED TABLE OF REF TO data WITH UNIQUE DEFAULT KEY .
+    DATA:
+      mt_obj_dump_idx TYPE SORTED TABLE OF REF TO object WITH UNIQUE DEFAULT KEY .
+    CONSTANTS mc_typekind_utclong TYPE abap_typekind VALUE 'p' ##NO_TEXT.   " CL_ABAP_TYPEDESCR=>TYPEKIND_UTCLONG -> 'p' only from 7.54
+    CONSTANTS mc_typekind_int8 TYPE abap_typekind VALUE '8' ##NO_TEXT.   " TYPEKIND_INT8 -> '8' only from 7.40
 
-  methods IS_COMPRESSABLE
-    importing
-      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR   ##NEEDED
-      !NAME type CSEQUENCE   ##NEEDED
-    returning
-      value(RV_COMPRESS) type ABAP_BOOL .
-  methods RESTORE
-    importing
-      !READER type ref to IF_JSON_READER
-      value(TYPE_DESCR) type ref to CL_ABAP_TYPEDESCR optional
-      !FIELD_CACHE type T_T_FIELD_CACHE optional
-    changing
-      !DATA type DATA optional
-    raising
-      CX_SY_MOVE_CAST_ERROR .
-  methods RESTORE_TYPE
-    importing
-      !READER type ref to IF_JSON_READER
-      value(TYPE_DESCR) type ref to CL_ABAP_TYPEDESCR optional
-      !FIELD_CACHE type T_T_FIELD_CACHE optional
-      !CONVEXIT type STRING optional
-      !TYPEKIND type ABAP_TYPEKIND optional
-    changing
-      !DATA type DATA optional
-    raising
-      CX_SY_MOVE_CAST_ERROR .
-  methods DUMP_TYPE
-    importing
-      !DATA type DATA
-      !TYPE_DESCR type ref to CL_ABAP_ELEMDESCR
-      !CONVEXIT type STRING
-      !TYPEKIND type ABAP_TYPEKIND optional
-      !WRITER type ref to IF_JSON_WRITER
-      !NAME type STRING optional .
-  methods PRETTY_NAME_EX
-    importing
-      !IN type CSEQUENCE
-    returning
-      value(OUT) type STRING .
-  methods PRETTY_NAME
-    importing
-      !IN type CSEQUENCE
-      !PASCAL_CASE type BOOL default C_BOOL-FALSE
-    returning
-      value(OUT) type STRING .
-  methods GENERATE_INT
-    importing
-      !JSON type JSON
-    changing
-      !DATA type ref to DATA
-      !TYPE type ref to CL_ABAP_DATADESCR optional
-    raising
-      CX_SY_MOVE_CAST_ERROR .
+    METHODS is_compressable
+      IMPORTING
+        !type_descr        TYPE REF TO cl_abap_typedescr   ##NEEDED
+        !name              TYPE csequence   ##NEEDED
+      RETURNING
+        VALUE(rv_compress) TYPE abap_bool .
+    METHODS restore
+      IMPORTING
+        !reader           TYPE REF TO if_json_reader
+        VALUE(type_descr) TYPE REF TO cl_abap_typedescr OPTIONAL
+        !field_cache      TYPE t_t_field_cache OPTIONAL
+      CHANGING
+        !data             TYPE data OPTIONAL
+      RAISING
+        cx_sy_move_cast_error .
+    METHODS restore_type
+      IMPORTING
+        !reader           TYPE REF TO if_json_reader
+        VALUE(type_descr) TYPE REF TO cl_abap_typedescr OPTIONAL
+        !field_cache      TYPE t_t_field_cache OPTIONAL
+        !convexit         TYPE string OPTIONAL
+        !typekind         TYPE abap_typekind OPTIONAL
+      CHANGING
+        !data             TYPE data OPTIONAL
+      RAISING
+        cx_sy_move_cast_error .
+    METHODS dump_type
+      IMPORTING
+        !data       TYPE data
+        !type_descr TYPE REF TO cl_abap_elemdescr
+        !convexit   TYPE string
+        !typekind   TYPE abap_typekind
+        !writer     TYPE REF TO if_json_writer
+        !name       TYPE string OPTIONAL .
+    METHODS pretty_name_ex
+      IMPORTING
+        !in        TYPE csequence
+      RETURNING
+        VALUE(out) TYPE string .
+    METHODS pretty_name
+      IMPORTING
+        !in          TYPE csequence
+        !pascal_case TYPE bool DEFAULT c_bool-false
+      RETURNING
+        VALUE(out)   TYPE string .
+    METHODS generate_int
+      IMPORTING
+        !json TYPE json
+      CHANGING
+        !data TYPE REF TO data
+        !type TYPE REF TO cl_abap_datadescr OPTIONAL
+      RAISING
+        cx_sy_move_cast_error .
   PRIVATE SECTION.
 
     DATA mv_extended TYPE bool .
     CLASS-DATA mc_me_type TYPE string .
 
-  methods RESTORE_TYPE_INT
-    importing
-      !READER type ref to IF_JSON_READER
-      value(TYPE_DESCR) type ref to CL_ABAP_TYPEDESCR optional
-      !FIELD_CACHE type T_T_FIELD_CACHE optional
-      !CONVEXIT type STRING optional
-      !TYPEKIND type ABAP_TYPEKIND optional
-    changing
-      !DATA type DATA optional
-    raising
-      CX_SY_MOVE_CAST_ERROR
-      CX_SY_CONVERSION_NO_NUMBER
-      CX_SY_CONVERSION_OVERFLOW .
-  methods GENERATE_INT_R
-    importing
-      !READER type ref to IF_JSON_READER
-    changing
-      !DATA type ref to DATA
-      !TYPE type ref to CL_ABAP_DATADESCR optional
-    raising
-      CX_SY_MOVE_CAST_ERROR .
-  methods DUMP_SYMBOLS
-    importing
-      !IT_SYMBOLS type T_T_SYMBOL
-      !WRITER type ref to IF_JSON_WRITER
-      !OPT_ARRAY type BOOL optional
-      !FORMAT_SCOPE type BOOL default ABAP_TRUE
-      !LEVEL type I .
-  methods GET_SYMBOLS_STRUCT
-    importing
-      !TYPE_DESCR type ref to CL_ABAP_STRUCTDESCR
-      !INCLUDE_ALIASES type ABAP_BOOL default ABAP_FALSE
-      !DATA type ref to DATA optional
-    returning
-      value(RESULT) type T_S_STRUCT_CACHE_RES .
-  methods GET_SYMBOLS_CLASS
-    importing
-      !TYPE_DESCR type ref to CL_ABAP_CLASSDESCR
-      !OBJECT type ref to OBJECT optional
-    returning
-      value(RESULT) type T_T_SYMBOL .
-  methods GET_SYMBOLS
-    importing
-      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR
-      !DATA type ref to DATA optional
-      !OBJECT type ref to OBJECT optional
-      !INCLUDE_ALIASES type ABAP_BOOL default ABAP_FALSE
-    returning
-      value(RESULT) type T_T_SYMBOL .
-  methods GET_FIELDS
-    importing
-      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR
-      !DATA type ref to DATA optional
-      !OBJECT type ref to OBJECT optional
-    returning
-      value(RT_FIELDS) type T_T_FIELD_CACHE .
-  methods DUMP_INT
-    importing
-      !DATA type DATA
-      !TYPE_DESCR type ref to CL_ABAP_TYPEDESCR optional
-      !CONVEXIT type STRING optional
-      !WRITER type ref to IF_JSON_WRITER
-      !LEVEL type I default 0 .
-  methods GENERATE_STRUCT
-    changing
-      !FIELDS type T_T_NAME_VALUE
-      !DATA type ref to DATA
-      !TYPE type ref to CL_ABAP_DATADESCR optional .
+    METHODS restore_type_int
+      IMPORTING
+        !reader           TYPE REF TO if_json_reader
+        VALUE(type_descr) TYPE REF TO cl_abap_typedescr OPTIONAL
+        !field_cache      TYPE t_t_field_cache OPTIONAL
+        !convexit         TYPE string OPTIONAL
+        !typekind         TYPE abap_typekind OPTIONAL
+      CHANGING
+        !data             TYPE data OPTIONAL
+      RAISING
+        cx_sy_move_cast_error
+        cx_sy_conversion_no_number
+        cx_sy_conversion_overflow .
+    METHODS generate_int_r
+      IMPORTING
+        !reader TYPE REF TO if_json_reader
+      CHANGING
+        !data   TYPE REF TO data
+        !type   TYPE REF TO cl_abap_datadescr OPTIONAL
+      RAISING
+        cx_sy_move_cast_error .
+    METHODS dump_symbols
+      IMPORTING
+        !it_symbols   TYPE t_t_symbol
+        !writer       TYPE REF TO if_json_writer
+        !opt_array    TYPE bool OPTIONAL
+        !format_scope TYPE bool DEFAULT abap_true
+        !level        TYPE i .
+    METHODS get_symbols_struct
+      IMPORTING
+        !type_descr      TYPE REF TO cl_abap_structdescr
+        !include_aliases TYPE abap_bool DEFAULT abap_false
+        !data            TYPE REF TO data OPTIONAL
+      RETURNING
+        VALUE(result)    TYPE t_s_struct_cache_res .
+    METHODS get_symbols_class
+      IMPORTING
+        !type_descr   TYPE REF TO cl_abap_classdescr
+        !object       TYPE REF TO object OPTIONAL
+      RETURNING
+        VALUE(result) TYPE t_t_symbol .
+    METHODS get_symbols
+      IMPORTING
+        !type_descr      TYPE REF TO cl_abap_typedescr
+        !data            TYPE REF TO data OPTIONAL
+        !object          TYPE REF TO object OPTIONAL
+        !include_aliases TYPE abap_bool DEFAULT abap_false
+      RETURNING
+        VALUE(result)    TYPE t_t_symbol .
+    METHODS get_fields
+      IMPORTING
+        !type_descr      TYPE REF TO cl_abap_typedescr
+        !data            TYPE REF TO data OPTIONAL
+        !object          TYPE REF TO object OPTIONAL
+      RETURNING
+        VALUE(rt_fields) TYPE t_t_field_cache .
+    METHODS dump_int
+      IMPORTING
+        !data       TYPE data
+        !type_descr TYPE REF TO cl_abap_typedescr OPTIONAL
+        !convexit   TYPE string OPTIONAL
+        !writer     TYPE REF TO if_json_writer
+        !level      TYPE i DEFAULT 0 .
+    METHODS generate_struct
+      CHANGING
+        !fields TYPE t_t_name_value
+        !data   TYPE REF TO data
+        !type   TYPE REF TO cl_abap_datadescr OPTIONAL .
 *"* private components of class Z_UI2_JSON2
 *"* do not include other source files here!!!
 ENDCLASS.
@@ -386,6 +386,10 @@ ENDCLASS.
 CLASS Z_UI2_JSON2 IMPLEMENTATION.
 
 
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method Z_UI2_JSON2=>CLASS_CONSTRUCTOR
+* +-------------------------------------------------------------------------------------------------+
+* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD class_constructor.
 
     DATA(lv_json_string)         = VALUE json( ).
@@ -405,6 +409,28 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method Z_UI2_JSON2->CONSTRUCTOR
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] COMPRESS                       TYPE        BOOL (default =C_BOOL-FALSE)
+* | [--->] PRETTY_NAME                    TYPE        PRETTY_NAME_MODE (default =PRETTY_MODE-NONE)
+* | [--->] ASSOC_ARRAYS                   TYPE        BOOL (default =C_BOOL-FALSE)
+* | [--->] TS_AS_ISO8601                  TYPE        BOOL (default =C_BOOL-FALSE)
+* | [--->] EXPAND_INCLUDES                TYPE        BOOL (default =C_BOOL-TRUE)
+* | [--->] ASSOC_ARRAYS_OPT               TYPE        BOOL (default =C_BOOL-FALSE)
+* | [--->] STRICT_MODE                    TYPE        BOOL (default =C_BOOL-FALSE)
+* | [--->] NUMC_AS_STRING                 TYPE        BOOL (default =C_BOOL-FALSE)
+* | [--->] NAME_MAPPINGS                  TYPE        NAME_MAPPINGS(optional)
+* | [--->] CONVERSION_EXITS               TYPE        BOOL (default =C_BOOL-FALSE)
+* | [--->] FORMAT_OUTPUT                  TYPE        BOOL (default =C_BOOL-FALSE)
+* | [--->] HEX_AS_BASE64                  TYPE        BOOL (default =C_BOOL-TRUE)
+* | [--->] BOOL_TYPES                     TYPE        STRING (default =MC_BOOL_TYPES)
+* | [--->] BOOL_3STATE                    TYPE        STRING (default =MC_BOOL_3STATE)
+* | [--->] INITIAL_TS                     TYPE        STRING (default =``)
+* | [--->] INITIAL_DATE                   TYPE        STRING (default =``)
+* | [--->] INITIAL_TIME                   TYPE        STRING (default =``)
+* | [--->] TIME_ZONE                      LIKE        SY-ZONLO (default ='UTC')
+* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD constructor.
 
     DATA(rtti) = CAST cl_abap_classdescr( cl_abap_classdescr=>describe_by_object_ref( me ) ).
@@ -457,6 +483,19 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method Z_UI2_JSON2=>DESERIALIZE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] JSON                           TYPE        JSON(optional)
+* | [--->] JSONX                          TYPE        XSTRING(optional)
+* | [--->] PRETTY_NAME                    TYPE        PRETTY_NAME_MODE (default =PRETTY_MODE-NONE)
+* | [--->] ASSOC_ARRAYS                   TYPE        BOOL (default =C_BOOL-FALSE)
+* | [--->] ASSOC_ARRAYS_OPT               TYPE        BOOL (default =C_BOOL-FALSE)
+* | [--->] NAME_MAPPINGS                  TYPE        NAME_MAPPINGS(optional)
+* | [--->] CONVERSION_EXITS               TYPE        BOOL (default =C_BOOL-FALSE)
+* | [--->] HEX_AS_BASE64                  TYPE        BOOL (default =C_BOOL-TRUE)
+* | [<-->] DATA                           TYPE        DATA
+* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD deserialize.
 
     " **********************************************************************
@@ -476,9 +515,11 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
 
       TRY.
           lo_json->deserialize_int(
-            EXPORTING json  = json
-                      jsonx = jsonx
-            CHANGING  data  = data ).
+            EXPORTING
+              json  = json
+              jsonx = jsonx
+            CHANGING
+              data  = data ).
         CATCH cx_sy_move_cast_error.                    "#EC NO_HANDLER
       ENDTRY.
 
@@ -487,6 +528,14 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method Z_UI2_JSON2->DESERIALIZE_INT
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] JSON                           TYPE        JSON(optional)
+* | [--->] JSONX                          TYPE        XSTRING(optional)
+* | [<-->] DATA                           TYPE        DATA
+* | [!CX!] CX_SY_MOVE_CAST_ERROR
+* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD deserialize_int.
 
     " **********************************************************************
@@ -507,13 +556,7 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
         lo_reader->next_node( ).
         TRY.
             DATA(lo_descr) = cl_abap_typedescr=>describe_by_data( data ).
-            DATA lv_init_typekind TYPE abap_typekind.
-            IF lo_descr->kind = cl_abap_typedescr=>kind_elem.
-              DATA(lo_elem) = CAST cl_abap_elemdescr( lo_descr ).
-              lv_init_typekind = lcl_util=>detect_typekind( type_descr = lo_elem convexit = CONV string( '' ) numc_as_string = mv_numc_as_string bool_types = mv_bool_types bool_3state = mv_bool_3state ).
-            ELSE.
-              lv_init_typekind = lo_descr->type_kind.
-            ENDIF.
+            DATA(lv_init_typekind) = lcl_util=>detect_typekind( type_descr = lo_descr numc_as_string = mv_numc_as_string bool_types = mv_bool_types bool_3state = mv_bool_3state ).
             restore_type( EXPORTING reader = lo_reader type_descr = lo_descr typekind = lv_init_typekind CHANGING data = data ).
           CATCH cx_sy_move_cast_error INTO DATA(lx_move).
             RAISE EXCEPTION TYPE cx_sy_move_cast_error
@@ -527,13 +570,23 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
       CATCH cx_root INTO DATA(lx_parse) ##CATCH_ALL.
         IF mv_strict_mode = abap_true.
           RAISE EXCEPTION TYPE cx_sy_move_cast_error
-            EXPORTING previous = lx_parse.
+            EXPORTING
+              previous = lx_parse.
         ENDIF.
     ENDTRY.
 
   ENDMETHOD.
 
 
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method Z_UI2_JSON2->DUMP_INT
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] DATA                           TYPE        DATA
+* | [--->] TYPE_DESCR                     TYPE REF TO CL_ABAP_TYPEDESCR(optional)
+* | [--->] CONVEXIT                       TYPE        STRING(optional)
+* | [--->] WRITER                         TYPE REF TO IF_JSON_WRITER
+* | [--->] LEVEL                          TYPE        I (default =0)
+* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD dump_int.
 
     DATA: lo_typedesc   TYPE REF TO cl_abap_typedescr,
@@ -690,10 +743,19 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method Z_UI2_JSON2->DUMP_SYMBOLS
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IT_SYMBOLS                     TYPE        T_T_SYMBOL
+* | [--->] WRITER                         TYPE REF TO IF_JSON_WRITER
+* | [--->] OPT_ARRAY                      TYPE        BOOL(optional)
+* | [--->] FORMAT_SCOPE                   TYPE        BOOL (default =ABAP_TRUE)
+* | [--->] LEVEL                          TYPE        I
+* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD dump_symbols.
 
-    DATA: lv_level  LIKE level,
-          lv_name   TYPE string.
+    DATA: lv_level LIKE level,
+          lv_name  TYPE string.
 
     FIELD-SYMBOLS: <value>  TYPE any,
                    <symbol> LIKE LINE OF it_symbols.
@@ -706,9 +768,7 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
 
     LOOP AT it_symbols ASSIGNING <symbol>.
       ASSIGN <symbol>-value->* TO <value>.
-      IF mv_compress = abap_true.
-        CHECK <symbol>-compressable = abap_false OR <value> IS NOT INITIAL OR opt_array = abap_true.
-      ENDIF.
+      CHECK mv_compress = abap_false OR <symbol>-compressable = abap_false OR <value> IS NOT INITIAL OR opt_array = abap_true.
 
       IF opt_array = abap_false.
         lv_name = <symbol>-header.
@@ -736,21 +796,32 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method Z_UI2_JSON2->DUMP_TYPE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] DATA                           TYPE        DATA
+* | [--->] TYPE_DESCR                     TYPE REF TO CL_ABAP_ELEMDESCR
+* | [--->] CONVEXIT                       TYPE        STRING
+* | [--->] TYPEKIND                       TYPE        ABAP_TYPEKIND
+* | [--->] WRITER                         TYPE REF TO IF_JSON_WRITER
+* | [--->] NAME                           TYPE        STRING(optional)
+* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD dump_type.
 
-    DATA lv_typekind LIKE typekind.
-
-    IF typekind IS INITIAL.
-      lv_typekind = lcl_util=>detect_typekind( type_descr = type_descr convexit = convexit numc_as_string = mv_numc_as_string bool_types = mv_bool_types bool_3state = mv_bool_3state ).
-    ELSE.
-      lv_typekind = typekind.
-    ENDIF.
-
-    dump_type_int data lv_typekind writer convexit name.
+    dump_type_int data typekind writer convexit name.
 
   ENDMETHOD.
 
 
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method Z_UI2_JSON2=>GENERATE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] JSON                           TYPE        JSON(optional)
+* | [--->] PRETTY_NAME                    TYPE        PRETTY_NAME_MODE (default =PRETTY_MODE-NONE)
+* | [--->] NAME_MAPPINGS                  TYPE        NAME_MAPPINGS(optional)
+* | [--->] JSONX                          TYPE        XSTRING(optional)
+* | [<-()] RR_DATA                        TYPE REF TO DATA
+* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD generate.
 
     deserialize( EXPORTING json = json jsonx = jsonx pretty_name = pretty_name name_mappings = name_mappings CHANGING data = rr_data ).
@@ -758,6 +829,14 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method Z_UI2_JSON2->GENERATE_INT
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] JSON                           TYPE        JSON
+* | [<-->] DATA                           TYPE REF TO DATA
+* | [<-->] TYPE                           TYPE REF TO CL_ABAP_DATADESCR(optional)
+* | [!CX!] CX_SY_MOVE_CAST_ERROR
+* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD generate_int.
 
     CLEAR type.
@@ -775,14 +854,22 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method Z_UI2_JSON2->GENERATE_INT_R
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] READER                         TYPE REF TO IF_JSON_READER
+* | [<-->] DATA                           TYPE REF TO DATA
+* | [<-->] TYPE                           TYPE REF TO CL_ABAP_DATADESCR(optional)
+* | [!CX!] CX_SY_MOVE_CAST_ERROR
+* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD generate_int_r.
 
-    DATA: lo_type        TYPE REF TO cl_abap_datadescr,
-          lo_table_type  TYPE REF TO cl_abap_tabledescr,
-          lt_types       TYPE SORTED TABLE OF REF TO cl_abap_datadescr WITH UNIQUE KEY table_line,
-          lt_fields      TYPE t_t_name_value,
-          ls_name_data   LIKE LINE OF lt_fields,
-          data_opt       LIKE data.
+    DATA: lo_type       TYPE REF TO cl_abap_datadescr,
+          lo_table_type TYPE REF TO cl_abap_tabledescr,
+          lt_types      TYPE SORTED TABLE OF REF TO cl_abap_datadescr WITH UNIQUE KEY table_line,
+          lt_fields     TYPE t_t_name_value,
+          ls_name_data  LIKE LINE OF lt_fields,
+          data_opt      LIKE data.
 
     FIELD-SYMBOLS: <data>      TYPE data,
                    <struct>    TYPE data,
@@ -901,17 +988,23 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
-
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method Z_UI2_JSON2->GENERATE_STRUCT
+* +-------------------------------------------------------------------------------------------------+
+* | [<-->] FIELDS                         TYPE        T_T_NAME_VALUE
+* | [<-->] DATA                           TYPE REF TO DATA
+* | [<-->] TYPE                           TYPE REF TO CL_ABAP_DATADESCR(optional)
+* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD generate_struct.
 
-    DATA: lt_comp      TYPE abap_component_tab,
-          lt_keys      TYPE STANDARD TABLE OF string,
-          lv_invalid   TYPE abap_bool,
-          lv_name      TYPE string,
-          ls_type      LIKE LINE OF mt_struct_type,
-          lt_names     TYPE HASHED TABLE OF string WITH UNIQUE KEY table_line,
-          cache        LIKE LINE OF mt_name_mappings_ex,
-          ls_comp      LIKE LINE OF lt_comp.
+    DATA: lt_comp    TYPE abap_component_tab,
+          lt_keys    TYPE STANDARD TABLE OF string,
+          lv_invalid TYPE abap_bool,
+          lv_name    TYPE string,
+          ls_type    LIKE LINE OF mt_struct_type,
+          lt_names   TYPE HASHED TABLE OF string WITH UNIQUE KEY table_line,
+          cache      LIKE LINE OF mt_name_mappings_ex,
+          ls_comp    LIKE LINE OF lt_comp.
 
     FIELD-SYMBOLS: <field> LIKE LINE OF fields,
                    <cache> LIKE LINE OF mt_name_mappings_ex.
@@ -989,6 +1082,14 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method Z_UI2_JSON2->GET_FIELDS
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] TYPE_DESCR                     TYPE REF TO CL_ABAP_TYPEDESCR
+* | [--->] DATA                           TYPE REF TO DATA(optional)
+* | [--->] OBJECT                         TYPE REF TO OBJECT(optional)
+* | [<-()] RT_FIELDS                      TYPE        T_T_FIELD_CACHE
+* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD get_fields.
 
     DATA: lv_name    TYPE char128,
@@ -1026,6 +1127,15 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method Z_UI2_JSON2->GET_SYMBOLS
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] TYPE_DESCR                     TYPE REF TO CL_ABAP_TYPEDESCR
+* | [--->] DATA                           TYPE REF TO DATA(optional)
+* | [--->] OBJECT                         TYPE REF TO OBJECT(optional)
+* | [--->] INCLUDE_ALIASES                TYPE        ABAP_BOOL (default =ABAP_FALSE)
+* | [<-()] RESULT                         TYPE        T_T_SYMBOL
+* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD get_symbols.
 
     DATA: class_descr  TYPE REF TO cl_abap_classdescr,
@@ -1048,6 +1158,13 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method Z_UI2_JSON2->GET_SYMBOLS_CLASS
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] TYPE_DESCR                     TYPE REF TO CL_ABAP_CLASSDESCR
+* | [--->] OBJECT                         TYPE REF TO OBJECT(optional)
+* | [<-()] RESULT                         TYPE        T_T_SYMBOL
+* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD get_symbols_class.
 
     DATA: symb       LIKE LINE OF result.
@@ -1084,6 +1201,14 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method Z_UI2_JSON2->GET_SYMBOLS_STRUCT
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] TYPE_DESCR                     TYPE REF TO CL_ABAP_STRUCTDESCR
+* | [--->] INCLUDE_ALIASES                TYPE        ABAP_BOOL (default =ABAP_FALSE)
+* | [--->] DATA                           TYPE REF TO DATA(optional)
+* | [<-()] RESULT                         TYPE        T_S_STRUCT_CACHE_RES
+* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD get_symbols_struct.
 
     DATA: comp_tab     TYPE cl_abap_structdescr=>component_table,
@@ -1170,11 +1295,25 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method Z_UI2_JSON2->IS_COMPRESSABLE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] TYPE_DESCR                     TYPE REF TO CL_ABAP_TYPEDESCR
+* | [--->] NAME                           TYPE        CSEQUENCE
+* | [<-()] RV_COMPRESS                    TYPE        ABAP_BOOL
+* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD is_compressable.
     rv_compress = abap_true.
   ENDMETHOD.
 
 
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method Z_UI2_JSON2->PRETTY_NAME
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IN                             TYPE        CSEQUENCE
+* | [--->] PASCAL_CASE                    TYPE        BOOL (default =C_BOOL-FALSE)
+* | [<-()] OUT                            TYPE        STRING
+* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD pretty_name.
 
     DATA: tokens TYPE TABLE OF char128,
@@ -1216,6 +1355,12 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method Z_UI2_JSON2->PRETTY_NAME_EX
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IN                             TYPE        CSEQUENCE
+* | [<-()] OUT                            TYPE        STRING
+* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD pretty_name_ex.
 
     DATA: tokens TYPE TABLE OF char128,
@@ -1267,6 +1412,15 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method Z_UI2_JSON2->RESTORE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] READER                         TYPE REF TO IF_JSON_READER
+* | [--->] TYPE_DESCR                     TYPE REF TO CL_ABAP_TYPEDESCR(optional)
+* | [--->] FIELD_CACHE                    TYPE        T_T_FIELD_CACHE(optional)
+* | [<-->] DATA                           TYPE        DATA(optional)
+* | [!CX!] CX_SY_MOVE_CAST_ERROR
+* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD restore.
 
     DATA: ref_descr          TYPE REF TO cl_abap_refdescr,
@@ -1305,8 +1459,10 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
         data_ref ?= data.
         ASSIGN data_ref->* TO <value>.
         fields = get_fields( type_descr = type_descr data = data_ref ).
-        restore( EXPORTING reader = reader type_descr = type_descr field_cache = fields
-                   CHANGING data = <value> ).
+        restore( EXPORTING reader      = reader
+                           type_descr  = type_descr
+                           field_cache = fields
+                 CHANGING  data        = <value> ).
         RETURN.
       ENDIF.
     ENDIF.
@@ -1344,10 +1500,15 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
                                         WHEN <field_cache> IS ASSIGNED THEN lcl_util=>describe_type( <field_cache>-type )
                                         ELSE `?` ).
               RAISE EXCEPTION TYPE cx_sy_move_cast_error
-                EXPORTING previous = lo_move_cast_error source_typename = source_typename target_typename = target_typename.
+                EXPORTING
+                  previous        = lo_move_cast_error
+                  source_typename = source_typename
+                  target_typename = target_typename.
             CATCH cx_root INTO DATA(lo_parse_err) ##CATCH_ALL.
               RAISE EXCEPTION TYPE cx_sy_move_cast_error
-                EXPORTING previous = lo_parse_err source_typename = name_json.
+                EXPORTING
+                  previous        = lo_parse_err
+                  source_typename = name_json.
           ENDTRY.
         ELSE.
           restore_type( EXPORTING reader = reader type_descr = <field_cache>-type typekind = <field_cache>-typekind convexit = <field_cache>-convexit_in CHANGING data = <value> ).
@@ -1363,6 +1524,17 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method Z_UI2_JSON2->RESTORE_TYPE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] READER                         TYPE REF TO IF_JSON_READER
+* | [--->] TYPE_DESCR                     TYPE REF TO CL_ABAP_TYPEDESCR(optional)
+* | [--->] FIELD_CACHE                    TYPE        T_T_FIELD_CACHE(optional)
+* | [--->] CONVEXIT                       TYPE        STRING(optional)
+* | [--->] TYPEKIND                       TYPE        ABAP_TYPEKIND(optional)
+* | [<-->] DATA                           TYPE        DATA(optional)
+* | [!CX!] CX_SY_MOVE_CAST_ERROR
+* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD restore_type.
 
     DATA: lo_move_cast_error TYPE REF TO cx_sy_move_cast_error,
@@ -1399,433 +1571,25 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
-  METHOD restore_type_int.
-
-    DATA: sdummy             TYPE string,
-          line               TYPE REF TO data,
-          key_ref            TYPE REF TO data,
-          data_ref           TYPE REF TO data,
-          key_value          TYPE string,
-          key_name           TYPE string,
-          lt_fields          LIKE field_cache,
-          ls_symbols         TYPE t_s_struct_cache_res,
-          lv_convexit        LIKE convexit,
-          lv_typekind        LIKE typekind,
-          lo_exp             TYPE REF TO cx_root,
-          elem_descr         TYPE REF TO cl_abap_elemdescr,
-          table_descr        TYPE REF TO cl_abap_tabledescr,
-          struct_descr       TYPE REF TO cl_abap_structdescr,
-          ref_descr          TYPE REF TO cl_abap_refdescr,
-          data_descr         TYPE REF TO cl_abap_datadescr,
-          array_index        TYPE i,
-          tstml              TYPE timestampl,
-          date               TYPE c LENGTH 8,
-          time               TYPE c LENGTH 6,
-          guid               TYPE c LENGTH 32,
-          lo_move_cast_error TYPE REF TO cx_sy_move_cast_error,
-          source_typename    TYPE string,
-          target_typename    TYPE string.
-
-    FIELD-SYMBOLS: <line>      TYPE any,
-                   <value>     TYPE any,
-                   <data>      TYPE data,
-                   <field>     LIKE LINE OF lt_fields,
-                   <table>     TYPE ANY TABLE,
-                   <value_sym> TYPE t_s_symbol.
-
-    lv_convexit = convexit.
-    lv_typekind = typekind.
-
-        IF data IS SUPPLIED AND lv_typekind = e_typekind-json.
-          " raw JSON passthrough
-          IF reader->node-type = if_json_node=>string OR reader->node-type = if_json_node=>number OR reader->node-type = if_json_node=>boolean OR reader->node-type = if_json_node=>null.
-            data = reader->node-value.
-          ELSE.
-            data = lcl_util=>read_json_to_string( reader ).
-          ENDIF.
-          RETURN.
-        ENDIF.
-
-        CASE reader->node-type.
-
-          WHEN if_json_node=>open_object. " {
-
-            IF data IS SUPPLIED AND mv_assoc_arrays = c_bool-true AND type_descr->kind = cl_abap_typedescr=>kind_table.
-              table_descr ?= type_descr.
-              data_descr = table_descr->get_table_line_type( ).
-              IF table_descr->has_unique_key IS NOT INITIAL.
-                reader->next_node( ).
-                IF reader->node-type <> if_json_node=>close_object.
-                  ASSIGN data TO <table>.
-                  CLEAR <table>.
-                  CREATE DATA line LIKE LINE OF <table>.
-                  ASSIGN line->* TO <line>.
-                  lt_fields = get_fields( type_descr = data_descr data = line ).
-                  IF table_descr->key_defkind = table_descr->keydefkind_user AND lines( table_descr->key ) = 1.
-                    READ TABLE table_descr->key INDEX 1 INTO key_name.
-                    READ TABLE lt_fields WITH TABLE KEY name = key_name ASSIGNING <field>.
-                    key_ref = <field>-value.
-                    IF mv_assoc_arrays_opt = c_bool-true.
-                      struct_descr ?= data_descr.
-                      ls_symbols = get_symbols_struct( type_descr = struct_descr data = line ).
-                      DELETE ls_symbols-symbols WHERE name = key_name.
-                      IF lines( ls_symbols-symbols ) = 1.
-                        READ TABLE ls_symbols-symbols INDEX 1 ASSIGNING <value_sym>.
-                      ENDIF.
-                    ENDIF.
-                  ENDIF.
-                  WHILE reader->node-type <> if_json_node=>close_object AND reader->node-type <> if_json_node=>final.
-                    CLEAR <line>.
-                    key_value = reader->node-name.
-                    IF <value_sym> IS ASSIGNED.
-                      ASSIGN <value_sym>-value->* TO <value>.
-                      restore_type_int( EXPORTING reader = reader type_descr = <value_sym>-type typekind = <value_sym>-typekind convexit = <value_sym>-convexit_in
-                                    CHANGING data = <value> ).
-                    ELSE.
-                      restore_type_int( EXPORTING reader = reader type_descr = data_descr typekind = data_descr->type_kind field_cache = lt_fields
-                                    CHANGING data = <line> ).
-                    ENDIF.
-                    IF table_descr->key_defkind = table_descr->keydefkind_user.
-                      IF key_ref IS BOUND.
-                        ASSIGN key_ref->* TO <value>.
-                        IF <value> IS INITIAL.
-                          <value> = key_value.
-                        ENDIF.
-                      ENDIF.
-                    ELSEIF <line> IS INITIAL.
-                      <line> = key_value.
-                    ENDIF.
-                    INSERT <line> INTO TABLE <table>.
-                    reader->next_node( ).
-                  ENDWHILE.
-                ELSE.
-                  CLEAR data.
-                ENDIF.
-              ELSE.
-                restore( EXPORTING reader = reader CHANGING data = data ).
-              ENDIF.
-
-            ELSEIF data IS SUPPLIED AND type_descr->type_kind = cl_abap_typedescr=>typekind_dref.
-              IF data IS INITIAL.
-                ref_descr ?= type_descr.
-                data_descr ?= ref_descr->get_referenced_type( ).
-                IF data_descr->type_kind = data_descr->typekind_data. " REF TO DATA
-                  generate_int_r( EXPORTING reader = reader CHANGING data = data ).
-                  RETURN.
-                ELSEIF data_descr->kind <> data_descr->kind_elem.
-                  CREATE DATA data TYPE HANDLE data_descr.
-                  data_ref ?= data.
-                  ASSIGN data_ref->* TO <data>.
-                  restore( EXPORTING reader = reader type_descr = data_descr
-                           CHANGING data = <data> ).
-                ELSE. " primitive typed ref — skip object, can't deserialize
-                  reader->skip_node( ).
-                ENDIF.
-              ELSE.
-                data_ref ?= data.
-                type_descr = cl_abap_typedescr=>describe_by_data_ref( data_ref ).
-                ASSIGN data_ref->* TO <data>.
-                restore_type_int( EXPORTING reader = reader type_descr = type_descr typekind = type_descr->type_kind CHANGING data = <data> ).
-              ENDIF.
-
-            ELSEIF data IS SUPPLIED.
-              restore( EXPORTING reader = reader type_descr = type_descr field_cache = field_cache
-                       CHANGING data = data ).
-            ELSE.
-              restore( EXPORTING reader = reader CHANGING data = data ).
-            ENDIF.
-
-          WHEN if_json_node=>open_array. " [
-
-            IF data IS SUPPLIED AND type_descr->type_kind = cl_abap_typedescr=>typekind_dref.
-              IF data IS INITIAL.
-                ref_descr ?= type_descr.
-                data_descr ?= ref_descr->get_referenced_type( ).
-                IF data_descr->type_kind = data_descr->typekind_data. " REF TO DATA
-                  generate_int_r( EXPORTING reader = reader CHANGING data = data ).
-                  RETURN.
-                ELSEIF data_descr->kind = data_descr->kind_table. " deserialize in typed table
-                  CREATE DATA data TYPE HANDLE data_descr.
-                  data_ref ?= data.
-                  ASSIGN data_ref->* TO <data>.
-                  restore_type_int( EXPORTING reader = reader type_descr = data_descr typekind = data_descr->type_kind CHANGING data = <data> ).
-                ELSE. " invalid type - skip
-                  reader->skip_node( ).
-                ENDIF.
-              ELSE.
-                data_ref ?= data.
-                type_descr = cl_abap_typedescr=>describe_by_data_ref( data_ref ).
-                ASSIGN data_ref->* TO <data>.
-                restore_type_int( EXPORTING reader = reader type_descr = type_descr typekind = type_descr->type_kind CHANGING data = <data> ).
-              ENDIF.
-
-            ELSE.
-              reader->next_node( ).
-              IF reader->node-type <> if_json_node=>close_array.
-                IF data IS SUPPLIED AND type_descr->kind = cl_abap_typedescr=>kind_table.
-                  table_descr ?= type_descr.
-                  data_descr = table_descr->get_table_line_type( ).
-                  ASSIGN data TO <table>.
-                  CLEAR <table>.
-                  CREATE DATA line LIKE LINE OF <table>.
-                  ASSIGN line->* TO <line>.
-                  lt_fields = get_fields( type_descr = data_descr data = line ).
-                  array_index = 0.
-                  WHILE reader->node-type <> if_json_node=>close_array AND reader->node-type <> if_json_node=>final.
-                    array_index = array_index + 1.
-                    CLEAR <line>.
-                    TRY.
-                        restore_type_int( EXPORTING reader = reader type_descr = data_descr typekind = data_descr->type_kind field_cache = lt_fields
-                                      CHANGING data = <line> ).
-                        INSERT <line> INTO TABLE <table>.
-                        reader->next_node( ).
-                      CATCH cx_sy_move_cast_error INTO DATA(lx_arr_move).
-                        IF mv_strict_mode = abap_true.
-                          DATA(lv_arr_src) = |[{ array_index }]|.
-                          IF lx_arr_move->source_typename IS NOT INITIAL.
-                            IF lx_arr_move->source_typename(1) <> `[`.
-                              lv_arr_src = lv_arr_src && `.` && lx_arr_move->source_typename.
-                            ELSE.
-                              lv_arr_src = lv_arr_src && lx_arr_move->source_typename.
-                            ENDIF.
-                          ENDIF.
-                          RAISE EXCEPTION TYPE cx_sy_move_cast_error
-                            EXPORTING
-                              previous        = lx_arr_move
-                              source_typename = lv_arr_src
-                              target_typename = lx_arr_move->target_typename.
-                        ELSE.
-                          CLEAR <line>.
-                          INSERT <line> INTO TABLE <table>.
-                          reader->next_node( ).
-                        ENDIF.
-                      CATCH cx_root INTO DATA(lx_arr_parse) ##CATCH_ALL.
-                        IF mv_strict_mode = abap_true.
-                          RAISE EXCEPTION TYPE cx_sy_move_cast_error
-                            EXPORTING
-                              previous        = lx_arr_parse
-                              source_typename = |[{ array_index + 1 }]|
-                              target_typename = lcl_util=>describe_type( data_descr ).
-                        ELSE.
-                          CLEAR <line>.
-                          INSERT <line> INTO TABLE <table>.
-                          reader->next_node( ).
-                        ENDIF.
-                    ENDTRY.
-                  ENDWHILE.
-                ELSE.
-                  " skip array - consume all elements
-                  WHILE reader->node-type <> if_json_node=>close_array AND reader->node-type <> if_json_node=>final.
-                    reader->skip_node( ).
-                    reader->next_node( ).
-                  ENDWHILE.
-                  IF data IS SUPPLIED. " JSON to ABAP type mismatch
-                    RAISE EXCEPTION TYPE cx_sy_move_cast_error.
-                  ENDIF.
-                ENDIF.
-              ELSEIF data IS SUPPLIED.
-                CLEAR data.
-              ENDIF.
-            ENDIF.
-
-          WHEN if_json_node=>string. " "value"
-
-            sdummy = reader->node-value.
-
-            IF data IS NOT SUPPLIED.
-              " just skip - sdummy consumed
-            ELSEIF type_descr->type_kind = cl_abap_typedescr=>typekind_dref.
-              restore_dref reader data type_descr.
-            ELSEIF type_descr->kind = cl_abap_typedescr=>kind_elem.
-
-              IF lv_convexit IS NOT INITIAL.
-                restore_convexit lv_convexit sdummy data.
-              ENDIF.
-
-              CASE lv_typekind.
-                WHEN e_typekind-bool OR e_typekind-tribool.
-                  IF sdummy(1) CA 'XxTt1'.
-                    data = c_bool-true.
-                  ELSE.
-                    data = c_bool-false.
-                  ENDIF.
-                  RETURN.
-                WHEN e_typekind-xstring.
-                  IF mv_hex_as_base64 IS INITIAL.
-                    MOVE sdummy TO data.
-                  ELSE.
-                    data = cl_http_utility=>decode_x_base64( sdummy ).
-                  ENDIF.
-                  RETURN.
-                WHEN e_typekind-hex.
-                  FIND FIRST OCCURRENCE OF REGEX lcl_util=>so_regex_guid IN sdummy SUBMATCHES guid guid+8 guid+12 guid+16 guid+20.
-                  IF sy-subrc = 0.
-                    TRANSLATE guid TO UPPER CASE.
-                    data = guid.
-                  ELSE.
-                    IF mv_hex_as_base64 IS INITIAL.
-                      MOVE sdummy TO data.
-                    ELSE.
-                      data = cl_http_utility=>decode_x_base64( sdummy ).
-                    ENDIF.
-                  ENDIF.
-                  RETURN.
-                WHEN e_typekind-date.
-                  FIND FIRST OCCURRENCE OF REGEX lcl_util=>so_regex_date IN sdummy SUBMATCHES date date+4 date+6.
-                  IF sy-subrc = 0.
-                    data = date.
-                    RETURN.
-                  ELSE.
-                    read_timestamp sdummy tstml.
-                    IF tstml IS NOT INITIAL.
-                      CONVERT TIME STAMP tstml TIME ZONE mv_time_zone INTO DATE data.
-                      RETURN.
-                    ELSE.
-                      REPLACE FIRST OCCURRENCE OF REGEX lcl_util=>so_regex_edm_time IN sdummy WITH '$1$2$3' REPLACEMENT LENGTH DATA(lv_match).
-                      IF sy-subrc = 0.
-                        sdummy = sdummy(lv_match).
-                      ENDIF.
-                    ENDIF.
-                  ENDIF.
-                WHEN e_typekind-time.
-                  FIND FIRST OCCURRENCE OF REGEX lcl_util=>so_regex_time IN sdummy SUBMATCHES time time+2 time+4.
-                  IF sy-subrc = 0.
-                    data = time.
-                    RETURN.
-                  ELSE.
-                    read_timestamp sdummy tstml.
-                    IF tstml IS NOT INITIAL.
-                      CONVERT TIME STAMP tstml TIME ZONE mv_time_zone INTO TIME data.
-                      RETURN.
-                    ELSE.
-                      REPLACE FIRST OCCURRENCE OF REGEX lcl_util=>so_regex_edm_time IN sdummy WITH '$4$5$6' REPLACEMENT LENGTH lv_match.
-                      IF sy-subrc = 0.
-                        sdummy = sdummy(lv_match).
-                      ENDIF.
-                    ENDIF.
-                  ENDIF.
-                WHEN e_typekind-utclong.
-                  read_timestamp sdummy tstml.
-                  IF tstml IS NOT INITIAL.
-                    TRY.
-                        cl_abap_tstmp=>tstmp2utclong(
-                          EXPORTING timestamp = tstml
-                          RECEIVING utclong   = data ).
-                        RETURN.
-                      CATCH cx_sy_dyn_call_error.
-                        RAISE EXCEPTION TYPE cx_sy_move_cast_error.
-                    ENDTRY.
-                  ELSE.
-                    RAISE EXCEPTION TYPE cx_sy_move_cast_error.
-                  ENDIF.
-                WHEN e_typekind-ts_iso8601 OR e_typekind-tsl_iso8601.
-                  read_timestamp sdummy tstml.
-                  IF tstml IS INITIAL.
-                    REPLACE FIRST OCCURRENCE OF REGEX lcl_util=>so_regex_edm_time IN sdummy WITH '$1$2$3$4$5$6.$7' REPLACEMENT LENGTH lv_match.
-                    IF sy-subrc = 0.
-                      tstml = sdummy(lv_match).
-                    ENDIF.
-                  ENDIF.
-                  IF tstml IS NOT INITIAL.
-                    data = tstml.
-                    IF type_descr->decimals = 0.
-                      data = trunc( tstml ).
-                    ENDIF.
-                    RETURN.
-                  ENDIF.
-                WHEN e_typekind-enum.
-                  TRY.
-                      cl_abap_xsd=>to_value(
-                        EXPORTING cs  = sdummy
-                        CHANGING  val = data ).
-                      RETURN.
-                    CATCH cx_sy_dyn_call_error.
-                      RAISE EXCEPTION TYPE cx_sy_move_cast_error. " Deserialization of enums is not supported
-                  ENDTRY.
-              ENDCASE.
-            ELSE.
-              RAISE EXCEPTION TYPE cx_sy_move_cast_error. " Otherwise dumps with OBJECTS_MOVE_NOT_SUPPORTED
-            ENDIF.
-            TRY.
-                data = sdummy.
-              CATCH cx_sy_move_cast_error cx_sy_conversion_no_number cx_sy_conversion_overflow INTO lo_exp.
-                CLEAR data.
-                IF mv_strict_mode = abap_true.
-                  RAISE EXCEPTION TYPE cx_sy_move_cast_error EXPORTING previous = lo_exp.
-                ENDIF.
-            ENDTRY.
-
-          WHEN if_json_node=>number. " numeric value
-
-            sdummy = reader->node-value.
-
-            IF data IS NOT SUPPLIED.
-              " skip
-            ELSEIF type_descr->type_kind = cl_abap_typedescr=>typekind_dref.
-              restore_dref reader data type_descr.
-            ELSEIF type_descr->kind = type_descr->kind_elem.
-              IF lv_convexit IS NOT INITIAL.
-                restore_convexit lv_convexit sdummy data.
-              ENDIF.
-              TRY.
-                  data = sdummy.
-                CATCH cx_sy_move_cast_error cx_sy_conversion_no_number cx_sy_conversion_overflow INTO lo_exp.
-                  CLEAR data.
-                  IF mv_strict_mode = abap_true.
-                    RAISE EXCEPTION TYPE cx_sy_move_cast_error EXPORTING previous = lo_exp.
-                  ENDIF.
-              ENDTRY.
-            ELSE.
-              RAISE EXCEPTION TYPE cx_sy_move_cast_error.
-            ENDIF.
-
-          WHEN if_json_node=>boolean. " true / false
-
-            IF data IS SUPPLIED.
-              IF type_descr->type_kind = cl_abap_typedescr=>typekind_dref.
-                IF reader->node-value = 'null'.
-                  CLEAR data.
-                ELSE.
-                  restore_dref reader data type_descr.
-                ENDIF.
-              ELSEIF type_descr->kind = type_descr->kind_elem.
-                IF reader->node-value = `true` ##NO_TEXT.
-                  data = c_bool-true.
-                ELSEIF reader->node-value = `false` ##NO_TEXT.
-                  IF mv_bool_3state CS type_descr->absolute_name.
-                    data = c_tribool-false.
-                  ELSE.
-                    data = c_bool-false.
-                  ENDIF.
-                ELSE. " null
-                  CLEAR data.
-                ENDIF.
-              ELSE.
-                IF reader->node-value = 'null'.
-                  CLEAR data.
-                ELSE.
-                  RAISE EXCEPTION TYPE cx_sy_move_cast_error.
-                ENDIF.
-              ENDIF.
-            ENDIF.
-
-          WHEN if_json_node=>null. " null
-
-            IF data IS SUPPLIED.
-              CLEAR data.
-            ENDIF.
-
-          WHEN OTHERS.
-            " error / final node — skip
-            IF data IS SUPPLIED AND mv_strict_mode = abap_true.
-              RAISE EXCEPTION TYPE cx_sy_move_cast_error.
-            ENDIF.
-
-        ENDCASE.
-
-  ENDMETHOD.
-
-
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method Z_UI2_JSON2=>SERIALIZE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] DATA                           TYPE        DATA
+* | [--->] COMPRESS                       TYPE        BOOL (default =C_BOOL-FALSE)
+* | [--->] NAME                           TYPE        STRING(optional)
+* | [--->] PRETTY_NAME                    TYPE        PRETTY_NAME_MODE (default =PRETTY_MODE-NONE)
+* | [--->] TYPE_DESCR                     TYPE REF TO CL_ABAP_TYPEDESCR(optional)
+* | [--->] ASSOC_ARRAYS                   TYPE        BOOL (default =C_BOOL-FALSE)
+* | [--->] TS_AS_ISO8601                  TYPE        BOOL (default =C_BOOL-FALSE)
+* | [--->] EXPAND_INCLUDES                TYPE        BOOL (default =C_BOOL-TRUE)
+* | [--->] ASSOC_ARRAYS_OPT               TYPE        BOOL (default =C_BOOL-FALSE)
+* | [--->] NUMC_AS_STRING                 TYPE        BOOL (default =C_BOOL-FALSE)
+* | [--->] NAME_MAPPINGS                  TYPE        NAME_MAPPINGS(optional)
+* | [--->] CONVERSION_EXITS               TYPE        BOOL (default =C_BOOL-FALSE)
+* | [--->] FORMAT_OUTPUT                  TYPE        BOOL (default =C_BOOL-FALSE)
+* | [--->] HEX_AS_BASE64                  TYPE        BOOL (default =C_BOOL-TRUE)
+* | [<-()] R_JSON                         TYPE        JSON
+* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD serialize.
 
     " **********************************************************************
@@ -1854,45 +1618,486 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method Z_UI2_JSON2->SERIALIZE_INT
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] DATA                           TYPE        DATA
+* | [--->] NAME                           TYPE        STRING(optional)
+* | [--->] TYPE_DESCR                     TYPE REF TO CL_ABAP_TYPEDESCR(optional)
+* | [<-()] R_JSON                         TYPE        JSON
+* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD serialize_int.
 
-    " **********************************************************************
-    " Usage examples and documentation can be found on GitHub:
-    " https://github.com/SAP/abap-to-json
-    " **********************************************************************  "
+    DATA: lo_descr    TYPE REF TO cl_abap_typedescr,
+          lv_convexit TYPE string.
 
-    DATA: lo_descr        TYPE REF TO cl_abap_typedescr,
-          lo_elem_descr   TYPE REF TO cl_abap_elemdescr,
-          lv_convexit     TYPE string,
-          lo_writer       TYPE REF TO if_json_writer,
-          lv_value        TYPE json.
-
-    lo_writer = cl_json_string_writer=>create( ).
+    DATA(lo_writer) = CAST cl_json_string_writer( cl_json_string_writer=>create( ) ).
     IF mv_format_output = abap_true.
-      lo_writer->set_option( option = if_json_writer=>option_linebreaks ).
-      lo_writer->set_option( option = if_json_writer=>option_indent ).
+      DATA(lo_json_writer) = CAST if_json_writer( lo_writer ).
+      lo_json_writer->set_option( option = if_json_writer=>option_linebreaks ).
+      lo_json_writer->set_option( option = if_json_writer=>option_indent ).
     ENDIF.
 
-    IF type_descr IS INITIAL.
-      lo_descr = cl_abap_typedescr=>describe_by_data( data ).
-    ELSE.
-      lo_descr = type_descr.
-    ENDIF.
+    lo_descr = COND #( WHEN type_descr IS NOT INITIAL THEN type_descr ELSE cl_abap_typedescr=>describe_by_data( data ) ).
 
     IF mv_conversion_exits = abap_true AND lo_descr->kind = cl_abap_typedescr=>kind_elem.
-      lo_elem_descr ?= lo_descr.
-      lv_convexit = lcl_util=>get_convexit_func( elem_descr = lo_elem_descr input = abap_false ).
+      lv_convexit = lcl_util=>get_convexit_func( elem_descr = CAST #( lo_descr ) input = abap_false ).
     ENDIF.
 
     dump_int( data = data type_descr = lo_descr convexit = lv_convexit writer = lo_writer ).
-    lv_value = CAST cl_json_string_writer( lo_writer )->get_json( ).
+    r_json = lo_writer->get_json( ).
 
-    IF name IS NOT INITIAL AND ( mv_compress IS INITIAL OR lv_value IS NOT INITIAL ).
-      r_json = |"{ name }":{ lv_value }|.
-    ELSE.
-      r_json = lv_value.
+    IF name IS NOT INITIAL AND ( mv_compress IS INITIAL OR r_json IS NOT INITIAL ).
+      r_json = |"{ name }":{ r_json }|.
     ENDIF.
 
   ENDMETHOD.
 
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method Z_UI2_JSON2->RESTORE_TYPE_INT
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] READER                         TYPE REF TO IF_JSON_READER
+* | [--->] TYPE_DESCR                     TYPE REF TO CL_ABAP_TYPEDESCR(optional)
+* | [--->] FIELD_CACHE                    TYPE        T_T_FIELD_CACHE(optional)
+* | [--->] CONVEXIT                       TYPE        STRING(optional)
+* | [--->] TYPEKIND                       TYPE        ABAP_TYPEKIND(optional)
+* | [<-->] DATA                           TYPE        DATA(optional)
+* | [!CX!] CX_SY_MOVE_CAST_ERROR
+* | [!CX!] CX_SY_CONVERSION_NO_NUMBER
+* | [!CX!] CX_SY_CONVERSION_OVERFLOW
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD restore_type_int.
+
+    DATA: sdummy       TYPE string,
+          line         TYPE REF TO data,
+          key_ref      TYPE REF TO data,
+          data_ref     TYPE REF TO data,
+          key_value    TYPE string,
+          key_name     TYPE string,
+          lt_fields    LIKE field_cache,
+          ls_symbols   TYPE t_s_struct_cache_res,
+          lv_convexit  LIKE convexit,
+          lv_typekind  LIKE typekind,
+          lo_exp       TYPE REF TO cx_root,
+          table_descr  TYPE REF TO cl_abap_tabledescr,
+          struct_descr TYPE REF TO cl_abap_structdescr,
+          ref_descr    TYPE REF TO cl_abap_refdescr,
+          data_descr   TYPE REF TO cl_abap_datadescr,
+          array_index  TYPE i,
+          tstml        TYPE timestampl,
+          date         TYPE c LENGTH 8,
+          time         TYPE c LENGTH 6,
+          guid         TYPE c LENGTH 32.
+
+    FIELD-SYMBOLS: <line>      TYPE any,
+                   <value>     TYPE any,
+                   <data>      TYPE data,
+                   <field>     LIKE LINE OF lt_fields,
+                   <table>     TYPE ANY TABLE,
+                   <value_sym> TYPE t_s_symbol.
+
+    lv_convexit = convexit.
+    lv_typekind = typekind.
+
+    IF data IS SUPPLIED AND lv_typekind = e_typekind-json.
+      " raw JSON passthrough
+      IF reader->node-type = if_json_node=>string OR reader->node-type = if_json_node=>number OR reader->node-type = if_json_node=>boolean OR reader->node-type = if_json_node=>null.
+        data = reader->node-value.
+      ELSE.
+        data = lcl_util=>read_json_to_string( reader ).
+      ENDIF.
+      RETURN.
+    ENDIF.
+
+    CASE reader->node-type.
+
+      WHEN if_json_node=>open_object. " {
+
+        IF data IS SUPPLIED AND mv_assoc_arrays = c_bool-true AND type_descr->kind = cl_abap_typedescr=>kind_table.
+          table_descr ?= type_descr.
+          data_descr = table_descr->get_table_line_type( ).
+          IF table_descr->has_unique_key IS NOT INITIAL.
+            reader->next_node( ).
+            IF reader->node-type <> if_json_node=>close_object.
+              ASSIGN data TO <table>.
+              CLEAR <table>.
+              CREATE DATA line LIKE LINE OF <table>.
+              ASSIGN line->* TO <line>.
+              lt_fields = get_fields( type_descr = data_descr data = line ).
+              IF table_descr->key_defkind = table_descr->keydefkind_user AND lines( table_descr->key ) = 1.
+                READ TABLE table_descr->key INDEX 1 INTO key_name.
+                READ TABLE lt_fields WITH TABLE KEY name = key_name ASSIGNING <field>.
+                key_ref = <field>-value.
+                IF mv_assoc_arrays_opt = c_bool-true.
+                  struct_descr ?= data_descr.
+                  ls_symbols = get_symbols_struct( type_descr = struct_descr data = line ).
+                  DELETE ls_symbols-symbols WHERE name = key_name.
+                  IF lines( ls_symbols-symbols ) = 1.
+                    READ TABLE ls_symbols-symbols INDEX 1 ASSIGNING <value_sym>.
+                  ENDIF.
+                ENDIF.
+              ENDIF.
+              WHILE reader->node-type <> if_json_node=>close_object AND reader->node-type <> if_json_node=>final.
+                CLEAR <line>.
+                key_value = reader->node-name.
+                IF <value_sym> IS ASSIGNED.
+                  ASSIGN <value_sym>-value->* TO <value>.
+                  restore_type_int( EXPORTING reader     = reader
+                                              type_descr = <value_sym>-type
+                                              typekind   = <value_sym>-typekind
+                                              convexit   = <value_sym>-convexit_in
+                                    CHANGING  data       = <value> ).
+                ELSE.
+                  restore_type_int( EXPORTING reader      = reader
+                                              type_descr  = data_descr
+                                              typekind    = data_descr->type_kind
+                                              field_cache = lt_fields
+                                    CHANGING  data        = <line> ).
+                ENDIF.
+                IF table_descr->key_defkind = table_descr->keydefkind_user.
+                  IF key_ref IS BOUND.
+                    ASSIGN key_ref->* TO <value>.
+                    IF <value> IS INITIAL.
+                      <value> = key_value.
+                    ENDIF.
+                  ENDIF.
+                ELSEIF <line> IS INITIAL.
+                  <line> = key_value.
+                ENDIF.
+                INSERT <line> INTO TABLE <table>.
+                reader->next_node( ).
+              ENDWHILE.
+            ELSE.
+              CLEAR data.
+            ENDIF.
+          ELSE.
+            restore( EXPORTING reader = reader CHANGING data = data ).
+          ENDIF.
+
+        ELSEIF data IS SUPPLIED AND type_descr->type_kind = cl_abap_typedescr=>typekind_dref.
+          IF data IS INITIAL.
+            ref_descr ?= type_descr.
+            data_descr ?= ref_descr->get_referenced_type( ).
+            IF data_descr->type_kind = data_descr->typekind_data. " REF TO DATA
+              generate_int_r( EXPORTING reader = reader CHANGING data = data ).
+              RETURN.
+            ELSEIF data_descr->kind <> data_descr->kind_elem.
+              CREATE DATA data TYPE HANDLE data_descr.
+              data_ref ?= data.
+              ASSIGN data_ref->* TO <data>.
+              restore( EXPORTING reader     = reader
+                                 type_descr = data_descr
+                       CHANGING  data       = <data> ).
+            ELSE. " primitive typed ref — skip object, can't deserialize
+              reader->skip_node( ).
+            ENDIF.
+          ELSE.
+            data_ref ?= data.
+            type_descr = cl_abap_typedescr=>describe_by_data_ref( data_ref ).
+            ASSIGN data_ref->* TO <data>.
+            restore_type_int( EXPORTING reader = reader type_descr = type_descr typekind = type_descr->type_kind CHANGING data = <data> ).
+          ENDIF.
+
+        ELSEIF data IS SUPPLIED.
+          restore( EXPORTING reader      = reader
+                             type_descr  = type_descr
+                             field_cache = field_cache
+                   CHANGING  data        = data ).
+        ELSE.
+          restore( EXPORTING reader = reader CHANGING data = data ).
+        ENDIF.
+
+      WHEN if_json_node=>open_array. " [
+
+        IF data IS SUPPLIED AND type_descr->type_kind = cl_abap_typedescr=>typekind_dref.
+          IF data IS INITIAL.
+            ref_descr ?= type_descr.
+            data_descr ?= ref_descr->get_referenced_type( ).
+            IF data_descr->type_kind = data_descr->typekind_data. " REF TO DATA
+              generate_int_r( EXPORTING reader = reader CHANGING data = data ).
+              RETURN.
+            ELSEIF data_descr->kind = data_descr->kind_table. " deserialize in typed table
+              CREATE DATA data TYPE HANDLE data_descr.
+              data_ref ?= data.
+              ASSIGN data_ref->* TO <data>.
+              restore_type_int( EXPORTING reader = reader type_descr = data_descr typekind = data_descr->type_kind CHANGING data = <data> ).
+            ELSE. " invalid type - skip
+              reader->skip_node( ).
+            ENDIF.
+          ELSE.
+            data_ref ?= data.
+            type_descr = cl_abap_typedescr=>describe_by_data_ref( data_ref ).
+            ASSIGN data_ref->* TO <data>.
+            restore_type_int( EXPORTING reader = reader type_descr = type_descr typekind = type_descr->type_kind CHANGING data = <data> ).
+          ENDIF.
+
+        ELSE.
+          reader->next_node( ).
+          IF reader->node-type <> if_json_node=>close_array.
+            IF data IS SUPPLIED AND type_descr->kind = cl_abap_typedescr=>kind_table.
+              table_descr ?= type_descr.
+              data_descr = table_descr->get_table_line_type( ).
+              ASSIGN data TO <table>.
+              CLEAR <table>.
+              CREATE DATA line LIKE LINE OF <table>.
+              ASSIGN line->* TO <line>.
+              lt_fields = get_fields( type_descr = data_descr data = line ).
+              array_index = 0.
+              WHILE reader->node-type <> if_json_node=>close_array AND reader->node-type <> if_json_node=>final.
+                array_index = array_index + 1.
+                CLEAR <line>.
+                TRY.
+                    restore_type_int( EXPORTING reader      = reader
+                                                type_descr  = data_descr
+                                                typekind    = data_descr->type_kind
+                                                field_cache = lt_fields
+                                      CHANGING  data        = <line> ).
+                    INSERT <line> INTO TABLE <table>.
+                    reader->next_node( ).
+                  CATCH cx_sy_move_cast_error INTO DATA(lx_arr_move).
+                    IF mv_strict_mode = abap_true.
+                      DATA(lv_arr_src) = |[{ array_index }]|.
+                      IF lx_arr_move->source_typename IS NOT INITIAL.
+                        IF lx_arr_move->source_typename(1) <> `[`.
+                          lv_arr_src = lv_arr_src && `.` && lx_arr_move->source_typename.
+                        ELSE.
+                          lv_arr_src = lv_arr_src && lx_arr_move->source_typename.
+                        ENDIF.
+                      ENDIF.
+                      RAISE EXCEPTION TYPE cx_sy_move_cast_error
+                        EXPORTING
+                          previous        = lx_arr_move
+                          source_typename = lv_arr_src
+                          target_typename = lx_arr_move->target_typename.
+                    ELSE.
+                      CLEAR <line>.
+                      INSERT <line> INTO TABLE <table>.
+                      reader->next_node( ).
+                    ENDIF.
+                  CATCH cx_root INTO DATA(lx_arr_parse) ##CATCH_ALL.
+                    IF mv_strict_mode = abap_true.
+                      RAISE EXCEPTION TYPE cx_sy_move_cast_error
+                        EXPORTING
+                          previous        = lx_arr_parse
+                          source_typename = |[{ array_index + 1 }]|
+                          target_typename = lcl_util=>describe_type( data_descr ).
+                    ELSE.
+                      CLEAR <line>.
+                      INSERT <line> INTO TABLE <table>.
+                      reader->next_node( ).
+                    ENDIF.
+                ENDTRY.
+              ENDWHILE.
+            ELSE.
+              " skip array - consume all elements
+              WHILE reader->node-type <> if_json_node=>close_array AND reader->node-type <> if_json_node=>final.
+                reader->skip_node( ).
+                reader->next_node( ).
+              ENDWHILE.
+              IF data IS SUPPLIED. " JSON to ABAP type mismatch
+                RAISE EXCEPTION TYPE cx_sy_move_cast_error.
+              ENDIF.
+            ENDIF.
+          ELSEIF data IS SUPPLIED.
+            CLEAR data.
+          ENDIF.
+        ENDIF.
+
+      WHEN if_json_node=>string. " "value"
+
+        sdummy = reader->node-value.
+
+        IF data IS NOT SUPPLIED.
+          " just skip - sdummy consumed
+        ELSEIF type_descr->type_kind = cl_abap_typedescr=>typekind_dref.
+          restore_dref reader data type_descr.
+        ELSEIF type_descr->kind = cl_abap_typedescr=>kind_elem.
+
+          IF lv_convexit IS NOT INITIAL.
+            restore_convexit lv_convexit sdummy data.
+          ENDIF.
+
+          CASE lv_typekind.
+            WHEN e_typekind-bool OR e_typekind-tribool.
+              IF sdummy(1) CA 'XxTt1'.
+                data = c_bool-true.
+              ELSE.
+                data = c_bool-false.
+              ENDIF.
+              RETURN.
+            WHEN e_typekind-xstring.
+              IF mv_hex_as_base64 IS INITIAL.
+                MOVE sdummy TO data.
+              ELSE.
+                data = cl_http_utility=>decode_x_base64( sdummy ).
+              ENDIF.
+              RETURN.
+            WHEN e_typekind-hex.
+              FIND FIRST OCCURRENCE OF REGEX lcl_util=>so_regex_guid IN sdummy SUBMATCHES guid guid+8 guid+12 guid+16 guid+20.
+              IF sy-subrc = 0.
+                TRANSLATE guid TO UPPER CASE.
+                data = guid.
+              ELSE.
+                IF mv_hex_as_base64 IS INITIAL.
+                  MOVE sdummy TO data.
+                ELSE.
+                  data = cl_http_utility=>decode_x_base64( sdummy ).
+                ENDIF.
+              ENDIF.
+              RETURN.
+            WHEN e_typekind-date.
+              FIND FIRST OCCURRENCE OF REGEX lcl_util=>so_regex_date IN sdummy SUBMATCHES date date+4 date+6.
+              IF sy-subrc = 0.
+                data = date.
+                RETURN.
+              ELSE.
+                read_timestamp sdummy tstml.
+                IF tstml IS NOT INITIAL.
+                  CONVERT TIME STAMP tstml TIME ZONE mv_time_zone INTO DATE data.
+                  RETURN.
+                ELSE.
+                  REPLACE FIRST OCCURRENCE OF REGEX lcl_util=>so_regex_edm_time IN sdummy WITH '$1$2$3' REPLACEMENT LENGTH DATA(lv_match).
+                  IF sy-subrc = 0.
+                    sdummy = sdummy(lv_match).
+                  ENDIF.
+                ENDIF.
+              ENDIF.
+            WHEN e_typekind-time.
+              FIND FIRST OCCURRENCE OF REGEX lcl_util=>so_regex_time IN sdummy SUBMATCHES time time+2 time+4.
+              IF sy-subrc = 0.
+                data = time.
+                RETURN.
+              ELSE.
+                read_timestamp sdummy tstml.
+                IF tstml IS NOT INITIAL.
+                  CONVERT TIME STAMP tstml TIME ZONE mv_time_zone INTO TIME data.
+                  RETURN.
+                ELSE.
+                  REPLACE FIRST OCCURRENCE OF REGEX lcl_util=>so_regex_edm_time IN sdummy WITH '$4$5$6' REPLACEMENT LENGTH lv_match.
+                  IF sy-subrc = 0.
+                    sdummy = sdummy(lv_match).
+                  ENDIF.
+                ENDIF.
+              ENDIF.
+            WHEN e_typekind-utclong.
+              read_timestamp sdummy tstml.
+              IF tstml IS NOT INITIAL.
+                TRY.
+                    data = cl_abap_tstmp=>tstmp2utclong( timestamp = tstml ).
+                    RETURN.
+                  CATCH cx_sy_dyn_call_error.
+                    RAISE EXCEPTION TYPE cx_sy_move_cast_error.
+                ENDTRY.
+              ELSE.
+                RAISE EXCEPTION TYPE cx_sy_move_cast_error.
+              ENDIF.
+            WHEN e_typekind-ts_iso8601 OR e_typekind-tsl_iso8601.
+              read_timestamp sdummy tstml.
+              IF tstml IS INITIAL.
+                REPLACE FIRST OCCURRENCE OF REGEX lcl_util=>so_regex_edm_time IN sdummy WITH '$1$2$3$4$5$6.$7' REPLACEMENT LENGTH lv_match.
+                IF sy-subrc = 0.
+                  tstml = sdummy(lv_match).
+                ENDIF.
+              ENDIF.
+              IF tstml IS NOT INITIAL.
+                data = tstml.
+                IF type_descr->decimals = 0.
+                  data = trunc( tstml ).
+                ENDIF.
+                RETURN.
+              ENDIF.
+            WHEN e_typekind-enum.
+              TRY.
+                  cl_abap_xsd=>to_value(
+                    EXPORTING
+                      cs  = sdummy
+                    CHANGING
+                      val = data ).
+                  RETURN.
+                CATCH cx_sy_dyn_call_error.
+                  RAISE EXCEPTION TYPE cx_sy_move_cast_error. " Deserialization of enums is not supported
+              ENDTRY.
+          ENDCASE.
+        ELSE.
+          RAISE EXCEPTION TYPE cx_sy_move_cast_error. " Otherwise dumps with OBJECTS_MOVE_NOT_SUPPORTED
+        ENDIF.
+        TRY.
+            data = sdummy.
+          CATCH cx_sy_move_cast_error cx_sy_conversion_no_number cx_sy_conversion_overflow INTO lo_exp.
+            CLEAR data.
+            IF mv_strict_mode = abap_true.
+              RAISE EXCEPTION TYPE cx_sy_move_cast_error EXPORTING previous = lo_exp.
+            ENDIF.
+        ENDTRY.
+
+      WHEN if_json_node=>number. " numeric value
+
+        sdummy = reader->node-value.
+
+        IF data IS NOT SUPPLIED.
+          " skip
+        ELSEIF type_descr->type_kind = cl_abap_typedescr=>typekind_dref.
+          restore_dref reader data type_descr.
+        ELSEIF type_descr->kind = type_descr->kind_elem.
+          IF lv_convexit IS NOT INITIAL.
+            restore_convexit lv_convexit sdummy data.
+          ENDIF.
+          TRY.
+              data = sdummy.
+            CATCH cx_sy_move_cast_error cx_sy_conversion_no_number cx_sy_conversion_overflow INTO lo_exp.
+              CLEAR data.
+              IF mv_strict_mode = abap_true.
+                RAISE EXCEPTION TYPE cx_sy_move_cast_error EXPORTING previous = lo_exp.
+              ENDIF.
+          ENDTRY.
+        ELSE.
+          RAISE EXCEPTION TYPE cx_sy_move_cast_error.
+        ENDIF.
+
+      WHEN if_json_node=>boolean. " true / false
+
+        IF data IS SUPPLIED.
+          IF type_descr->type_kind = cl_abap_typedescr=>typekind_dref.
+            IF reader->node-value = 'null'.
+              CLEAR data.
+            ELSE.
+              restore_dref reader data type_descr.
+            ENDIF.
+          ELSEIF type_descr->kind = type_descr->kind_elem.
+            IF reader->node-value = `true` ##NO_TEXT.
+              data = c_bool-true.
+            ELSEIF reader->node-value = `false` ##NO_TEXT.
+              IF mv_bool_3state CS type_descr->absolute_name.
+                data = c_tribool-false.
+              ELSE.
+                data = c_bool-false.
+              ENDIF.
+            ELSE. " null
+              CLEAR data.
+            ENDIF.
+          ELSE.
+            IF reader->node-value = 'null'.
+              CLEAR data.
+            ELSE.
+              RAISE EXCEPTION TYPE cx_sy_move_cast_error.
+            ENDIF.
+          ENDIF.
+        ENDIF.
+
+      WHEN if_json_node=>null. " null
+
+        IF data IS SUPPLIED.
+          CLEAR data.
+        ENDIF.
+
+      WHEN OTHERS.
+        " error / final node — skip
+        IF data IS SUPPLIED AND mv_strict_mode = abap_true.
+          RAISE EXCEPTION TYPE cx_sy_move_cast_error.
+        ENDIF.
+
+    ENDCASE.
+
+  ENDMETHOD.
 ENDCLASS.

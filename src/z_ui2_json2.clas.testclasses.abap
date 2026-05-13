@@ -1,10 +1,10 @@
 
 CLASS abap_unit_testclass DEFINITION FOR TESTING FINAL "#AU Duration Medium
   "#AU Risk_Level Harmless
-INHERITING FROM Z_UI2_JSON2.
+INHERITING FROM z_ui2_json2.
   PRIVATE SECTION.
 
-    TYPES t_json TYPE REF TO Z_UI2_JSON2.
+    TYPES t_json TYPE REF TO z_ui2_json2.
 
     CONSTANTS crlf TYPE string VALUE cl_abap_char_utilities=>cr_lf. "#EC NOTEXT
 
@@ -278,7 +278,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     "+"2016-07-08
     "+"T12:34:56Z
     "+"T09:30Z
-    "+"T0930Z
+                                                            "+"T0930Z
     "+"T14:45:15Z
     "+"2023-03-08T00:00:00
 
@@ -374,7 +374,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     DATA: ls_test_act LIKE ls_test.
 
     lv_act = `{ "Date":"2023-03-08T00:00:00", "date2":"2016-09-26 00:00", "ts":"20151002134450.5545900", "p1":"50", "p2":"-10", "p3":"+05", "p4":"-10.00" }`.
-    deserialize( EXPORTING json = lv_act CHANGING  data = ls_test_act ).
+    deserialize( EXPORTING json = lv_act CHANGING data = ls_test_act ).
 
     cl_aunit_assert=>assert_equals( act = ls_test_act exp = ls_test msg = 'Negative test for deserialization of ISO8601 fails' ).
 
@@ -1007,7 +1007,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     deserialize( EXPORTING json = json CHANGING data = user ).
 
-    cl_aunit_assert=>assert_equals( act = user-username exp = 'sap'  msg = 'Deserialization of wrong JSON object fails' ).
+    cl_aunit_assert=>assert_equals( act = user-username exp = 'sap' msg = 'Deserialization of wrong JSON object fails' ).
     cl_aunit_assert=>assert_equals( act = user-password exp = 123456 msg = 'Deserialization of wrong JSON object fails' ).
 
     CLEAR: user.
@@ -1693,7 +1693,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
           lv_data  TYPE string.
 
     lv_data = '{"id":1,"children":[{"id":2,"children":[]}]}'.
-    deserialize( EXPORTING json = lv_data CHANGING data =  lo_data ).
+    deserialize( EXPORTING json = lv_data CHANGING data = lo_data ).
 
     cl_aunit_assert=>assert_not_initial( act = lo_data msg = 'Deserialization of simple recursive object fails' ).
 
@@ -1974,8 +1974,9 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     lv_json = '{"id":"21321546","objType":"ABC","objName":"XXX","sourceObject":{"path":"/path/to/","source":"hell.js","sourceLength":256},"test":true}'.
 
-    deserialize( EXPORTING json = lv_json pretty_name = pretty_mode-camel_case
-                               CHANGING data = ls_act ).
+    deserialize( EXPORTING json        = lv_json
+                           pretty_name = pretty_mode-camel_case
+                 CHANGING  data        = ls_act ).
 
     cl_aunit_assert=>assert_equals( act = ls_act exp = ls_exp msg = 'Deserialisation with alias fails!' ).
 
@@ -2016,16 +2017,20 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     lv_act = serialize( data = lt_exp assoc_arrays = abap_true assoc_arrays_opt = abap_true ).
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Name/Value map serialization fails!' ).
 
-    deserialize( EXPORTING json = lv_act assoc_arrays = abap_true assoc_arrays_opt = abap_true
-                               CHANGING  data = lt_act ).
+    deserialize( EXPORTING json             = lv_act
+                           assoc_arrays     = abap_true
+                           assoc_arrays_opt = abap_true
+                 CHANGING  data             = lt_act ).
     cl_aunit_assert=>assert_equals( act = lt_act exp = lt_exp msg = 'Name/Value map deserialization fails!' ).
 
     lv_exp = '{"KEY1":{"KEY":"KEY1","VALUE":"VALUE1"},"KEY2":{"KEY":"KEY2","VALUE":"VALUE2"}}'.
     lv_act = serialize( data = lt_exp2 assoc_arrays = abap_true assoc_arrays_opt = abap_true ).
     cl_aunit_assert=>assert_equals( act = lv_act exp = lv_exp msg = 'Name/Value map serialization fails!' ).
 
-    deserialize( EXPORTING json = lv_act assoc_arrays = abap_true assoc_arrays_opt = abap_true
-                               CHANGING  data = lt_exp2 ).
+    deserialize( EXPORTING json             = lv_act
+                           assoc_arrays     = abap_true
+                           assoc_arrays_opt = abap_true
+                 CHANGING  data             = lt_exp2 ).
     cl_aunit_assert=>assert_equals( act = lt_exp2 exp = lt_exp2 msg = 'Name/Value map deserialization fails!' ).
 
   ENDMETHOD.                    "name_value_map
@@ -2089,9 +2094,9 @@ CLASS abap_unit_testclass IMPLEMENTATION.
                 `"BO-CUAN_INTERACTION_CONTACT/IC_TEAM_MEMBER/SEARCH/QUAL","BO-CUAN_INTERACTION_CONTACT/IC_TEAM_MEMBER/SEARCH/SUPP"]`
     INTO lv_json.
 
-    deserialize( EXPORTING json         = lv_json
-                                         pretty_name  = pretty_mode-camel_case
-                               CHANGING  data         = lt_attributes  ).
+    deserialize( EXPORTING json        = lv_json
+                           pretty_name = pretty_mode-camel_case
+                 CHANGING  data        = lt_attributes ).
 
     lv_lines = lines( lt_attributes ).
 
@@ -2633,7 +2638,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
           END OF target_tab.
 
     lv_json = `{"tab":[{"field":1}],"abstract":[{"field":1}],"invalid":[{"field":1}]}`.
-    deserialize( EXPORTING json = lv_json CHANGING  data = target_tab ).
+    deserialize( EXPORTING json = lv_json CHANGING data = target_tab ).
     cl_aunit_assert=>assert_not_initial( act = target_tab-tab msg = 'Generation of defined table fails!' ).
     cl_aunit_assert=>assert_not_initial( act = target_tab-abstract msg = 'Generation of abstract table fails!' ).
     cl_aunit_assert=>assert_initial( act = target_tab-invalid msg = 'Generation of invalid type into table fails!' ).
@@ -2645,7 +2650,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
           END OF target_struct.
 
     lv_json = `{"substruct":{"field":1},"abstract":{"field":1},"invalid":{"field":1}}`.
-    deserialize( EXPORTING json = lv_json CHANGING  data = target_struct ).
+    deserialize( EXPORTING json = lv_json CHANGING data = target_struct ).
     cl_aunit_assert=>assert_not_initial( act = target_struct-substruct msg = 'Generation of defined structure fails!' ).
     cl_aunit_assert=>assert_not_initial( act = target_struct-abstract msg = 'Generation of abstract structure fails!' ).
     cl_aunit_assert=>assert_initial( act = target_struct-invalid msg = 'Generation of invalid type into structure fails!' ).
@@ -2777,13 +2782,13 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     GET REFERENCE OF dref1 INTO  dref2.
 
     lv_json = abap_to_json_simple_transform( dref1 ).
-    lv_json = serialize(  data             = dref1
-                          pretty_name      = pretty_mode-low_case
-                          compress         = abap_false
-                          hex_as_base64    = abap_false
-                          format_output    = abap_true
-                          assoc_arrays     = abap_true
-                          assoc_arrays_opt = abap_true ).
+    lv_json = serialize( data             = dref1
+                         pretty_name      = pretty_mode-low_case
+                         compress         = abap_false
+                         hex_as_base64    = abap_false
+                         format_output    = abap_true
+                         assoc_arrays     = abap_true
+                         assoc_arrays_opt = abap_true ).
 
   ENDMETHOD.                    "serialize_cycle_reference
 
@@ -3050,14 +3055,14 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     lv_act = serialize( ts_as_iso8601 = abap_true data = lv_xsd_tms ).
     cl_abap_unit_assert=>assert_equals( exp = '"1937-01-01T12:00:27Z"' act = lv_act ).
 
-    deserialize( EXPORTING  json = '"1937-01-01T12:00:27"' CHANGING data = lv_xsd_tms ).
+    deserialize( EXPORTING json = '"1937-01-01T12:00:27"' CHANGING data = lv_xsd_tms ).
     cl_abap_unit_assert=>assert_equals( exp = '19370101120027' act = lv_xsd_tms ).
 
     lv_xsd_tms2 = '19370101120027' ##LITERAL.
     lv_act = serialize( ts_as_iso8601 = abap_true data = lv_xsd_tms2 ).
     cl_abap_unit_assert=>assert_equals( exp = '"1937-01-01T12:00:27Z"' act = lv_act ).
 
-    deserialize( EXPORTING  json = '"1937-01-01T12:00:27"' CHANGING data = lv_xsd_tms2 ).
+    deserialize( EXPORTING json = '"1937-01-01T12:00:27"' CHANGING data = lv_xsd_tms2 ).
     cl_abap_unit_assert=>assert_equals( exp = '19370101120027' act = lv_xsd_tms2 ).
 
   ENDMETHOD.
