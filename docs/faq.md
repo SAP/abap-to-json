@@ -31,7 +31,7 @@ Other kernel-based JSON parsing implementations are:
 * IF_JSON_READER/IF_JSON_WRITER (available from SAP_BASIS 7.57; used by [Z_UI2_JSON2](z_ui2_json2.md))
 It will parse any JSON in the kernel. But getting it mapped into ABAP data is another story.
 
-If you ask, why can the ** CALL TRANSFORMATION id ** do it fast with asJSON, but not with ANY JSON, here is the answer:
+If you ask, why can the **CALL TRANSFORMATION id** do it fast with asJSON, but not with ANY JSON, here is the answer:
 
 CALL TRANSFORMATION is executed in the kernel (Core). And yes, it knows ABAP data, in some way, and can even create data (add new lines to known tables), but can not generate ABAP types (structures). And it is extremely fast, compared to implementations of IF_JSON_READER or IF_SXML_READER, because it does not have multiple callbacks from the kernel to ABAP runtime. At the same time, it is not flexible because of the simplification and normalization. ABAP is not JavaScript. ABAP is not case sensitive - you need to support different name conversion rules from JS to ABAP. It has a limit on the component name length, but JSON does not. ABAP does not have a built-in boolean (already has, but this does not help with old code)  - JSON has. ABAP has conversion exits. ABAP has much more complex data type support compared to JSON (different numerics, different types of tables, date+time+timestamp), and for all these, you need bidirectional conversion. It all costs performance. If you ask for customization of the conversion (and it will be asked), it will also affect performance. And at the end, you will not be much faster than a good implementation on top of IF_JSON_READER/IF_JSON_WRITER.
 
