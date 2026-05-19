@@ -19,7 +19,7 @@ For simplicity, the class provides static SERIALIZE/DESERIALIZE methods that can
  * \> **PRETTY_NAME** (PRETTY_NAME_MODE, default = PRETTY_MODE-NONE) - Pretty Print property names
  * \> **ASSOC_ARRAYS** (bool, default = false) - C_BOOL-FALSE	Serialize tables with unique keys as associative array
  * \> **TS_AS_ISO8601** (bool, default = false) - C_BOOL-FALSE	Dump timestamps as string in ISO8601 format
- * \> **EXPAND_INCLUDES** (bool, default = true) - Expand named includes in structures
+ * \> **EXPAND_INCLUDES** (bool, default = true) - Controls how ABAP named includes (`INCLUDE ... AS name`) are rendered. When true (default), include fields are inlined into the parent object. When false, each named include becomes a nested JSON sub-object under its alias name.
  * \> **ASSOC_ARRAYS_OPT** (bool, default = false) - Optimize rendering of name-value maps
   * \> **NUMC_AS_STRING** (bool, default = false) - Serialize NUMC fields as strings
  * \> **NAME_MAPPINGS** (optional) - ABAP<->JSON Name Mapping Table
@@ -35,7 +35,7 @@ For simplicity, the class provides static SERIALIZE/DESERIALIZE methods that can
  * \> **INITIAL_TS** (string, default = "") - Initial timestamp as JSON
  * \> **INITIAL_DATE** (string, default = "") -	Initial date as JSON
  * \> **INITIAL_TIME** (string, default = "") Initial time as JSON
- * \> **TIME_ZONE	Like** (string, default = UTC) - default time zone for conversion to date and time
+ * \> **TIME_ZONE** (like SY-ZONLO, default = 'UTC') - Default time zone used when converting timestamps to date and time during deserialization
   
 # Custom ABAP to JSON, JSON to ABAP name mapping
 By default, you control how JSON names are formatted/mapped to ABAP names by selecting the proper pretty_mode as a parameter for the SERIALIZE/DESERIALIZE/GENERATE method. But sometimes, the standard, hard-coded formatting is not enough. For example, you need special rules for name formatting (for using special characters) or because the JSON attribute name is too long and can't be mapped to the ABAP name (which has a 30-character length limit). 
@@ -70,6 +70,35 @@ In such cases, you have the following options:
 1. Extend the class and overwrite the method DUMP_TYPE. You can check an example in the section [class extension](class-extension.md).
 2. Add conversion exits for your custom type and apply formatting as part of the conversion exit.
 3. Create an alternative structure, with your custom types replaced by supported types, only for serialization, and the move of data before the serialization.
+
+## CONVERSION_EXITS example
+When `CONVERSION_EXITS = abap_true` is set, the serializer calls the DDIC output conversion exit for each field that has one defined. For example, a field typed as `CATSTSDATE` has the `DATS` conversion exit, which formats the raw internal date `20160708` as `07/08/2016` in the external display format.
+
+```abap
+TYPES:
+  BEGIN OF ts_data,
+    date_raw  TYPE dats,       " no conversion exit -> raw "20160708"
+    date_fmt  TYPE catstsdate, " has conversion exit -> formatted "07/08/2016"
+  END OF ts_data.
+
+DATA: ls_data TYPE ts_data,
+      lv_json TYPE /ui2/cl_json=>json.
+
+ls_data-date_raw = ls_data-date_fmt = '20160708'.
+
+" Without conversion exits (default)
+lv_json = /ui2/cl_json=>serialize( data = ls_data ).
+" -> {"DATE_RAW":"2016-07-08","DATE_FMT":"20160708"}
+
+" With conversion exits
+lv_json = /ui2/cl_json=>serialize( data = ls_data conversion_exits = abap_true ).
+" -> {"DATE_RAW":"2016-07-08","DATE_FMT":"07/08/2016"}
+
+" Deserialize with conversion exits to convert back from external to internal format
+/ui2/cl_json=>deserialize( EXPORTING json = lv_json conversion_exits = abap_true CHANGING data = ls_data ).
+```
+
+> **Note**: Conversion exits apply only to fields that have one defined in the DDIC. Using `CONVERSION_EXITS = abap_true` causes RTTI lookups on every field and can significantly reduce performance — enable only when needed.
 
 # Serialization/deserialization of hierarchical/recursive data
 
@@ -238,6 +267,24 @@ Suppose you need to deserialize a JSON object with an unknown structure, or you 
 * You can not control how deserialized arrays or timestamps are
 * You can not access components of the generated structure statically (while the structure is unknown at compile time) and need to use dynamic access
 * You need to accept the default logic for type detection. Supported types are int, float, packaged, strings, boolean, date, time, and timestamps.
+
+## Simple GENERATE example
+```abap
+DATA: lr_data TYPE REF TO data,
+      lv_str  TYPE string,
+      lv_int  TYPE i.
+
+lr_data = /ui2/cl_json=>generate( json = `{"name":"Alice","age":30,"active":true}` ).
+
+" Access fields with Z_UI2_DATA_ACCESS (or /UI2/CL_DATA_ACCESS)
+/ui2/cl_data_access=>create( ir_data = lr_data iv_component = `NAME` )->value( IMPORTING ev_data = lv_str ).
+WRITE: lv_str.   " -> Alice
+
+/ui2/cl_data_access=>create( ir_data = lr_data iv_component = `AGE` )->value( IMPORTING ev_data = lv_int ).
+WRITE: lv_int.   " -> 30
+```
+
+Type detection rules: JSON strings that match `YYYY-MM-DD` → `D`, `HH:MM:SS` → `T`, ISO 8601 timestamps → `TIMESTAMPL`, JSON integers → `I`, floats → `F`, booleans → `ABAP_BOOL`. Everything else → `STRING`.
 
 The simplest example, with straightforward access:
 ```abap

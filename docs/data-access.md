@@ -1,5 +1,7 @@
 # Dynamic Data Accessor Helper Class for ABAP
 
+> **Class names**: The SAP-delivered class is `/UI2/CL_DATA_ACCESS`. The open-source Z* copy in this repository is `Z_UI2_DATA_ACCESS`. All code examples on this page use the `/UI2/CL_DATA_ACCESS` name — substitute `Z_UI2_DATA_ACCESS` if you are working with the local copy.
+
 # Why
 Sometimes you need to access [ABAP data objects dynamically](https://help.sap.com/http.svc/rc/abapdocu_751_index_htm/7.51/en-US/abendyn_access_data_obj_guidl.htm). For example, when:
 * You do not know the structure of the ABAP object, and to dynamically access the value of the field, you are forced to use ASSIGN .. COMPONENT with a field symbol
@@ -49,7 +51,7 @@ ENDIF.
 
 And if one thinks about accessing dynamically elements from nested tables, it would be at all - hell.
 So, below one can find a helper class, which may help in such cases, in a lean and tasty way.  
-An original and actual version of the source can be found in class /UI2/CL_DATA_ACCESS delivered with UI2 Add-on (can be applied to SAP_BASIS 700 – 76X). So, you can use this ABAP JSON parser in your standard code, mostly on any system. Delivered with a note [2526405](https://help.sap.com/http.svc/rc/abapdocu_751_index_htm/7.51/en-US/abendyn_access_data_obj_guidl.htm). 
+An original and actual version of the source can be found in class `/UI2/CL_DATA_ACCESS` delivered with the UI2 Add-on. The open-source Z* copy (`Z_UI2_DATA_ACCESS`) is in this repository. Chained method calls (`->at(...)-> at(...)`) require SAP_BASIS 7.02 or higher. Delivered with note [2526405](https://launchpad.support.sap.com/#/notes/2526405).
 
 # What it can
 The accessor is a single class, with the following features:
@@ -115,7 +117,7 @@ Simplest usage example:
 ```abap
 CREATE OBJECT lo_data EXPORTING ir_data = lr_data.
 
-" standard way (does not work on SAP_BASIS 700)
+" chained method calls (requires SAP_BASIS 7.02+)
 lr_ref = lo_data->at(`PROPS`)->at(`id`)->ref( ).
 IF lr_ref IS BOUND.
   ASSIGN lr_ref->* TO <data>.
@@ -190,6 +192,85 @@ WRITE: lv_value.
 WRITE: lv_value.
 ```
 
+### Fields with special characters in names
+Component names containing `/`, `:`, or other special characters work fine — pass the name exactly as it appears in the ABAP structure:
+```abap
+DATA: ls_data TYPE t_example,
+      lv_year TYPE i,
+      lo_data TYPE REF TO /ui2/cl_data_access.
+
+ls_data-/bic/z_year = 1978.
+GET REFERENCE OF ls_data INTO lr_data.
+
+/ui2/cl_data_access=>create( ir_data = lr_data iv_component = `/BIC/Z_YEAR` )->value( IMPORTING ev_data = lv_year ).
+WRITE: lv_year.   " -> 1978
+```
+
+### Counting table rows
+```abap
+DATA: lo_acc  TYPE REF TO /ui2/cl_data_access,
+      lv_cnt  TYPE i.
+
+lo_acc = /ui2/cl_data_access=>create( iv_data = ls_data iv_component = `params` ).
+lv_cnt = lo_acc->count( ).
+WRITE: lv_cnt.   " -> number of rows in ls_data-params
+```
+
+### VALUE with a default
+When the accessor is not bound (component not found), `VALUE` returns initial by default. Pass `IV_DEFAULT` to get a fallback value instead:
+```abap
+DATA: lv_val TYPE string.
+/ui2/cl_data_access=>create( iv_data = ls_data iv_component = `params[name=MISSING]-value` )
+  ->value( EXPORTING iv_default = `(not found)` IMPORTING ev_data = lv_val ).
+WRITE: lv_val.   " -> (not found)
+```
+
+### Robustness: accessing non-existent paths
+The accessor never dumps — accessing a missing component at any depth returns an unbound accessor:
+```abap
+DATA: lv_int TYPE i.
+/ui2/cl_data_access=>create( iv_data = ls_data
+  iv_component = `props-properties-no_such_field-deep-deeper` )
+  ->value( IMPORTING ev_data = lv_int ).
+WRITE: lv_int.   " -> 0  (initial, no exception)
+```
+
+### Iterating table rows dynamically
+When you already have an accessor pointing at a table, call `at('[index]-field')` directly on it in a loop — no need to re-resolve from the root each time:
+```abap
+DATA: lr_data TYPE REF TO data,
+      lo_acc  TYPE REF TO /ui2/cl_data_access,
+      lo_rows TYPE REF TO /ui2/cl_data_access,
+      lv_key  TYPE string,
+      lv_val  TYPE string.
+
+lr_data = /ui2/cl_json=>generate( json = `{"items":[{"id":"A"},{"id":"B"},{"id":"C"}]}` ).
+lo_acc  = /ui2/cl_data_access=>create( ir_data = lr_data ).
+lo_rows = lo_acc->at( `items` ).          " accessor points at the array
+
+DO 3 TIMES.
+  lv_key = |[{ sy-index }]-id|.           " e.g. "[1]-id"
+  lv_val = ``.
+  lo_rows->at( lv_key )->value( IMPORTING ev_data = lv_val ).
+  WRITE: / lv_val.                        " -> A, B, C
+ENDDO.
+```
+
+### End-to-end: generate from JSON then navigate
+Combining `Z_UI2_JSON=>GENERATE` (or `/UI2/CL_JSON=>GENERATE`) with the data accessor is the recommended way to work with unknown JSON structures:
+```abap
+DATA: lr_data TYPE REF TO data,
+      lv_val  TYPE string.
+
+lr_data = /ui2/cl_json=>generate(
+  json       = `{"type":"UPDATE","org":{"duns":"429773946"}}`
+  pretty_name = /ui2/cl_json=>pretty_mode-camel_case ).
+
+/ui2/cl_data_access=>create( ir_data = lr_data iv_component = `ORG-DUNS` )
+  ->value( IMPORTING ev_data = lv_val ).
+WRITE: lv_val.   " -> 429773946
+```
+
 # API description 
 
 ## CREATE - Static Method Public Helper method for creating an instance of a dynamic accessor
@@ -199,11 +280,11 @@ WRITE: lv_value.
 *	\< RO_REF (ref to /ui2/cl_data_access) - Reference to accessor object pointing to subcomponent
 
 ## CONSTRUCTOR   - Instance Method Public Constructor
-*	\> IR_DATA (ref to data) - Importing Type Ref To DATA Reference to data (allows modification of embedded data)
-*	\> IV_DATA (data) - any data (modification of embedded data not allowed)
+*	\> IR_DATA (ref to data, optional) - Reference to data. The reference is automatically dereferenced if it points to another reference. Use this form when you need `SET`/`REF` to modify the original variable.
+*	\> IV_DATA (data, optional) - Data passed by value. Modification of the original variable through `SET` is **not** possible with this form — use `IR_DATA` instead.
 
 ## AT  - Instance Method Public Component accessor
-*	\> IV_COMPONENT (string) - Sub-component name (XPath-like syntax is supported)
+*	\> IV_COMPONENT (string, optional) - Sub-component name (XPath-like syntax is supported). If omitted, returns the current accessor — useful for chaining after a table index/key lookup.
 *	\< RO_REF (ref to /ui2/cl_data_access) - Reference to accessor object pointing to subcomponent
 
 ## EMPTY  - Instance Method Public Returns TRUE if the embedded object is initial (not bound)
@@ -213,11 +294,15 @@ WRITE: lv_value.
 *	\< RV_DATA (ref to data) - Reference to embedded data
 
 ## VALUE  - Instance Method Public Returns a copy of the value
-*	\< EV_DATA (data) - Copy of the embedded data value, or initial if data is not bound
+*	\> IV_DEFAULT (data, optional) - Default value returned in EV_DATA when the accessor is not bound (empty)
+*	\< EV_DATA (data) - Copy of the embedded data value; initial (or IV_DEFAULT if supplied) if data is not bound
 
 ## SET  - Instance Method Public Sets the value of the embedded object, if not initial
 *	\> IV_DATA (data) - New value for embedded object
 *	\< RV_SUCCESS (boolean) - ABAP_TRUE, if data was successfully modified
+
+## COUNT  - Instance Method Public Returns the number of rows in the referenced table
+*	\< RV_LINES (i) - Number of table rows; 0 if the data is not bound or is not a table
 
 # XPath-like dynamic data access
 To access nested components, you can use a nice, object-oriented way, using nested calls of the AT method (it is robust, and would not crash accessing non-existent components), as
@@ -231,14 +316,14 @@ lo_object->at('subcomp1-subcomp11-subcomp111')
 ```
 
 or like this
-```
-abap lo_object->at('subcomp1->subcomp11->subcomp111')
+```abap
+lo_object->at('subcomp1->subcomp11->subcomp111')
 ```
 
 ## The syntax:
-* You can use any symbol (or combinations of symbols) as a component separator, except "[", "]", "=", ",". The recommended separator symbol is "-".
-* For dynamic index access of rows in nested tables, use "[index]" after the component name. E.g. "table_name[2]". The indexing starts from 1. If the accessor object references the table data object directly, you may skip the component name. E.g. "[2]". You may continue accessing components after index access, e.g.: "table_a[1]-struct-table_b[2]". If you do out-of-range access, you get an empty reference back. Index access works only with index tables (STANDARD, SORTED). 
-* For dynamic key access of rows in nested tables use "(key=value)" for single key lookup, "(key1=value1, key2=value2)" for multi-key lookup, and "(value)" for table line lookup. You can NOT search for values containing ",". You can use nested lookups: "table_a(key1=value1)-table_b(key2=value2, key3=value3)". Values used in a query shall be assignable to field structures. 
+* Supported component separators are `-`, `->`, and `=>`. The recommended separator is `-`.
+* For dynamic index access of rows in nested tables, use `[index]` after the component name. E.g. `table_name[2]`. The indexing starts from 1. If the accessor object references the table data object directly, you may skip the component name. E.g. `[2]`. You may continue accessing components after index access, e.g.: `table_a[1]-struct-table_b[2]`. If you do out-of-range access, you get an empty reference back. Index access works only with index tables (STANDARD, SORTED).
+* For dynamic key access of rows in nested tables use `[key=value]` for single key lookup, `[key1=value1, key2=value2]` for multi-key lookup, and `[value]` for table line lookup (matches the full line). You can NOT search for values containing `,` — no escaping is supported. You can use nested lookups: `table_a[key1=value1]-table_b[key2=value2, key3=value3]`. Values used in a query are assigned to the corresponding field, so the value must be compatible with the field type.
 
 # Version History
 

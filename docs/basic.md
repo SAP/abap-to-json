@@ -2,6 +2,8 @@
 
 > **New: [Z_UI2_JSON2](z_ui2_json2.md)** — kernel API edition available for SAP_BASIS 7.57+. Same public API, better performance, strict JSON compliance. See [migration guide](z_ui2_json2.md#incompatible-changes-migration-checklist).
 
+> **Class names**: The SAP-delivered class is `/UI2/CL_JSON`. The open-source Z* copy in this repository is `Z_UI2_JSON`. All code examples on this page use `/UI2/CL_JSON` — substitute `Z_UI2_JSON` if you are working with the local copy.
+
 # What the class can
 ## ABAP to JSON
 * Serialize classes, structures, internal tables, class and data references, and elementary types. Complex types, such as a table of structures/classes, classes with complex attributes, etc., are also supported and recursively processed.
@@ -132,6 +134,89 @@ START-OF-SELECTION.
     }
 ....
 ```
+## Boolean serialization
+ABAP has no built-in boolean type. The class maps well-known types (`ABAP_BOOL`, `ABAP_BOOLEAN`, `BOOLEAN`, `BOOLE_D`, `XFELD`, `XSDBOOLEAN`, `WDY_BOOLEAN`) to JSON `true`/`false`. Unknown char-1 fields are serialized as strings.
+
+The `TRIBOOL`/`BOOLEAN` type adds a three-state value: `'X'` → `true`, `'-'` → `false`, `''` → `null`.
+
+```abap
+TYPES:
+  BEGIN OF ts_flags,
+    active   TYPE abap_bool,     " X -> true,  '' -> false
+    approved TYPE boolean,       " X -> true, '-' -> false, '' -> null
+  END OF ts_flags.
+
+DATA: ls_flags TYPE ts_flags,
+      lv_json  TYPE /ui2/cl_json=>json.
+
+ls_flags-active   = abap_true.
+ls_flags-approved = /ui2/cl_json=>c_tribool-false.
+
+lv_json = /ui2/cl_json=>serialize( data = ls_flags ).
+" -> {"ACTIVE":true,"APPROVED":false}
+
+/ui2/cl_json=>deserialize( EXPORTING json = lv_json CHANGING data = ls_flags ).
+```
+
+## Timestamp serialization
+By default, timestamps are serialized as ABAP numeric strings (e.g. `20160708123456`). Pass `TS_AS_ISO8601 = abap_true` to produce ISO 8601 strings instead:
+
+```abap
+DATA: lv_ts   TYPE timestamp VALUE '20160708123456',
+      lv_json TYPE /ui2/cl_json=>json.
+
+" Default: numeric
+lv_json = /ui2/cl_json=>serialize( data = lv_ts ).
+" -> 20160708123456
+
+" ISO 8601
+lv_json = /ui2/cl_json=>serialize( data = lv_ts ts_as_iso8601 = abap_true ).
+" -> "2016-07-08T12:34:56Z"
+
+" Deserialize works with both formats regardless of TS_AS_ISO8601
+/ui2/cl_json=>deserialize( EXPORTING json = lv_json CHANGING data = lv_ts ).
+```
+
+Deserialization also accepts OData `\/Date(milliseconds)\/` and `PT10H34M55S` (Edm.Time) formats.
+
+## NUMC fields: number vs. string
+NUMC fields are serialized as integers by default (leading zeros dropped). Set `NUMC_AS_STRING = abap_true` to preserve leading zeros:
+
+```abap
+DATA: lv_matnr TYPE matnr VALUE '000000000012345',
+      lv_json  TYPE /ui2/cl_json=>json.
+
+lv_json = /ui2/cl_json=>serialize( data = lv_matnr ).
+" -> 12345
+
+lv_json = /ui2/cl_json=>serialize( data = lv_matnr numc_as_string = abap_true ).
+" -> "000000000012345"
+```
+
+Deserialization handles both forms transparently.
+
+## Associative arrays with composite keys
+When a sorted/hashed table has a **multi-field unique key**, `ASSOC_ARRAYS = abap_true` concatenates all key field values with `-` as separator to form the property name:
+
+```abap
+TYPES:
+  BEGIN OF ts_entry,
+    region  TYPE char3,
+    lang    TYPE lang,
+    label   TYPE string,
+  END OF ts_entry.
+DATA lt_entries TYPE HASHED TABLE OF ts_entry WITH UNIQUE KEY region lang.
+
+" ... fill table ...
+DATA(lv_json) = /ui2/cl_json=>serialize(
+  data         = lt_entries
+  assoc_arrays = abap_true
+  pretty_name  = /ui2/cl_json=>pretty_mode-camel_case ).
+" -> {"DE-D":{"label":"Deutsch"},"DE-E":{"label":"German"},"US-E":{"label":"English"}}
+```
+
+The separator is the constant `MC_KEY_SEPARATOR` (default `-`).
+
 # API description
 Two static methods are most interesting in common cases: SERIALIZE and DESERIALIZE. The rest of the public methods are defined as public only for reuse purposes if you want to build/extend your own serialization/deserialization code. 
 
@@ -139,23 +224,47 @@ Two static methods are most interesting in common cases: SERIALIZE and DESERIALI
 
 * \> **DATA** (any) - any ABAP object/structure/table/element to be serialized
 * \> **COMPRESS** (bool, default = false) - tells serializer to skip empty elements/objects during serialization. So, all of which IS INITIAL = TRUE. 
-* \> **NAME** (string, optional) - optional name of the serialized object. Will '"name" : {...}' instead of ' {...} ' if supplied.
+* \> **NAME** (string, optional) - optional name of the serialized object. When provided, wraps the output as `"name": {...}` instead of bare `{...}`.
 * \> **PRETTY_NAME** (enum, optional)- mode controls how ABAP field names are transformed into JSON attribute names.  More can be found in the description below.
 * \> **TYPE_DESCR** (ref to CL_ABAP_TYPEDESCR, optional) - if you already know the object type, pass it to improve performance. 
 * \> **ASSOC_ARRAYS** (bool, default = false) - controls how to serialize hash or sorted tables with unique keys. More can be found in the description below.
 * \> **ASSOC_ARRAYS_OPT** (bool, default = false) - when set, the serializer will optimize the rendering of name-value associated arrays (hash maps) in JSON
 * \> **TS_AS_ISO8601** (bool, default = false) - says serializer to output timestamps using ISO8601 format.
 * \> **NUMC_AS_STRING** (bool, default = false) - Controls how NUMC fields are serialized. If set to ABAP_TRUE, NUMC fields are serialized not as integers, but as strings, with all leading zeros. Deserialization works with both ways of NUMC serialized data.
+* \> **EXPAND_INCLUDES** (bool, default = true) - Controls how ABAP named includes (structures defined with `INCLUDE ... AS name`) are serialized. When true (default), the fields of the include are serialized inline, as if they belonged directly to the parent structure. When false, the include is serialized as a nested JSON object under the include alias name.
 * \> **NAME_MAPPINGS** (table) - ABAP<->JSON Name Mapping Table
 * \> **CONVERSION_EXITS** (bool, default = false) - use DDIC conversion exits on serialization of values (performance loss!)
-* \> **FORMAT_OUTPUT** (bool, default = false) - Indent, add formatting spaces, and split into lines serialized JSON
+* \> **FORMAT_OUTPUT** (bool, default = false) - Indent, add formatting spaces, and split into lines serialized JSON. When enabled, output is indented with 2-space increments (Z_UI2_JSON) or the writer's default indent style (Z_UI2_JSON2 — format differs slightly but is semantically equivalent). Example:
+
+```json
+{
+  "carrid": "AA",
+  "connid": 17,
+  "price": 422.94
+}
+```
+
+instead of `{"carrid":"AA","connid":17,"price":422.94}`.
+
 * \> **HEX_AS_BASE64** (bool, default = true) - Serialize hex values as base64
+* \< **R_JSON** - output JSON string.
+
+## DUMP: Serialize ABAP object into JSON (simplified)
+A simplified variant of SERIALIZE with fewer parameters. Useful for quick serialization without need for the full parameter set.
+
+* \> **DATA** (any) - any ABAP object to serialize
+* \> **COMPRESS** (bool, default = false) - skip initial/empty values
+* \> **TYPE_DESCR** (ref to CL_ABAP_TYPEDESCR, optional) - pre-known type descriptor for performance
+* \> **PRETTY_NAME** (enum, optional) - pretty-print mode
+* \> **ASSOC_ARRAYS** (bool, default = false) - serialize sorted/hashed tables as associative arrays
+* \> **TS_AS_ISO8601** (bool, default = false) - output timestamps as ISO 8601 strings
 * \< **R_JSON** - output JSON string.
 
 ## DESERIALIZE: Deserialize ABAP object from JSON string
 
-* \> **JSON** (string) - input JSON object string to deserialize
-* \> **JSONX** (xstring) - input JSON object as a raw string to deserialize
+* \> **JSON** (string, optional) - input JSON string to deserialize
+* \> **JSONX** (xstring, optional) - input JSON as raw bytes (alternative to JSON); use with JSONX_CP to specify encoding
+* \> **JSONX_CP** (string, default = 'UTF-8') - code page for JSONX input
 * \> **PRETTY_NAME** (enum, optional) - mode, controlling how JSON field names are mapped to ABAP component names. More can be found in  the description below.  
 * \> **ASSOC_ARRAYS** (bool, default = false) -  controls how to deserialize JSON objects into hash or sorted tables with unique keys. More can be found in the description below.
 * \> **ASSOC_ARRAYS_OPT** (bool, default = false) - when set, the deserializer will take into account the optimized rendering of associated arrays (properties) in JSON. 
@@ -273,7 +382,7 @@ DATA: ls_data TYPE ts_data.
 ```
 
 # Supported SAP_BASIS releases
-The code was tested on SAP_BASIS 7.00 and higher, but I do not see the reasons why it cannot be downported to lower releases either. But if you plan to use it on SAP_BASIS 7.02 and higher (and do not need property name pretty-printing), better consider the standard solution for **ABAP**, using [CALL TRANSFORMATION](advanced.md#json-to-abap-transformation-with-the-use-of-call-transformation). It shall be faster when implemented in the kernel. Maybe the best will be, if you need support in lower SAP_BASIS releases as well as in 7.02 and higher, to modify the provided class in a way to generate the same **JSON** format as standard ABAP CALL TRANSFORMATION for JSON does and redirect flow to home-made code or built-in **ABAP** transformation depending on SAP_BASIS release.
+The minimum supported release is SAP_BASIS 7.31. The code has also been tested on 7.00–7.30, but these are not officially supported. If you plan to use it on SAP_BASIS 7.02 and higher (and do not need property name pretty-printing), better consider the standard solution for **ABAP**, using [CALL TRANSFORMATION](advanced.md#json-to-abap-transformation-with-the-use-of-call-transformation). It shall be faster when implemented in the kernel. Maybe the best will be, if you need support in lower SAP_BASIS releases as well as in 7.02 and higher, to modify the provided class in a way to generate the same **JSON** format as standard ABAP CALL TRANSFORMATION for JSON does and redirect flow to home-made code or built-in **ABAP** transformation depending on SAP_BASIS release.
 
 # Further optimizations
 * Be aware that usage of flag conversion_exits may significantly decrease performance - use only in cases when you are sure that you need it.

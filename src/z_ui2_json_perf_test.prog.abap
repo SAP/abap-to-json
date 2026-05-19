@@ -42,23 +42,23 @@ START-OF-SELECTION.
   lo_perf_test->perform_tests( ).
 
   SKIP.
-  ULINE AT /1(135).
+  ULINE AT /1(127).
 
   WRITE: / sy-vline,
-            (50) 'Test' COLOR COL_HEADING, sy-vline,
-            (15) 'V23 (µs)' CENTERED COLOR COL_HEADING, sy-vline,
-            (15) 'V1 (µs)' CENTERED COLOR COL_HEADING, sy-vline,
-            (15) 'Diff (µs)' CENTERED COLOR COL_HEADING, sy-vline,
-            (16) 'Diff (%)' CENTERED COLOR COL_HEADING, sy-vline.
+        (50) 'Test' COLOR COL_HEADING, sy-vline,
+        (15) 'V23 (µs)' CENTERED COLOR COL_HEADING, sy-vline,
+        (15) 'V1 (µs)' CENTERED COLOR COL_HEADING, sy-vline,
+        (15) 'Diff (µs)' CENTERED COLOR COL_HEADING, sy-vline,
+        (16) 'Diff (%)' CENTERED COLOR COL_HEADING, sy-vline.
 
-  ULINE AT /1(135).
+  ULINE AT /1(127).
 
   LOOP AT lo_perf_test->runtimes ASSIGNING FIELD-SYMBOL(<runtime>).
     WRITE: / sy-vline,
-              (50) <runtime>-name COLOR COL_HEADING, sy-vline,
-              (15) <runtime>-old RIGHT-JUSTIFIED, sy-vline,
-              (15) <runtime>-new RIGHT-JUSTIFIED, sy-vline,
-              (15) <runtime>-diff RIGHT-JUSTIFIED, sy-vline.
+        (50) <runtime>-name COLOR COL_HEADING, sy-vline,
+        (15) <runtime>-old RIGHT-JUSTIFIED, sy-vline,
+        (15) <runtime>-new RIGHT-JUSTIFIED, sy-vline,
+        (15) <runtime>-diff RIGHT-JUSTIFIED, sy-vline.
     IF <runtime>-percent LE -3.
       WRITE: (15) <runtime>-percent RIGHT-JUSTIFIED NO-GAP COLOR COL_NEGATIVE, '%' COLOR COL_NEGATIVE.
     ELSEIF <runtime>-percent GE 3.
@@ -69,7 +69,7 @@ START-OF-SELECTION.
     WRITE: sy-vline.
   ENDLOOP.
 
-  ULINE AT /1(135).
+  ULINE AT /1(127).
 
 
 CLASS z_json_perf IMPLEMENTATION.
@@ -233,22 +233,22 @@ CLASS z_json_perf IMPLEMENTATION.
   METHOD perf_all_types.
 
     DATA: BEGIN OF test,
-            id          TYPE i,
-            timestamp   TYPE timestamp,
-            timestampl  TYPE timestampl,
-            int1        TYPE int1,
-            int2        TYPE int2,
-            int4        TYPE int4,
-            int8        TYPE int8,
-            packed(8)   TYPE p DECIMALS 2,
-            fp          TYPE f,
-            char(10)    TYPE c,
-            n(8)        TYPE n,
-            string      TYPE string,
-            xstring     TYPE xstring,
-            date        TYPE d,
-            time        TYPE t,
-            bool        TYPE abap_bool,
+            id         TYPE i,
+            timestamp  TYPE timestamp,
+            timestampl TYPE timestampl,
+            int1       TYPE int1,
+            int2       TYPE int2,
+            int4       TYPE int4,
+            int8       TYPE int8,
+            packed(8)  TYPE p DECIMALS 2,
+            fp         TYPE f,
+            char(10)   TYPE c,
+            n(8)       TYPE n,
+            string     TYPE string,
+            xstring    TYPE xstring,
+            date       TYPE d,
+            time       TYPE t,
+            bool       TYPE abap_bool,
           END OF test,
           tests  LIKE STANDARD TABLE OF test,
           tests2 LIKE tests.

@@ -179,7 +179,7 @@ For full extension examples see [class-extension.md](class-extension.md) — the
 
 ## Performance comparison (Z_UI2_JSON V23 vs Z_UI2_JSON2 V1)
 
-Measured on SAP_BASIS 7.57, same data sets, averaged over 5 runs (3 for generation):
+Measured on SAP_BASIS 7.57, same data sets, averaged over 5 runs (3 for generation).
 
 | Scenario | V23 (µs) | V1 (µs) | Difference |
 |----------|----------|---------|------------|
@@ -198,6 +198,8 @@ Measured on SAP_BASIS 7.57, same data sets, averaged over 5 runs (3 for generati
 | Serialize Timestamps 100K | 1,159K | 1,425K | -23% slower |
 
 **Summary**: Deserialization is 33-48% faster. Generation is 78% faster. Serialization is 5-9% slower for uncompressed data (writer method call overhead), but faster for compressed+camelCase workloads and string-heavy data.
+
+> Numbers are from a single SAP_BASIS 7.57 system and will vary by kernel patch level, hardware, and data characteristics.
 
 The serialization gap is the inherent cost of `IF_JSON_WRITER` method calls vs. direct string concatenation. In typical round-trip scenarios (serialize + deserialize), V1 is significantly faster overall.
 

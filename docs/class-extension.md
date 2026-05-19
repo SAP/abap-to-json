@@ -38,10 +38,15 @@ DUMP_INT - called for recursive serialization of complex ABAP data objects (stru
 * \< **R_JSON** (JSON) – serialized JSON value
 
 ## DUMP_TYPE
-DUMP_TYPE - called for serialization of elementary ABAP data type (string, boolean, timestamp, etc) into the JSON attribute value. Overwrite it if you, for example, want to apply data output, data conversion of currency rounding
+DUMP_TYPE - called for serialization of elementary ABAP data type (string, boolean, timestamp, etc) into the JSON attribute value. Overwrite it if you, for example, want to apply data output or currency rounding.
+
 * \> **DATA** (DATA) – Any data to serialize
-* \> **TYPE_DESCR** (ref to CL_ABAP_TYPEDESCR) – Type of data provided
+* \> **TYPE_DESCR** (ref to CL_ABAP_ELEMDESCR) – Element type descriptor for the data provided
+* \> **CONVEXIT** (STRING) – Conversion exit function name (empty if none applies)
+* \> **TYPEKIND** (ABAP_TYPEKIND, optional) – Pre-detected type kind; pass through to `super->dump_type` to avoid redundant detection
 * \< **R_JSON** (JSON) – serialized JSON value
+
+Always call `super->dump_type( data = data type_descr = type_descr convexit = convexit typekind = typekind )` as the fallback so standard type handling (booleans, timestamps, NUMC, etc.) is preserved for types you do not handle explicitly.
 
 ## RESTORE
 RESTORE - called for deserializing JSON objects into ABAP structures
@@ -129,7 +134,7 @@ CLASS lc_json_custom IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    r_json = super->dump_type( data = data type_descr = type_descr convexit = convexit ).
+    r_json = super->dump_type( data = data type_descr = type_descr convexit = convexit typekind = typekind ).
 
   ENDMETHOD. "dump_type
 
