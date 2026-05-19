@@ -201,6 +201,73 @@ writer->write_string_unescaped( name = `timestamp` value = ts_value ).
 
 ---
 
+## Performance Enhancement 6: Bulk JSON tree serialization / deserialization
+
+**Priority**: High — would eliminate the fundamental per-field kernel crossing overhead that makes serialization 7-35% slower than the pure-ABAP V23 implementation.
+
+**Context**: `Z_UI2_JSON2` uses `IF_JSON_WRITER` for serialization by driving it one field at a time: one `write_string()` / `write_number()` / `open_object()` call per field, per nesting level. All name mapping, type detection, conversion exits, camelCase transformation, and compression logic is handled in ABAP before each call. The kernel crossing per field is the bottleneck — not the logic, not the parsing.
+
+The request is for a **bulk handoff API**: ABAP prepares a complete, pre-resolved value tree (all logic already applied — names mapped, types resolved, values converted) and passes it to the kernel in a single call. The kernel does only what it is uniquely good at: escaping, unescaping, and emitting/parsing RFC-8259-compliant JSON efficiently.
+
+**Two possible implementation shapes** — either would satisfy the use case:
+
+### Option A: New kernel class `CL_JSON_TREE_WRITER` / `CL_JSON_TREE_READER`
+
+A flat node table represents the JSON tree. Each row is one value or structural marker:
+
+```abap
+TYPES: BEGIN OF ty_json_node,
+  name     TYPE string,       " member name (empty for array elements)
+  kind     TYPE char1,        " S=string, N=number, B=boolean, 0=null,
+                              " {=open_object, }=close_object,
+                              " [=open_array, ]=close_array
+  value    TYPE string,       " pre-resolved value; for S: unescaped,
+                              "   kernel escapes on write / unescapes on read
+                              " for N/B: ready-to-emit literal
+END OF ty_json_node.
+
+" Serialize: ABAP builds lt_nodes, kernel emits JSON
+DATA(lv_json) = cl_json_tree_writer=>serialize( lt_nodes ).
+
+" Deserialize: kernel parses JSON into lt_nodes, ABAP assigns fields
+DATA(lt_nodes) = cl_json_tree_reader=>parse( lv_json ).
+```
+
+For serialization: one call replaces N `write_*()` calls. Kernel does escaping in a single internal pass.
+For deserialization: kernel parses the whole JSON and returns the flat node table. ABAP walks the table to assign fields — same logic as today but driven by a table read instead of `next_node()` calls.
+
+### Option B: New `CALL TRANSFORMATION` transformation type
+
+Extend the `CALL TRANSFORMATION` statement with a new built-in transformation (e.g. `raw_json` or `json_tree`) that accepts a pre-resolved node table as source/result:
+
+```abap
+" Serialize
+CALL TRANSFORMATION json_tree
+  SOURCE nodes = lt_nodes
+  RESULT XML lv_json.
+
+" Deserialize
+CALL TRANSFORMATION json_tree
+  SOURCE XML lv_json
+  RESULT nodes = lt_nodes.
+```
+
+This reuses the existing `CALL TRANSFORMATION` infrastructure (already bulk by design) and fits naturally alongside the `id` transformation.
+
+**Why not just use `CALL TRANSFORMATION id`?**
+
+`CALL TRANSFORMATION id` operates on typed ABAP data directly and applies its own fixed rules for type-to-JSON mapping. `Z_UI2_JSON2` needs to apply its own mapping logic (camelCase names, conversion exits, associative arrays, custom boolean types, compression, etc.) *before* the kernel sees the data. The node table acts as the resolved intermediate representation — a contract between ABAP logic and kernel I/O.
+
+**Expected impact**:
+
+Current serialization is 7-35% slower than the pure-ABAP V23 due to per-field kernel crossings. With bulk handoff:
+- Serialization: one kernel call regardless of structure size → should match or exceed V23
+- Deserialization: marginal gain (kernel parse is already bulk internally; gain comes from eliminating `next_node()` call overhead on the ABAP side)
+
+The node table construction cost is comparable to the existing ABAP walk — and like the existing `mt_struct_cache`, the structural part (names, kinds, nesting) could be cached separately from values for repeated calls on the same type.
+
+---
+
 ## Summary
 
 | # | Type | Priority | Impact |
@@ -212,3 +279,4 @@ writer->write_string_unescaped( name = `timestamp` value = ts_value ).
 | Enh 3 | Enhancement | Low | Better error reporting |
 | Enh 4 | Performance | **DONE** | Confirmed & implemented — all open_member/close_member calls eliminated |
 | Enh 5 | Performance | Low-Medium | ~5% timestamp serialization |
+| Enh 6 | Performance | High | Bulk tree handoff — eliminates per-field crossing overhead entirely |
