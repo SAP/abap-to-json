@@ -184,21 +184,21 @@ Measured on SAP_BASIS 7.57, same data sets, averaged over 5 runs (3 for generati
 
 | Scenario | V23 (µs) | V1 (µs) | Difference |
 |----------|----------|---------|------------|
-| **Deserialize** SBOOK 20K lines | 13,320K | 7,855K | **+41% faster** |
-| **Deserialize** SBOOK camelCase | 5,899K | 3,097K | **+48% faster** |
-| **Deserialize** AllTypes 10K | 2,804K | 1,552K | **+45% faster** |
-| **Deserialize** Strings 10K | 967K | 512K | **+47% faster** |
-| **Deserialize** Deep struct 1K×10 | 723K | 433K | **+40% faster** |
-| **Deserialize** Timestamps 100K | 5,382K | 3,610K | **+33% faster** |
-| **Generate** SBOOK 5K lines | 6,622K | 1,482K | **+78% faster** |
-| Serialize SBOOK 20K lines | 2,258K | 2,372K | -5% slower |
-| Serialize SBOOK compressed+camelCase | 2,379K | 2,161K | +9% faster |
-| Serialize AllTypes 10K | 776K | 834K | -7% slower |
-| Serialize Strings 10K | 263K | 257K | +2% faster |
-| Serialize Deep struct 1K×10 | 209K | 227K | -9% slower |
-| Serialize Timestamps 100K | 1,159K | 1,425K | -23% slower |
+| **Deserialize** SBOOK 20K lines | 3,573K | 2,485K | **+30% faster** |
+| **Deserialize** SBOOK camelCase | 2,659K | 1,778K | **+33% faster** |
+| **Deserialize** AllTypes 10K | 1,329K | 934K | **+30% faster** |
+| **Deserialize** Strings 10K | 465K | 325K | **+30% faster** |
+| **Deserialize** Deep struct 1K×10 | 351K | 271K | **+23% faster** |
+| **Deserialize** Timestamps 100K | 2,637K | 2,178K | **+17% faster** |
+| **Generate** SBOOK 5K lines | 3,367K | 901K | **+73% faster** |
+| Serialize Timestamps 100K | 595K | 804K | -35% slower |
+| Serialize SBOOK 20K lines | 858K | 954K | -11% slower |
+| Serialize SBOOK compressed+camelCase | 711K | 777K | -9% slower |
+| Serialize AllTypes 10K | 336K | 383K | -14% slower |
+| Serialize Strings 10K | 133K | 133K | ~0% |
+| Serialize Deep struct 1K×10 | 97K | 104K | -7% slower |
 
-**Summary**: Deserialization is 33-48% faster. Generation is 78% faster. Serialization is roughly on par to slightly faster after eliminating `open_member`/`close_member` overhead (confirmed by IF_JSON_WRITER author and implemented).
+**Summary**: Deserialization is 17-33% faster. Generation is 73% faster. Serialization is 7-35% slower — inherent `IF_JSON_WRITER` method call overhead per field vs. direct string concatenation. The timestamp case is worst because each timestamp value triggers multiple writer calls with little other work per row.
 
 > Numbers are from a single SAP_BASIS 7.57 system and will vary by kernel patch level, hardware, and data characteristics.
 

@@ -418,9 +418,9 @@ The `value(LENGTH) TYPE i OPTIONAL` parameter was a leftover from the old offset
 
 ## Decision 22 — Performance Trade-off: Serialization vs Deserialization
 
-**Decision**: Accept serialization overhead from `IF_JSON_WRITER` method calls in exchange for 33-48% deserialization improvement and architectural cleanliness.
+**Decision**: Accept 7-35% serialization overhead from `IF_JSON_WRITER` method calls in exchange for 17-33% deserialization improvement and 73% generation improvement.
 
-**Rationale**: Profiling confirmed the initial serialization gap was from method call overhead (writer->write_string/write_number per field) vs V23's direct string concatenation, plus unnecessary `open_member`/`close_member` pairs. The deserialization gains (kernel reader, TRY restructure, cache improvements) more than compensate in typical round-trip scenarios.
+**Rationale**: Profiling confirmed the serialization gap is the inherent cost of one `write_*()` method call per field vs. V23's direct `CONCATENATE`/string append. This cannot be eliminated without bypassing the writer API. Eliminating `open_member`/`close_member` (Decision 23) did not meaningfully close the gap. The deserialization and generation gains more than compensate in typical round-trip scenarios. Timestamp-heavy serialization is worst-case (-35%) because each row triggers many writer calls with little other work.
 
 ---
 
@@ -428,6 +428,6 @@ The `value(LENGTH) TYPE i OPTIONAL` parameter was a leftover from the old offset
 
 **Decision**: All `open_member`/`close_member` calls removed from the serialization path. Member names are passed directly to `open_object( name = ... )`, `open_array( name = ... )`, and all `write_*( name = ... )` methods. `DUMP_INT` and `DUMP_SYMBOLS` each gained a `NAME TYPE STRING OPTIONAL` parameter.
 
-**Rationale**: Confirmed by IF_JSON_WRITER author (Stefan): *"Instead of calling OPEN_MEMBER, you can simply provide the member name to the attribute name of OPEN_OBJECT, OPEN_ARRAY and WRITE_* methods."* This eliminates two extra method calls per complex field, closing the remaining serialization performance gap vs V23.
+**Rationale**: Confirmed by IF_JSON_WRITER author (Stefan): *"Instead of calling OPEN_MEMBER, you can simply provide the member name to the attribute name of OPEN_OBJECT, OPEN_ARRAY and WRITE_* methods."* This is the correct API usage pattern and eliminates unnecessary call pairs. In practice, the performance impact was not measurable — the gap vs V23 is dominated by the remaining `write_*` calls themselves, not the `open_member`/`close_member` framing.
 
-**Implementation note**: For the `assoc_arrays_opt = true` case (single-value table entries), the table key name is passed via `name` to `dump_symbols`, which uses it as `lv_name` for the single `dump_type` call when `opt_array = abap_true`. Regular array elements pass `name` as empty, which the writer interprets as no member name (unnamed array element).
+**Implementation note**: For the `assoc_arrays_opt = true` case (single-value table entries), the table key name is passed via `name` to `dump_symbols`, which uses it as `lv_name` for the single `dump_type` call when `opt_array = abap_true`. Regular array elements pass `name` as empty (unnamed array element).
