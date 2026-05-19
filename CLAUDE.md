@@ -14,6 +14,20 @@ There is no Makefile, npm, or CI/CD pipeline. This is a pure ABAP project. Devel
 
 Unit tests live in `src/z_ui2_json.clas.testclasses.abap` (62+ test methods), `src/z_ui2_json2.clas.testclasses.abap` (57 test methods), and `src/z_ui2_data_access.clas.testclasses.abap`. Tests are executed inside the SAP system via SE80/ADT (ABAP Development Tools), not via a CLI command.
 
+After any code change, always:
+1. Run unit tests via `RunAbapUnit` on the affected class(es)
+2. Run performance tests via `RunAbapUnit` on `Z_UI2_JSON_PERF` (timeout ~600s) and parse the results from the failure message — compare to the baseline numbers in `docs/z_ui2_json2.md`. Flag any regression >5% in a scenario that was previously neutral or positive.
+
+## Performance Testing
+
+`Z_UI2_JSON_PERF` (`src/z_ui2_json_perf.clas.abap`) is the automated performance harness:
+- Static method `Z_UI2_JSON_PERF=>run()` runs all scenarios and returns a typed results table
+- The testclasses include intentionally calls `cl_abap_unit_assert=>fail()` with all results formatted in the message — this makes numbers machine-readable from `RunAbapUnit` XML output
+- The report `Z_UI2_JSON_PERF_TEST` delegates to the same class for human-readable visual output (unchanged)
+- Baseline numbers are in `docs/z_ui2_json2.md` performance table
+
+To add a new scenario: add a private `CLASS-METHODS perf_xxx RETURNING VALUE(rt_result) TYPE tt_runtime` and append it in `run()`.
+
 ## Architecture
 
 ### Main Class: `Z_UI2_JSON` (`src/z_ui2_json.clas.abap`)
@@ -75,3 +89,18 @@ The current patch level is tracked via the `VERSION` constant in `Z_UI2_JSON` an
 ## Contribution Guidelines
 
 See `CONTRIBUTING.md`. There is also `CONTRIBUTING_USING_GENAI.md` with specific rules for AI-generated contributions — review this before submitting AI-assisted changes.
+
+## Release Workflow (Z_UI2_JSON → /UI2/CL_JSON)
+
+Development happens in this open-source repo (`Z_UI2_JSON`) first. The released SAP class `/UI2/CL_JSON` is a separate object in the SAP system.
+
+**Typical flow:**
+1. Develop and test fixes/features in `Z_UI2_JSON` (this repo) — commits go to GitHub
+2. Validate: run unit tests (`RunAbapUnit` on `Z_UI2_JSON`) + performance check (`RunAbapUnit` on `Z_UI2_JSON_PERF`)
+3. Once stable, copy the changes from `Z_UI2_JSON` → `/UI2/CL_JSON` in the SAP dev system
+4. Each VERSION increment in `/UI2/CL_JSON` = one SAP Note with correction instructions for customers
+5. After releasing in dev: downport to lower SAP_BASIS releases as needed
+
+**Version tracking:** The `VERSION` constant in `Z_UI2_JSON` is the open-source patch level (documented in `docs/history.md`). The `/UI2/CL_JSON` version tracks independently via SAP Notes.
+
+**Performance comparison `/UI2/CL_JSON` vs `Z_UI2_JSON`:** A similar performance harness may be needed to compare the released SAP class against the open-source version. This would follow the same pattern as `Z_UI2_JSON_PERF` but reference `/UI2/CL_JSON` instead of `Z_UI2_JSON`.
