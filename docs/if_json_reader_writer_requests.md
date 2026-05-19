@@ -213,28 +213,53 @@ The request is for a **bulk handoff API**: ABAP prepares a complete, pre-resolve
 
 ### Option A: New kernel class `CL_JSON_TREE_WRITER` / `CL_JSON_TREE_READER`
 
-A flat node table represents the JSON tree. Each row is one value or structural marker:
+A flat node table represents the JSON tree. Each row is one value or structural marker.
+
+**Escaping contract** — asymmetric by design:
+- **Deserialize**: kernel always unescapes string values unconditionally. ABAP always receives clean unescaped strings, regardless of node kind. No flag needed.
+- **Serialize**: ABAP sets `kind` per node to tell the kernel whether to escape. ABAP knows from the ABAP type whether escaping is needed:
+  - `S` — string with arbitrary content: kernel must escape (`"`, `\`, control chars)
+  - `R` — raw string: value is pre-validated safe (no JSON special chars possible), kernel writes it inside quotes without escaping. Used for timestamps, dates, times, integers formatted as strings, base64 — any type whose value space is a strict subset of safe ASCII
+  - `N` — number literal: written as bare JSON number, no quotes, no escaping
+  - `B` — boolean literal: `true` or `false`, no quotes
+  - `0` — null literal
+  - `{` `}` `[` `]` — structural open/close markers
 
 ```abap
 TYPES: BEGIN OF ty_json_node,
-  name     TYPE string,       " member name (empty for array elements)
-  kind     TYPE char1,        " S=string, N=number, B=boolean, 0=null,
-                              " {=open_object, }=close_object,
-                              " [=open_array, ]=close_array
-  value    TYPE string,       " pre-resolved value; for S: unescaped,
-                              "   kernel escapes on write / unescapes on read
-                              " for N/B: ready-to-emit literal
+  name     TYPE string,   " member name (empty for array elements)
+  kind     TYPE char1,    " S=string(escape), R=string(raw/no-escape),
+                          " N=number, B=boolean, 0=null,
+                          " {=open_object, }=close_object,
+                          " [=open_array, ]=close_array
+  value    TYPE string,   " for S: unescaped — kernel escapes on write, unescapes on read
+                          " for R: pre-validated safe — kernel writes as-is, unescapes on read
+                          " for N/B: ready-to-emit literal (no quotes)
 END OF ty_json_node.
 
-" Serialize: ABAP builds lt_nodes, kernel emits JSON
+" Serialize: ABAP builds lt_nodes (logic fully applied), kernel emits JSON
 DATA(lv_json) = cl_json_tree_writer=>serialize( lt_nodes ).
 
-" Deserialize: kernel parses JSON into lt_nodes, ABAP assigns fields
+" Deserialize: kernel parses JSON into lt_nodes (all values unescaped), ABAP assigns fields
 DATA(lt_nodes) = cl_json_tree_reader=>parse( lv_json ).
 ```
 
-For serialization: one call replaces N `write_*()` calls. Kernel does escaping in a single internal pass.
-For deserialization: kernel parses the whole JSON and returns the flat node table. ABAP walks the table to assign fields — same logic as today but driven by a table read instead of `next_node()` calls.
+**Example** — serializing a structure with a timestamp and a string field:
+```abap
+" ABAP has already resolved: name mapping, type detection, conversion exits
+lt_nodes = VALUE #(
+  ( name = ``        kind = `{` value = `` )           " open root object
+  ( name = `ts`      kind = `R` value = `2024-01-15T10:30:00Z` )  " timestamp: no escape needed
+  ( name = `comment` kind = `S` value = `He said "hi"` )          " string: kernel escapes
+  ( name = `count`   kind = `N` value = `42` )                    " number: no quotes
+  ( name = ``        kind = `}` value = `` )           " close root object
+).
+DATA(lv_json) = cl_json_tree_writer=>serialize( lt_nodes ).
+" Result: {"ts":"2024-01-15T10:30:00Z","comment":"He said \"hi\"","count":42}
+```
+
+For serialization: one call replaces N `write_*()` calls. Kernel processes the entire table in a single internal pass.
+For deserialization: kernel parses the whole JSON and returns the flat node table with all values unescaped. ABAP walks the table to assign fields — same logic as today but driven by a table read instead of `next_node()` polling.
 
 ### Option B: New `CALL TRANSFORMATION` transformation type
 
