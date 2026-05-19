@@ -163,54 +163,13 @@ ENDCLASS.
 
 ---
 
-## Performance Enhancement 4: Eliminate open_member/close_member overhead for primitives
+## Performance Enhancement 4: Eliminate open_member/close_member overhead ✅ CONFIRMED & IMPLEMENTED
 
-**Priority**: High — SAT shows 5.6M µs (3.2% total runtime) for these calls.
+**Priority**: High — SAT showed 5.6M µs (3.2% total runtime) for these calls.
 
-**Description**: The current API pattern for writing a named primitive member requires 3 method calls:
+**Status**: Confirmed by IF_JSON_WRITER author (Stefan): *"Instead of calling OPEN_MEMBER, you can simply provide the member name to the attribute name of OPEN_OBJECT, OPEN_ARRAY and WRITE_* methods."*
 
-```abap
-" Current pattern (3 calls per field):
-writer->open_member( 'fieldName' ).
-writer->write_string( 'value' ).
-writer->close_member( ).
-```
-
-The `write_string( name = ... value = ... )` combined form EXISTS in the interface but the writer still requires the `open_member`/`close_member` framing for structural correctness. If we use `write_string( name = 'fieldName' value = 'value' )` without `open_member`, it works — but the documentation is unclear about whether this is officially supported.
-
-**SAT evidence** (20k rows × 5 iterations):
-
-```
-open_member:  6.39M hits, 3.4M µs net
-close_member: 6.39M hits, 2.2M µs net
-Total overhead: 5.6M µs that didn't exist in string-concatenation approach
-```
-
-**Request**: Confirm/document that `write_string( name = value = )` is the correct single-call pattern for named primitives WITHOUT requiring `open_member`/`close_member`. Or provide an optimized `write_member( name = value = )` that avoids the overhead.
-
-**Reproduction showing both patterns produce identical output**:
-
-```abap
-" Pattern A: open_member + write + close_member
-DATA(w1) = cl_json_string_writer=>create( ).
-w1->open_object( ).
-w1->open_member( `key` ).
-w1->write_string( `value` ).
-w1->close_member( ).
-w1->close_object( ).
-DATA(json1) = CAST cl_json_string_writer( w1 )->get_json( ).
-
-" Pattern B: write_string with name parameter (no open/close_member)
-DATA(w2) = cl_json_string_writer=>create( ).
-w2->open_object( ).
-w2->write_string( name = `key` value = `value` ).
-w2->close_object( ).
-DATA(json2) = CAST cl_json_string_writer( w2 )->get_json( ).
-
-" Both should produce: {"key":"value"}
-cl_abap_unit_assert=>assert_equals( exp = json1 act = json2 ).
-cl_abap_unit_assert=>assert_equals( exp = `{"key":"value"}` act = json2 ).
-```
+**Implementation**: `DUMP_INT` and `DUMP_SYMBOLS` now accept a `name TYPE STRING OPTIONAL` parameter. Member names are passed directly to `open_object( name = ... )`, `open_array( name = ... )`, and all `write_*( name = ... )` calls. No `open_member`/`close_member` calls remain in the serialization path.
 
 ---
 
@@ -251,5 +210,5 @@ writer->write_string_unescaped( name = `timestamp` value = ts_value ).
 | Enh 1 | Enhancement | Medium | Backward compat with lenient parsers |
 | Enh 2 | Enhancement | Medium | Eliminates Bug 1 workaround entirely |
 | Enh 3 | Enhancement | Low | Better error reporting |
-| Enh 4 | Performance | High | 5.6M µs overhead per serialization run |
+| Enh 4 | Performance | **DONE** | Confirmed & implemented — all open_member/close_member calls eliminated |
 | Enh 5 | Performance | Low-Medium | ~5% timestamp serialization |

@@ -336,6 +336,7 @@ CLASS z_ui2_json2 DEFINITION
         !writer       TYPE REF TO if_json_writer
         !opt_array    TYPE bool OPTIONAL
         !format_scope TYPE bool DEFAULT abap_true
+        !name         TYPE string OPTIONAL
         !level        TYPE i .
     METHODS get_symbols_struct
       IMPORTING
@@ -371,6 +372,7 @@ CLASS z_ui2_json2 DEFINITION
         !type_descr TYPE REF TO cl_abap_typedescr OPTIONAL
         !convexit   TYPE string OPTIONAL
         !writer     TYPE REF TO if_json_writer
+        !name       TYPE string OPTIONAL
         !level      TYPE i DEFAULT 0 .
     METHODS generate_struct
       CHANGING
@@ -386,10 +388,6 @@ ENDCLASS.
 CLASS Z_UI2_JSON2 IMPLEMENTATION.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method Z_UI2_JSON2=>CLASS_CONSTRUCTOR
-* +-------------------------------------------------------------------------------------------------+
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD class_constructor.
 
     DATA(lv_json_string)         = VALUE json( ).
@@ -409,28 +407,6 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method Z_UI2_JSON2->CONSTRUCTOR
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] COMPRESS                       TYPE        BOOL (default =C_BOOL-FALSE)
-* | [--->] PRETTY_NAME                    TYPE        PRETTY_NAME_MODE (default =PRETTY_MODE-NONE)
-* | [--->] ASSOC_ARRAYS                   TYPE        BOOL (default =C_BOOL-FALSE)
-* | [--->] TS_AS_ISO8601                  TYPE        BOOL (default =C_BOOL-FALSE)
-* | [--->] EXPAND_INCLUDES                TYPE        BOOL (default =C_BOOL-TRUE)
-* | [--->] ASSOC_ARRAYS_OPT               TYPE        BOOL (default =C_BOOL-FALSE)
-* | [--->] STRICT_MODE                    TYPE        BOOL (default =C_BOOL-FALSE)
-* | [--->] NUMC_AS_STRING                 TYPE        BOOL (default =C_BOOL-FALSE)
-* | [--->] NAME_MAPPINGS                  TYPE        NAME_MAPPINGS(optional)
-* | [--->] CONVERSION_EXITS               TYPE        BOOL (default =C_BOOL-FALSE)
-* | [--->] FORMAT_OUTPUT                  TYPE        BOOL (default =C_BOOL-FALSE)
-* | [--->] HEX_AS_BASE64                  TYPE        BOOL (default =C_BOOL-TRUE)
-* | [--->] BOOL_TYPES                     TYPE        STRING (default =MC_BOOL_TYPES)
-* | [--->] BOOL_3STATE                    TYPE        STRING (default =MC_BOOL_3STATE)
-* | [--->] INITIAL_TS                     TYPE        STRING (default =``)
-* | [--->] INITIAL_DATE                   TYPE        STRING (default =``)
-* | [--->] INITIAL_TIME                   TYPE        STRING (default =``)
-* | [--->] TIME_ZONE                      LIKE        SY-ZONLO (default ='UTC')
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD constructor.
 
     DATA(rtti) = CAST cl_abap_classdescr( cl_abap_classdescr=>describe_by_object_ref( me ) ).
@@ -483,19 +459,6 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method Z_UI2_JSON2=>DESERIALIZE
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] JSON                           TYPE        JSON(optional)
-* | [--->] JSONX                          TYPE        XSTRING(optional)
-* | [--->] PRETTY_NAME                    TYPE        PRETTY_NAME_MODE (default =PRETTY_MODE-NONE)
-* | [--->] ASSOC_ARRAYS                   TYPE        BOOL (default =C_BOOL-FALSE)
-* | [--->] ASSOC_ARRAYS_OPT               TYPE        BOOL (default =C_BOOL-FALSE)
-* | [--->] NAME_MAPPINGS                  TYPE        NAME_MAPPINGS(optional)
-* | [--->] CONVERSION_EXITS               TYPE        BOOL (default =C_BOOL-FALSE)
-* | [--->] HEX_AS_BASE64                  TYPE        BOOL (default =C_BOOL-TRUE)
-* | [<-->] DATA                           TYPE        DATA
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD deserialize.
 
     " **********************************************************************
@@ -528,14 +491,6 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method Z_UI2_JSON2->DESERIALIZE_INT
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] JSON                           TYPE        JSON(optional)
-* | [--->] JSONX                          TYPE        XSTRING(optional)
-* | [<-->] DATA                           TYPE        DATA
-* | [!CX!] CX_SY_MOVE_CAST_ERROR
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD deserialize_int.
 
     " **********************************************************************
@@ -578,15 +533,6 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Private Method Z_UI2_JSON2->DUMP_INT
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] DATA                           TYPE        DATA
-* | [--->] TYPE_DESCR                     TYPE REF TO CL_ABAP_TYPEDESCR(optional)
-* | [--->] CONVEXIT                       TYPE        STRING(optional)
-* | [--->] WRITER                         TYPE REF TO IF_JSON_WRITER
-* | [--->] LEVEL                          TYPE        I (default =0)
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD dump_int.
 
     DATA: lo_typedesc   TYPE REF TO cl_abap_typedescr,
@@ -619,17 +565,17 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
       WHEN cl_abap_typedescr=>kind_ref.
 
         IF data IS INITIAL.
-          writer->write_null( ).
+          writer->write_null( name = name ).
         ELSEIF type_descr->type_kind = cl_abap_typedescr=>typekind_dref.
           lo_data_ref ?= data.
           INSERT lo_data_ref INTO TABLE mt_ref_dump_idx.
           IF sy-subrc IS INITIAL.
             lo_typedesc = cl_abap_typedescr=>describe_by_data_ref( lo_data_ref ).
             ASSIGN lo_data_ref->* TO <data>.
-            dump_int( data = <data> type_descr = lo_typedesc writer = writer level = level ).
+            dump_int( data = <data> type_descr = lo_typedesc writer = writer name = name level = level ).
             DELETE TABLE mt_ref_dump_idx WITH TABLE KEY table_line = lo_data_ref.
           ELSE.
-            writer->write_null( ).
+            writer->write_null( name = name ).
           ENDIF.
         ELSE.
           lo_obj_ref ?= data.
@@ -637,25 +583,24 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
           IF sy-subrc IS INITIAL.
             lo_classdesc ?= cl_abap_typedescr=>describe_by_object_ref( lo_obj_ref ).
             lt_symbols = get_symbols_class( type_descr = lo_classdesc object = lo_obj_ref ).
-            dump_symbols( it_symbols = lt_symbols writer = writer level = level ).
+            dump_symbols( it_symbols = lt_symbols writer = writer name = name level = level ).
             DELETE TABLE mt_obj_dump_idx WITH TABLE KEY table_line = lo_obj_ref.
           ELSE.
-            writer->write_null( ).
+            writer->write_null( name = name ).
           ENDIF.
         ENDIF.
 
       WHEN cl_abap_typedescr=>kind_elem.
         lo_elem_descr ?= type_descr.
         lv_typekind = lcl_util=>detect_typekind( type_descr = lo_elem_descr convexit = convexit numc_as_string = mv_numc_as_string bool_types = mv_bool_types bool_3state = mv_bool_3state ).
-        CLEAR lv_prop_name.
-        dump_type data lo_elem_descr lv_typekind writer convexit lv_prop_name.
+        dump_type data lo_elem_descr lv_typekind writer convexit name.
 
       WHEN cl_abap_typedescr=>kind_struct.
 
         lo_structdesc ?= type_descr.
         GET REFERENCE OF data INTO lo_data_ref.
         ls_struct_sym = get_symbols_struct( type_descr = lo_structdesc data = lo_data_ref ).
-        dump_symbols( it_symbols = ls_struct_sym-symbols writer = writer level = level ).
+        dump_symbols( it_symbols = ls_struct_sym-symbols writer = writer name = name level = level ).
 
       WHEN cl_abap_typedescr=>kind_table.
 
@@ -685,7 +630,7 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
               ENDIF.
             ENDIF.
 
-            writer->open_object( ).
+            writer->open_object( name = name ).
             LOOP AT <table> INTO <line>.
               CLEAR lv_prop_name.
               IF lo_tabledescr->key_defkind = lo_tabledescr->keydefkind_user.
@@ -711,27 +656,23 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
                   ENDIF.
                 ENDLOOP.
               ENDIF.
-              writer->open_member( lv_prop_name ).
               IF lv_array_opt = abap_false.
-                writer->open_object( ).
-                dump_symbols( it_symbols = ls_struct_sym-symbols writer = writer opt_array = abap_false format_scope = abap_false level = lv_level ).
-                writer->close_object( ).
+                dump_symbols( it_symbols = ls_struct_sym-symbols writer = writer opt_array = abap_false format_scope = abap_true name = lv_prop_name level = lv_level ).
               ELSE.
-                dump_symbols( it_symbols = ls_struct_sym-symbols writer = writer opt_array = abap_true format_scope = abap_false level = lv_level ).
+                dump_symbols( it_symbols = ls_struct_sym-symbols writer = writer opt_array = abap_true format_scope = abap_false name = lv_prop_name level = lv_level ).
               ENDIF.
-              writer->close_member( ).
             ENDLOOP.
             writer->close_object( ).
 
           ELSE.
-            writer->open_array( ).
+            writer->open_array( name = name ).
             LOOP AT <table> INTO <line>.
               dump_symbols( it_symbols = ls_struct_sym-symbols writer = writer level = lv_level ).
             ENDLOOP.
             writer->close_array( ).
           ENDIF.
         ELSE.
-          writer->open_array( ).
+          writer->open_array( name = name ).
           LOOP AT <table> ASSIGNING <value>.
             dump_int( data = <value> type_descr = lo_typedesc writer = writer level = lv_level ).
           ENDLOOP.
@@ -743,15 +684,6 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Private Method Z_UI2_JSON2->DUMP_SYMBOLS
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] IT_SYMBOLS                     TYPE        T_T_SYMBOL
-* | [--->] WRITER                         TYPE REF TO IF_JSON_WRITER
-* | [--->] OPT_ARRAY                      TYPE        BOOL(optional)
-* | [--->] FORMAT_SCOPE                   TYPE        BOOL (default =ABAP_TRUE)
-* | [--->] LEVEL                          TYPE        I
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD dump_symbols.
 
     DATA: lv_level LIKE level,
@@ -763,7 +695,7 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
     lv_level = level + 1.
 
     IF format_scope = abap_true.
-      writer->open_object( ).
+      writer->open_object( name = name ).
     ENDIF.
 
     LOOP AT it_symbols ASSIGNING <symbol>.
@@ -773,19 +705,13 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
       IF opt_array = abap_false.
         lv_name = <symbol>-header.
       ELSE.
-        CLEAR lv_name.
+        lv_name = name. " empty for regular arrays, key name for assoc-array opt
       ENDIF.
 
       IF <symbol>-elem_type IS NOT INITIAL.
         dump_type <value> <symbol>-elem_type <symbol>-typekind writer <symbol>-convexit_out lv_name.
       ELSE.
-        IF opt_array = abap_false.
-          writer->open_member( lv_name ).
-        ENDIF.
-        dump_int( data = <value> type_descr = <symbol>-type convexit = <symbol>-convexit_out writer = writer level = lv_level ).
-        IF opt_array = abap_false.
-          writer->close_member( ).
-        ENDIF.
+        dump_int( data = <value> type_descr = <symbol>-type convexit = <symbol>-convexit_out writer = writer name = lv_name level = lv_level ).
       ENDIF.
     ENDLOOP.
 
@@ -796,16 +722,6 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Protected Method Z_UI2_JSON2->DUMP_TYPE
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] DATA                           TYPE        DATA
-* | [--->] TYPE_DESCR                     TYPE REF TO CL_ABAP_ELEMDESCR
-* | [--->] CONVEXIT                       TYPE        STRING
-* | [--->] TYPEKIND                       TYPE        ABAP_TYPEKIND
-* | [--->] WRITER                         TYPE REF TO IF_JSON_WRITER
-* | [--->] NAME                           TYPE        STRING(optional)
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD dump_type.
 
     dump_type_int data typekind writer convexit name.
@@ -813,15 +729,6 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method Z_UI2_JSON2=>GENERATE
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] JSON                           TYPE        JSON(optional)
-* | [--->] PRETTY_NAME                    TYPE        PRETTY_NAME_MODE (default =PRETTY_MODE-NONE)
-* | [--->] NAME_MAPPINGS                  TYPE        NAME_MAPPINGS(optional)
-* | [--->] JSONX                          TYPE        XSTRING(optional)
-* | [<-()] RR_DATA                        TYPE REF TO DATA
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD generate.
 
     deserialize( EXPORTING json = json jsonx = jsonx pretty_name = pretty_name name_mappings = name_mappings CHANGING data = rr_data ).
@@ -829,14 +736,6 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Protected Method Z_UI2_JSON2->GENERATE_INT
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] JSON                           TYPE        JSON
-* | [<-->] DATA                           TYPE REF TO DATA
-* | [<-->] TYPE                           TYPE REF TO CL_ABAP_DATADESCR(optional)
-* | [!CX!] CX_SY_MOVE_CAST_ERROR
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD generate_int.
 
     CLEAR type.
@@ -854,14 +753,6 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Private Method Z_UI2_JSON2->GENERATE_INT_R
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] READER                         TYPE REF TO IF_JSON_READER
-* | [<-->] DATA                           TYPE REF TO DATA
-* | [<-->] TYPE                           TYPE REF TO CL_ABAP_DATADESCR(optional)
-* | [!CX!] CX_SY_MOVE_CAST_ERROR
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD generate_int_r.
 
     DATA: lo_type       TYPE REF TO cl_abap_datadescr,
@@ -988,13 +879,6 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Private Method Z_UI2_JSON2->GENERATE_STRUCT
-* +-------------------------------------------------------------------------------------------------+
-* | [<-->] FIELDS                         TYPE        T_T_NAME_VALUE
-* | [<-->] DATA                           TYPE REF TO DATA
-* | [<-->] TYPE                           TYPE REF TO CL_ABAP_DATADESCR(optional)
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD generate_struct.
 
     DATA: lt_comp    TYPE abap_component_tab,
@@ -1082,14 +966,6 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Private Method Z_UI2_JSON2->GET_FIELDS
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] TYPE_DESCR                     TYPE REF TO CL_ABAP_TYPEDESCR
-* | [--->] DATA                           TYPE REF TO DATA(optional)
-* | [--->] OBJECT                         TYPE REF TO OBJECT(optional)
-* | [<-()] RT_FIELDS                      TYPE        T_T_FIELD_CACHE
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD get_fields.
 
     DATA: lv_name    TYPE char128,
@@ -1127,15 +1003,6 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Private Method Z_UI2_JSON2->GET_SYMBOLS
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] TYPE_DESCR                     TYPE REF TO CL_ABAP_TYPEDESCR
-* | [--->] DATA                           TYPE REF TO DATA(optional)
-* | [--->] OBJECT                         TYPE REF TO OBJECT(optional)
-* | [--->] INCLUDE_ALIASES                TYPE        ABAP_BOOL (default =ABAP_FALSE)
-* | [<-()] RESULT                         TYPE        T_T_SYMBOL
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD get_symbols.
 
     DATA: class_descr  TYPE REF TO cl_abap_classdescr,
@@ -1158,13 +1025,6 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Private Method Z_UI2_JSON2->GET_SYMBOLS_CLASS
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] TYPE_DESCR                     TYPE REF TO CL_ABAP_CLASSDESCR
-* | [--->] OBJECT                         TYPE REF TO OBJECT(optional)
-* | [<-()] RESULT                         TYPE        T_T_SYMBOL
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD get_symbols_class.
 
     DATA: symb       LIKE LINE OF result.
@@ -1201,14 +1061,6 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Private Method Z_UI2_JSON2->GET_SYMBOLS_STRUCT
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] TYPE_DESCR                     TYPE REF TO CL_ABAP_STRUCTDESCR
-* | [--->] INCLUDE_ALIASES                TYPE        ABAP_BOOL (default =ABAP_FALSE)
-* | [--->] DATA                           TYPE REF TO DATA(optional)
-* | [<-()] RESULT                         TYPE        T_S_STRUCT_CACHE_RES
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD get_symbols_struct.
 
     DATA: comp_tab     TYPE cl_abap_structdescr=>component_table,
@@ -1295,25 +1147,11 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Protected Method Z_UI2_JSON2->IS_COMPRESSABLE
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] TYPE_DESCR                     TYPE REF TO CL_ABAP_TYPEDESCR
-* | [--->] NAME                           TYPE        CSEQUENCE
-* | [<-()] RV_COMPRESS                    TYPE        ABAP_BOOL
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD is_compressable.
     rv_compress = abap_true.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Protected Method Z_UI2_JSON2->PRETTY_NAME
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] IN                             TYPE        CSEQUENCE
-* | [--->] PASCAL_CASE                    TYPE        BOOL (default =C_BOOL-FALSE)
-* | [<-()] OUT                            TYPE        STRING
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD pretty_name.
 
     DATA: tokens TYPE TABLE OF char128,
@@ -1355,12 +1193,6 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Protected Method Z_UI2_JSON2->PRETTY_NAME_EX
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] IN                             TYPE        CSEQUENCE
-* | [<-()] OUT                            TYPE        STRING
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD pretty_name_ex.
 
     DATA: tokens TYPE TABLE OF char128,
@@ -1412,15 +1244,6 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Protected Method Z_UI2_JSON2->RESTORE
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] READER                         TYPE REF TO IF_JSON_READER
-* | [--->] TYPE_DESCR                     TYPE REF TO CL_ABAP_TYPEDESCR(optional)
-* | [--->] FIELD_CACHE                    TYPE        T_T_FIELD_CACHE(optional)
-* | [<-->] DATA                           TYPE        DATA(optional)
-* | [!CX!] CX_SY_MOVE_CAST_ERROR
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD restore.
 
     DATA: ref_descr          TYPE REF TO cl_abap_refdescr,
@@ -1524,17 +1347,6 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Protected Method Z_UI2_JSON2->RESTORE_TYPE
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] READER                         TYPE REF TO IF_JSON_READER
-* | [--->] TYPE_DESCR                     TYPE REF TO CL_ABAP_TYPEDESCR(optional)
-* | [--->] FIELD_CACHE                    TYPE        T_T_FIELD_CACHE(optional)
-* | [--->] CONVEXIT                       TYPE        STRING(optional)
-* | [--->] TYPEKIND                       TYPE        ABAP_TYPEKIND(optional)
-* | [<-->] DATA                           TYPE        DATA(optional)
-* | [!CX!] CX_SY_MOVE_CAST_ERROR
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD restore_type.
 
     DATA: lo_move_cast_error TYPE REF TO cx_sy_move_cast_error,
@@ -1571,25 +1383,6 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method Z_UI2_JSON2=>SERIALIZE
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] DATA                           TYPE        DATA
-* | [--->] COMPRESS                       TYPE        BOOL (default =C_BOOL-FALSE)
-* | [--->] NAME                           TYPE        STRING(optional)
-* | [--->] PRETTY_NAME                    TYPE        PRETTY_NAME_MODE (default =PRETTY_MODE-NONE)
-* | [--->] TYPE_DESCR                     TYPE REF TO CL_ABAP_TYPEDESCR(optional)
-* | [--->] ASSOC_ARRAYS                   TYPE        BOOL (default =C_BOOL-FALSE)
-* | [--->] TS_AS_ISO8601                  TYPE        BOOL (default =C_BOOL-FALSE)
-* | [--->] EXPAND_INCLUDES                TYPE        BOOL (default =C_BOOL-TRUE)
-* | [--->] ASSOC_ARRAYS_OPT               TYPE        BOOL (default =C_BOOL-FALSE)
-* | [--->] NUMC_AS_STRING                 TYPE        BOOL (default =C_BOOL-FALSE)
-* | [--->] NAME_MAPPINGS                  TYPE        NAME_MAPPINGS(optional)
-* | [--->] CONVERSION_EXITS               TYPE        BOOL (default =C_BOOL-FALSE)
-* | [--->] FORMAT_OUTPUT                  TYPE        BOOL (default =C_BOOL-FALSE)
-* | [--->] HEX_AS_BASE64                  TYPE        BOOL (default =C_BOOL-TRUE)
-* | [<-()] R_JSON                         TYPE        JSON
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD serialize.
 
     " **********************************************************************
@@ -1618,14 +1411,6 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method Z_UI2_JSON2->SERIALIZE_INT
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] DATA                           TYPE        DATA
-* | [--->] NAME                           TYPE        STRING(optional)
-* | [--->] TYPE_DESCR                     TYPE REF TO CL_ABAP_TYPEDESCR(optional)
-* | [<-()] R_JSON                         TYPE        JSON
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD serialize_int.
 
     DATA: lo_descr    TYPE REF TO cl_abap_typedescr,
@@ -1654,19 +1439,6 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Private Method Z_UI2_JSON2->RESTORE_TYPE_INT
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] READER                         TYPE REF TO IF_JSON_READER
-* | [--->] TYPE_DESCR                     TYPE REF TO CL_ABAP_TYPEDESCR(optional)
-* | [--->] FIELD_CACHE                    TYPE        T_T_FIELD_CACHE(optional)
-* | [--->] CONVEXIT                       TYPE        STRING(optional)
-* | [--->] TYPEKIND                       TYPE        ABAP_TYPEKIND(optional)
-* | [<-->] DATA                           TYPE        DATA(optional)
-* | [!CX!] CX_SY_MOVE_CAST_ERROR
-* | [!CX!] CX_SY_CONVERSION_NO_NUMBER
-* | [!CX!] CX_SY_CONVERSION_OVERFLOW
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD restore_type_int.
 
     DATA: sdummy       TYPE string,

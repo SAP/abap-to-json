@@ -66,6 +66,7 @@
 * Regex patterns optimized: `(?i)` flag for case-insensitive matching (GUID, EDM DateTime), `[^0-9a-zA-Z_]+` quantifier simplified.
 * Removed unused `so_regex_generate_type_detect` regex object — saves class_constructor initialization time.
 * `GENERATE_INT_R` always uses optimized path (typed tables, dereferenced struct fields) — no conditional branching per element.
+* Eliminated all `open_member`/`close_member` calls from serialization: member names are now passed directly to `open_object( name = ... )`, `open_array( name = ... )`, and all `write_*( name = ... )` methods (confirmed by IF_JSON_WRITER author). `DUMP_INT` and `DUMP_SYMBOLS` now accept a `name` parameter and propagate it to the writer.
 
 ### Known limitations (pending IF_JSON_READER/WRITER enhancements)
 * NBSP (U+00A0) used as whitespace between JSON tokens causes parse errors. The kernel reader does not treat NBSP as whitespace.
