@@ -19,13 +19,10 @@ migration are tracked separately.
 | 4 | `INITIAL_DATE` / `INITIAL_TIME` / `INITIAL_TS` on static `SERIALIZE` | Usability | Medium |
 | 5 | `IS_VALID( json )` method | Usability | Medium |
 | 6 | Streaming / chunked serialization for huge tables | Feature | Medium |
-| 7 | Tolerant mode for trailing commas | Compat | Medium |
-| 8 | ENUM deserialization (all BASIS levels) | Bug/Feature | Medium |
-| 9 | UTCLONG: inconsistency — always ISO 8601 regardless of `TS_AS_ISO8601` flag | Bug | Low-Medium |
-| 10 | Cyclic references serialize as `{}` instead of `null` | Bug | Low |
-| 11 | ASSOC_ARRAYS composite key separator not configurable | Config | Low |
-| 12 | Deprecate `pretty_name = abap_true` boolean form | Cleanup | Low |
-| 13 | Promote `Z_UI2_DATA_ACCESS` for post-GENERATE use | Docs | Low |
+| 7 | ENUM deserialization throws on BASIS < 7.51 instead of silently ignoring | Bug | Medium |
+| 8 | ASSOC_ARRAYS composite key separator not configurable | Config | Low |
+| 9 | Deprecate `pretty_name = abap_true` boolean form | Cleanup | Low |
+| 10 | Promote `Z_UI2_DATA_ACCESS` for post-GENERATE use | Docs | Low |
 
 ---
 
@@ -76,15 +73,7 @@ Users get `SYSTEM_NO_ROLL`, `STRING_SIZE_TOO_LARGE`, `MEMORY_NO_MORE_PAGING` whe
 
 ---
 
-### 1.4 Tolerant parsing for trailing commas
-
-**Status**: Supported (added in PL14). Already implemented in current code.
-
-*Remove from open list — this is resolved.*
-
----
-
-### 1.5 Configurable ASSOC_ARRAYS composite key separator
+### 1.4 Configurable ASSOC_ARRAYS composite key separator
 
 **Status**: Not implemented. Hardcoded as `-` (`MC_KEY_SEPARATOR` constant).
 
@@ -96,7 +85,7 @@ The key separator for composite multi-key tables serialized as associative array
 
 ---
 
-### 1.6 No distinction between JSON `null` and absent field
+### 1.5 No distinction between JSON `null` and absent field
 
 **Status**: Not implemented. `null` always maps to the ABAP initial value; no way to detect it.
 
@@ -106,29 +95,25 @@ No nullable wrapper type or null-indicator field pattern is supported.
 
 ---
 
-### 1.7 Currency/quantity field pair formatting (CURR/CUKY)
+### 1.6 Currency/quantity field pair formatting (CURR/CUKY)
 
-**Status**: Not implemented. Maintainer explicitly declines default support (implementation complexity, performance penalty).
+**Status**: Not planned — maintainer explicitly declines default support (implementation complexity, performance penalty). Documented in FAQ.
 
 **Workaround**: Subclass and override `DUMP_INT`/`RESTORE_TYPE`.
 
 ---
 
-### 1.8 Deserialization of `REF TO <interface>` attributes
+### 1.7 Deserialization of `REF TO <interface>` attributes
 
-**Status**: Not implemented — cannot determine concrete class to instantiate.
-
-**Frequency**: Medium-high — explicit FAQ entry.
+**Status**: Not implemented — cannot determine concrete class to instantiate. Documented in FAQ.
 
 Classes with `TYPE REF TO <interface>` attributes cannot be deserialized. The deserializer cannot determine which concrete class to instantiate for an interface reference.
 
 ---
 
-### 1.9 Field ordering in GENERATE output
+### 1.8 Field ordering in GENERATE output
 
-**Status**: Not implemented. Current behavior: alphabetical order (for cache normalization).
-
-**Frequency**: Medium — recurring question.
+**Status**: Not implemented. Current behavior: alphabetical order (for cache normalization). Documented in FAQ.
 
 Users ask for generated ABAP structures to have fields in the same order as the JSON keys.
 
@@ -138,33 +123,13 @@ Users ask for generated ABAP structures to have fields in the same order as the 
 
 ## Part 2: Open Bugs
 
-### 2.1 ENUM deserialization not supported on all BASIS levels
+### 2.1 ENUM deserialization throws on BASIS < 7.51 instead of silently ignoring
 
-**Status**: Open. Serialization works. Deserialization throws (`throw_error. " Deserialization of enums is not supported"`) when the dynamic call fails on BASIS below 7.51.
+**Status**: Open. Serialization works on all BASIS levels. For deserialization, the class tries `CL_ABAP_XSD=>TO_VALUE` dynamically; when this call fails (BASIS < 7.51 where `CL_ABAP_XSD` doesn't exist), it throws instead of silently ignoring the field as documented.
 
 **Source**: `src/z_ui2_json.clas.abap:2350`
 
-**Frequency**: Low-medium — ENUM types are increasingly used in modern ABAP.
-
----
-
-### 2.2 UTCLONG: always serializes as ISO 8601 regardless of `TS_AS_ISO8601` flag
-
-**Status**: Open. `TIMESTAMP` respects the `TS_AS_ISO8601` flag; `UTCLONG` always emits ISO 8601 regardless. This inconsistency surprises users.
-
-Also: UTCLONG deserialization falls through to `throw_error` when the dynamic call fails on old BASIS (`src/z_ui2_json.clas.abap:2318`).
-
----
-
-### 2.3 Cyclic references serialize as `{}` instead of `null`
-
-**Status**: Open in V23. `null` is the correct JSON representation for a missing/cyclic reference. The current `{}` (empty object) misleads consumers into thinking there is an empty object at that position.
-
----
-
-### 2.4 Special characters in JSON attribute names not escaped/unescaped
-
-**Status**: Open. Known limitation, deliberately not fixed for performance. Attribute names with `"`, `\`, etc. are not escaped in serialized output and not unescaped on read. Affects consumers receiving JSON from external systems with escaped attribute names.
+Note 2650040 states: "From SAP_BASIS 7.51, below, the enums are **ignored**." The current code throws rather than ignoring — the behavior diverges from the documented contract.
 
 ---
 
@@ -196,12 +161,12 @@ Teams using static methods everywhere must switch to the instance API just to co
 
 **Status**: Not implemented.
 
-**Frequency**: Medium — inferred from usage patterns; users want to validate JSON before processing without side effects on a CHANGING data target.
+**Frequency**: Medium — users want to validate JSON before processing without side effects on a CHANGING data target.
 
 **Suggestion**:
 ```abap
 CLASS-METHODS is_valid
-  IMPORTING json       TYPE string
+  IMPORTING json            TYPE string
   RETURNING VALUE(rv_valid) TYPE abap_bool.
 ```
 
@@ -221,7 +186,7 @@ Subclasses must copy the full `SERIALIZE`/`DESERIALIZE` signature into new stati
 
 ### 3.5 Class instance deserialization fails silently for mandatory constructor parameters
 
-**Status**: Open — documented in `docs/advanced.md:157` but not in FAQ.
+**Status**: Open — documented in `docs/advanced.md` but not in FAQ.
 
 Deserializing JSON into ABAP class instances where the constructor has mandatory parameters silently produces empty results. No exception is raised.
 
@@ -243,7 +208,7 @@ To serialize private/protected attributes of ABAP objects, the target class must
 
 **Status**: Still accepted silently. The boolean `abap_true` form of `pretty_name` (equivalent to `pretty_mode-low_case`) is legacy but still appears in active production code.
 
-**Suggestion**: Add a note to docs and/or emit a warning if the boolean form is detected.
+**Suggestion**: Add a deprecation note to docs.
 
 ---
 
@@ -294,7 +259,7 @@ Suggests demand for a "serialize with named root key" option or partial-document
 | Combination | Frequency | Context |
 |---|---|---|
 | `pretty_name = pretty_mode-camel_case` | Very high | REST/OData/BTP payloads |
-| `pretty_name = pretty_mode-camel_case` + `name_mappings` | High | camelCase base + specific field overrides (e.g. `@context`, `senderRegistrationID`) |
+| `pretty_name = pretty_mode-camel_case` + `name_mappings` | High | camelCase base + specific field overrides (e.g. `@context`) |
 | `compress = abap_true` + `pretty_mode-low_case` | Medium | LLM prompt context |
 | `pretty_mode-low_case` + `assoc_arrays = abap_true` | Seen | REST APIs returning dicts/maps |
 | `pretty_name = abap_true` (deprecated boolean) | Seen | Legacy code still in production |
@@ -333,7 +298,7 @@ ENDIF.
 
 Analysis confirms `IS_COMPRESSABLE` is the dominant — and essentially the only — extension point overridden in practice. Three subclass patterns were observed:
 
-1. **Exclude specific fields from compression**: overrides `IS_COMPRESSABLE` to suppress compression for a configured list of field names (e.g. a parameter passed to the constructor). One observed implementation had a bug: the field list was declared as class-data (shared across all instances) instead of instance data.
+1. **Exclude specific fields from compression**: overrides `IS_COMPRESSABLE` to suppress compression for a configured list of field names passed to the constructor. One observed implementation had a bug: the field list was declared as class-data (shared across all instances) instead of instance data.
 
 2. **Disable compression entirely**: overrides `IS_COMPRESSABLE` to always return `abap_false`, ignoring type and value.
 
@@ -359,12 +324,12 @@ Consumers appear unaware of `Z_UI2_DATA_ACCESS`, which provides a cleaner path-b
 
 ## Part 5: GitHub Issues Summary
 
-All issues are currently closed. Key findings relevant to open items:
+All issues are currently closed. Key findings:
 
-| Issue | Summary | Relevance |
-|-------|---------|-----------|
-| #7 | Infinite loop on malformed JSON (fixed) | Closed — fixed in subsequent patch |
-| #11 | Option to skip escaping for specific values | Open user need — no built-in support for "I know this value is safe, skip escaping" |
-| #12 | Scientific notation (TYPE F) from dynamic data access | TYPE F always serializes scientific in ABAP; `DATA_ACCESS`-level concern |
+| Issue | Summary | Status |
+|-------|---------|--------|
+| #7 | Infinite loop on malformed JSON | Fixed in a subsequent patch level |
+| #11 | Option to skip escaping for specific values (e.g. Windows paths) | Closed without documented resolution — no built-in "skip escaping" flag exists |
+| #12 | Scientific notation (TYPE F) from dynamic data access | TYPE F always serializes scientific in ABAP; concern is in the data access layer, not the serializer |
 | #19 | Apache Parquet support | Out of scope — JSON-only library |
-| #20 | OData `/Date(...)` off-by-one-second (fixed) | Closed — timestamp precision |
+| #20 | OData `/Date(...)` off-by-one-second rounding | Fixed in a subsequent patch level |
