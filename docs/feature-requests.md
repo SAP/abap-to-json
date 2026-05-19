@@ -2,7 +2,7 @@
 
 Compiled from: repository documentation, FAQ, patch history, GitHub issues
 (https://github.com/SAP/abap-to-json/issues), and analysis of real-world `/UI2/CL_JSON`
-consumer code across large SAP landscapes.
+consumer code across a large SAP landscape (~3,000 usages across ~400 consuming objects).
 
 Scope: `Z_UI2_JSON` / `/UI2/CL_JSON` only. Items specific to the Z_UI2_JSON2 kernel-API
 migration are tracked separately.
@@ -331,12 +331,15 @@ ENDIF.
 
 ### 4.5 Subclassing Patterns
 
-Analysis confirms `IS_COMPRESSABLE` is the dominant — and essentially the only — extension point overridden in practice. The two observed use cases:
+Analysis confirms `IS_COMPRESSABLE` is the dominant — and essentially the only — extension point overridden in practice. Three subclass patterns were observed:
 
-1. **Exclude specific fields from compression**: suppress compression for fields in a configured list (even when empty).
-2. **Always compress**: override to return `abap_false` unconditionally, effectively disabling compression entirely.
+1. **Exclude specific fields from compression**: overrides `IS_COMPRESSABLE` to suppress compression for a configured list of field names (e.g. a parameter passed to the constructor). One observed implementation had a bug: the field list was declared as class-data (shared across all instances) instead of instance data.
 
-No `PRETTY_NAME` / `PRETTY_NAME_EX` overrides were observed in consumer code. `DUMP_TYPE` overrides appear in specialized wrappers.
+2. **Disable compression entirely**: overrides `IS_COMPRESSABLE` to always return `abap_false`, ignoring type and value.
+
+3. **Configuration-driven wrapper**: a local subclass inside a wrapper class reads name mappings and compression rules from a database table keyed by a process ID, overriding both `IS_COMPRESSABLE` and `DUMP_TYPE`. The public wrapper exposes a typed API while hiding the subclass.
+
+No `PRETTY_NAME` / `PRETTY_NAME_EX` overrides were observed in consumer code. `DUMP_TYPE` overrides appear only in specialized wrappers.
 
 Building `it_no_compress_fields` and `it_always_compress_fields` into the constructor (see 1.1) would eliminate the most common subclassing reason.
 
