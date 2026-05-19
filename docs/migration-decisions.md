@@ -194,11 +194,11 @@ Tests that must continue to pass unchanged:
 
 ---
 
-## Decision 15 — VERSION Bump
+## Decision 15 — VERSION Reset to 1 (originally planned as 24)
 
-**Decision**: New class is VERSION 24.
+**Decision**: Z_UI2_JSON2 VERSION constant set to **1** (not 24).
 
-**Rationale**: VERSION 23 is the last manual-parser version. VERSION 24 marks the kernel API migration. `docs/history.md` entry to be added at the end of implementation.
+**Rationale**: Z_UI2_JSON2 is a new independent class, not a patched version of Z_UI2_JSON. VERSION 24 was used internally during migration but reset to 1 before first release. Both classes have separate version tracks going forward.
 
 ---
 
@@ -418,6 +418,16 @@ The `value(LENGTH) TYPE i OPTIONAL` parameter was a leftover from the old offset
 
 ## Decision 22 — Performance Trade-off: Serialization vs Deserialization
 
-**Decision**: Accept 5-9% serialization overhead from `IF_JSON_WRITER` method calls in exchange for 33-48% deserialization improvement and architectural cleanliness.
+**Decision**: Accept serialization overhead from `IF_JSON_WRITER` method calls in exchange for 33-48% deserialization improvement and architectural cleanliness.
 
-**Rationale**: Profiling confirmed the serialization gap is purely from method call overhead (writer->write_string/write_number per field) vs V23's direct string concatenation. This is inherent to the writer API and cannot be eliminated without bypassing the writer. The deserialization gains (kernel reader, TRY restructure, cache improvements) more than compensate in typical round-trip scenarios. Compressed+camelCase serialization is actually faster due to fewer fields written.
+**Rationale**: Profiling confirmed the initial serialization gap was from method call overhead (writer->write_string/write_number per field) vs V23's direct string concatenation, plus unnecessary `open_member`/`close_member` pairs. The deserialization gains (kernel reader, TRY restructure, cache improvements) more than compensate in typical round-trip scenarios.
+
+---
+
+## Decision 23 — Eliminate open_member/close_member Calls
+
+**Decision**: All `open_member`/`close_member` calls removed from the serialization path. Member names are passed directly to `open_object( name = ... )`, `open_array( name = ... )`, and all `write_*( name = ... )` methods. `DUMP_INT` and `DUMP_SYMBOLS` each gained a `NAME TYPE STRING OPTIONAL` parameter.
+
+**Rationale**: Confirmed by IF_JSON_WRITER author (Stefan): *"Instead of calling OPEN_MEMBER, you can simply provide the member name to the attribute name of OPEN_OBJECT, OPEN_ARRAY and WRITE_* methods."* This eliminates two extra method calls per complex field, closing the remaining serialization performance gap vs V23.
+
+**Implementation note**: For the `assoc_arrays_opt = true` case (single-value table entries), the table key name is passed via `name` to `dump_symbols`, which uses it as `lv_name` for the single `dump_type` call when `opt_array = abap_true`. Regular array elements pass `name` as empty, which the writer interprets as no member name (unnamed array element).

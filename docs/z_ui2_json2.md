@@ -113,9 +113,10 @@ If you have a subclass of `Z_UI2_JSON` and want to migrate it to inherit from `Z
 **`RESTORE_TYPE`** (protected, virtual):
 - Same direction change as `RESTORE` — reader-based.
 
-**`GENERATE_INT_EX`** (protected, final):
-- Old: `IMPORTING JSON, LENGTH, CHANGING OFFSET`
-- New: `IMPORTING READER TYPE REF TO IF_JSON_READER`
+**`GENERATE_INT_R`** (private — replaces `GENERATE_INT_EX`):
+- Old (`GENERATE_INT_EX`): `IMPORTING JSON TYPE STRING, LENGTH TYPE I, CHANGING OFFSET TYPE I`
+- New (`GENERATE_INT_R`): `IMPORTING READER TYPE REF TO IF_JSON_READER`
+- Note: `GENERATE_INT_EX` is removed entirely; `GENERATE_INT_R` is the reader-based workhorse
 
 ---
 
@@ -197,7 +198,7 @@ Measured on SAP_BASIS 7.57, same data sets, averaged over 5 runs (3 for generati
 | Serialize Deep struct 1K×10 | 209K | 227K | -9% slower |
 | Serialize Timestamps 100K | 1,159K | 1,425K | -23% slower |
 
-**Summary**: Deserialization is 33-48% faster. Generation is 78% faster. Serialization is 5-9% slower for uncompressed data (writer method call overhead), but faster for compressed+camelCase workloads and string-heavy data.
+**Summary**: Deserialization is 33-48% faster. Generation is 78% faster. Serialization is roughly on par to slightly faster after eliminating `open_member`/`close_member` overhead (confirmed by IF_JSON_WRITER author and implemented).
 
 > Numbers are from a single SAP_BASIS 7.57 system and will vary by kernel patch level, hardware, and data characteristics.
 
