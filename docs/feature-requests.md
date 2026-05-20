@@ -157,7 +157,7 @@ DATA lt_results TYPE STANDARD TABLE OF ts_result WITH DEFAULT KEY.
 
 - Path syntax: same `-` separator as `Z_UI2_DATA_ACCESS` / `iv_component` for consistency.
 - Array access: addressing an element by index (e.g. `d-results[0]`) is desirable but adds complexity. A first version could skip array indexing and only support object member traversal.
-- Pretty-name rules must apply to the path segments the same way they apply to field names (e.g. `camelCase` input path `d-results` maps correctly regardless of pretty_mode).
+- Path segments are raw JSON attribute names, not ABAP field names. Pretty-name mapping (`pretty_mode`, `name_mappings`) does not apply to path resolution — the path `d-results` refers to the JSON keys `"d"` and `"results"` literally, regardless of the `pretty_name` setting in effect for the rest of the deserialization.
 - Applicable to both `DESERIALIZE` and `GENERATE`.
 
 **Workaround**: Declare the full wrapper structure (as shown above), or use `GENERATE` + `Z_UI2_DATA_ACCESS` to navigate to the subnode and then deserialize into the target type from that point.
