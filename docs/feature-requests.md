@@ -20,9 +20,10 @@ migration are tracked separately.
 | 5 | `IS_VALID( json )` method | Usability | Medium |
 | 6 | Streaming / chunked serialization for huge tables | Feature | Medium |
 | 7 | ENUM deserialization throws on BASIS < 7.51 instead of silently ignoring | Bug | Medium |
-| 8 | ASSOC_ARRAYS composite key separator not configurable | Config | Low |
-| 9 | Deprecate `pretty_name = abap_true` boolean form | Cleanup | Low |
-| 10 | Promote `Z_UI2_DATA_ACCESS` for post-GENERATE use | Docs | Low |
+| 8 | `path` parameter for `DESERIALIZE` — deserialize a JSON subnode directly | Feature | Medium |
+| 9 | ASSOC_ARRAYS composite key separator not configurable | Config | Low |
+| 10 | Deprecate `pretty_name = abap_true` boolean form | Cleanup | Low |
+| 11 | Promote `Z_UI2_DATA_ACCESS` for post-GENERATE use | Docs | Low |
 
 ---
 
@@ -118,6 +119,48 @@ Classes with `TYPE REF TO <interface>` attributes cannot be deserialized. The de
 Users ask for generated ABAP structures to have fields in the same order as the JSON keys.
 
 **Workaround**: Pre-populate `mt_struct_type` cache via subclass constructor.
+
+---
+
+### 1.9 `path` parameter for `DESERIALIZE` / `GENERATE` — deserialize a JSON subnode directly
+
+**Status**: Not implemented.
+
+**Frequency**: Medium — the OData response wrapper pattern is the canonical example. OData v2 wraps all results in a `{"d":{"results":[...]}}` envelope. To deserialize the inner `results` array into a typed ABAP table, callers today must declare the full outer wrapper structure just to give the deserializer a navigation target:
+
+```abap
+DATA:
+  BEGIN OF ls_odata_response,
+    BEGIN OF d,
+      results TYPE STANDARD TABLE OF ts_result WITH DEFAULT KEY,
+    END OF d,
+  END OF ls_odata_response.
+
+/ui2/cl_json=>deserialize( EXPORTING json = lv_json
+                                     pretty_name = pretty_mode-camel_case
+                           CHANGING  data = ls_odata_response ).
+DATA(lt_results) = ls_odata_response-d-results.
+```
+
+With a `path` parameter, the caller could deserialize directly into the target table without the wrapper boilerplate:
+
+```abap
+DATA lt_results TYPE STANDARD TABLE OF ts_result WITH DEFAULT KEY.
+
+/ui2/cl_json=>deserialize( EXPORTING json = lv_json
+                                     path = `d-results`
+                                     pretty_name = pretty_mode-camel_case
+                           CHANGING  data = lt_results ).
+```
+
+**Design considerations**:
+
+- Path syntax: same `-` separator as `Z_UI2_DATA_ACCESS` / `iv_component` for consistency.
+- Array access: addressing an element by index (e.g. `d-results[0]`) is desirable but adds complexity. A first version could skip array indexing and only support object member traversal.
+- Pretty-name rules must apply to the path segments the same way they apply to field names (e.g. `camelCase` input path `d-results` maps correctly regardless of pretty_mode).
+- Applicable to both `DESERIALIZE` and `GENERATE`.
+
+**Workaround**: Declare the full wrapper structure (as shown above), or use `GENERATE` + `Z_UI2_DATA_ACCESS` to navigate to the subnode and then deserialize into the target type from that point.
 
 ---
 
