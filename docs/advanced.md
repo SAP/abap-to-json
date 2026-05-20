@@ -36,7 +36,9 @@ For simplicity, the class provides static SERIALIZE/DESERIALIZE methods that can
  * \> **INITIAL_DATE** (string, default = "") -	Initial date as JSON
  * \> **INITIAL_TIME** (string, default = "") Initial time as JSON
  * \> **TIME_ZONE** (like SY-ZONLO, default = 'UTC') - Default time zone used when converting timestamps to date and time during deserialization
-  
+
+> **Important**: Parameters in this section are not available on the static `SERIALIZE` / `DESERIALIZE` methods. If you need `STRICT_MODE`, `BOOL_TYPES`, or custom initial date/time rendering, you must use the instance API: create an instance via `CREATE OBJECT lo_json EXPORTING ...` and call `SERIALIZE_INT` / `DESERIALIZE_INT`.
+
 # Custom ABAP to JSON, JSON to ABAP name mapping
 By default, you control how JSON names are formatted/mapped to ABAP names by selecting the proper pretty_mode as a parameter for the SERIALIZE/DESERIALIZE/GENERATE method. But sometimes, the standard, hard-coded formatting is not enough. For example, you need special rules for name formatting (for using special characters) or because the JSON attribute name is too long and can't be mapped to the ABAP name (which has a 30-character length limit). 
 
@@ -269,6 +271,8 @@ Suppose you need to deserialize a JSON object with an unknown structure, or you 
 * You need to accept the default logic for type detection. Supported types are int, float, packaged, strings, boolean, date, time, and timestamps.
 
 ## Simple GENERATE example
+
+The recommended way to access generated data is the [dynamic data accessor helper class](data-access.md) (`Z_UI2_DATA_ACCESS` / `/UI2/CL_DATA_ACCESS`), which accepts a path expression:
 ```abap
 DATA: lr_data TYPE REF TO data,
       lv_str  TYPE string,
@@ -276,7 +280,6 @@ DATA: lr_data TYPE REF TO data,
 
 lr_data = /ui2/cl_json=>generate( json = `{"name":"Alice","age":30,"active":true}` ).
 
-" Access fields with Z_UI2_DATA_ACCESS (or /UI2/CL_DATA_ACCESS)
 /ui2/cl_data_access=>create( ir_data = lr_data iv_component = `NAME` )->value( IMPORTING ev_data = lv_str ).
 WRITE: lv_str.   " -> Alice
 
@@ -284,9 +287,22 @@ WRITE: lv_str.   " -> Alice
 WRITE: lv_int.   " -> 30
 ```
 
+For nested paths, use the `-` separator:
+```abap
+DATA: lv_json TYPE /ui2/cl_json=>json,
+      lr_data TYPE REF TO data,
+      lv_val  TYPE string.
+
+lv_json = `{"name":"Key1","properties":{"field1":"Value1","field2":"Value2"}}`.
+lr_data = /ui2/cl_json=>generate( json = lv_json ).
+
+/ui2/cl_data_access=>create( ir_data = lr_data iv_component = `properties-field1` )->value( IMPORTING ev_data = lv_val ).
+WRITE: lv_val.  " -> Value1
+```
+
 Type detection rules: JSON strings that match `YYYY-MM-DD` → `D`, `HH:MM:SS` → `T`, ISO 8601 timestamps → `TIMESTAMPL`, JSON integers → `I`, floats → `F`, booleans → `ABAP_BOOL`. Everything else → `STRING`.
 
-The simplest example, with straightforward access:
+Alternatively, without the helper class, you can chain `ASSIGN COMPONENT` calls manually:
 ```abap
 DATA: lv_json TYPE /ui2/cl_json=>json,
       lr_data TYPE REF TO data.
@@ -299,7 +315,6 @@ FIELD-SYMBOLS:
 lv_json = `{"name":"Key1","properties":{"field1":"Value1","field2":"Value2"}}`.
 lr_data = /ui2/cl_json=>generate( json = lv_json ).
 
-" OK, generated, now let us access some field :(
 IF lr_data IS BOUND.
   ASSIGN lr_data->* TO <data>.
   ASSIGN COMPONENT `PROPERTIES` OF STRUCTURE <data> TO <field>.
@@ -310,22 +325,10 @@ IF lr_data IS BOUND.
     IF <field> IS ASSIGNED.
       lr_data = <field>.
       ASSIGN lr_data->* TO <data>.
-      WRITE: <data>. " We got it -> Value1
+      WRITE: <data>. " -> Value1
     ENDIF.
   ENDIF.
 ENDIF.
-```
-A nice alternative, using [dynamic data accessor helper class](data-access.md): 
-```abap
-DATA: lv_json TYPE /ui2/cl_json=>json,
-      lr_data TYPE REF TO data,
-      lv_val  TYPE string.
-
-lv_json = `{"name":"Key1","properties":{"field1":"Value1","field2":"Value2"}}`.
-lr_data = /ui2/cl_json=>generate( json = lv_json ).
-
-/ui2/cl_data_access=>create( ir_data = lr_data iv_component = `properties-field1`)->value( IMPORTING ev_data = lv_val ).
-WRITE: lv_val.
 ```
 
 ## Optimized type generation

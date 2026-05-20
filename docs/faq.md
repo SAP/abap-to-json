@@ -15,6 +15,9 @@
 * [You get a short dump OBJECTS_NOT_CHAR when serializing data with enabled conversion exits](#you-get-a-short-dump-objects_not_char-when-serializing-data-with-enabled-conversion-exits)
 * [Why are special characters in JSON attribute names not escaped or unescaped?](#why-are-special-characters-in-json-attribute-names-not-escaped-or-unescaped)
 * [How to define receiving structures for my JSON?](#how-to-define-receiving-structures-for-my-json)
+* [How do I know if DESERIALIZE succeeded?](#how-do-i-know-if-deserialize-succeeded)
+* [How do I access fields in data returned by GENERATE?](#how-do-i-access-fields-in-data-returned-by-generate)
+* [Why does deserialization silently return empty results for my ABAP object?](#why-does-deserialization-silently-return-empty-results-for-my-abap-object)
 
 ## It is slow
 It is as fast as possible to achieve, and it is already heavily optimized in pure ABAP. If you have suggestions on how to make it faster, we welcome them. Features like type conversions, type detections, renaming, data generation, etc, require processing time, and even if they are not active, you may pay the penalty because the class design allows this feature. Operations on strings are not fast in ABAP, and method calls are costly, which is why macros are used within the class. However, the class is robust and can handle any data type for serialization and deserialization, offering many convenient functions that would otherwise need to be implemented manually. It performs well in numerous use cases.
@@ -175,6 +178,45 @@ This is a known limitation. Escaping, and especially unescaping, is very perform
 
 ## How to define receiving structures for my JSON?
 This [online tool](https://www.findocs.xyz/tools/sap/json-to-abap) may help you to generate proper receiving ABAP structures for your input JSON.
+
+## How do I know if DESERIALIZE succeeded?
+By default, `DESERIALIZE` never raises an exception — it silently ignores fields that don't match and returns a partial (or empty) result. This is intentional for robustness, but can be surprising.
+
+A common workaround is to check `IS INITIAL` after the call:
+```abap
+/ui2/cl_json=>deserialize( EXPORTING json = lv_json CHANGING data = ls_result ).
+IF ls_result IS INITIAL.
+  " treat as failure
+ENDIF.
+```
+This is a proxy only — it will miss cases where a valid response is genuinely initial, and will pass even if only some fields were populated.
+
+The recommended approach is to use the instance method `DESERIALIZE_INT` with `STRICT_MODE = abap_true` in the constructor. `DESERIALIZE_INT` raises `CX_SY_MOVE_CAST_ERROR` on structural mismatch, giving you a reliable failure signal. See [Exception Handling](advanced.md#exception-handling-in-ui2cl_json).
+
+## How do I access fields in data returned by GENERATE?
+`GENERATE` returns a `REF TO DATA` pointing to a dynamically created structure. The recommended way to navigate it is the `Z_UI2_DATA_ACCESS` (or `/UI2/CL_DATA_ACCESS`) helper class, which accepts a path expression:
+```abap
+DATA: lr_data TYPE REF TO data,
+      lv_val  TYPE string.
+
+lr_data = /ui2/cl_json=>generate( json = `{"name":"Key1","properties":{"field1":"Value1"}}` ).
+
+/ui2/cl_data_access=>create( ir_data = lr_data iv_component = `properties-field1` )->value(
+  IMPORTING ev_data = lv_val ).
+WRITE: lv_val.  " -> Value1
+```
+See the full API in [data-access.md](data-access.md).
+
+Alternatively, without the helper class, you can chain `ASSIGN COMPONENT` calls manually — see the verbose example in [advanced.md](advanced.md#simple-generate-example).
+
+## Why does deserialization silently return empty results for my ABAP object?
+Two common causes:
+
+**1. Mandatory constructor parameters**: If your class constructor has required importing parameters, the deserializer cannot instantiate the class and returns an unbound reference without raising an exception. Solution: add a no-argument constructor path, or initialize the target object yourself before calling `DESERIALIZE` — if the reference is already bound and of the correct type, the deserializer fills it in place.
+
+**2. Private/protected attributes without FRIENDS**: If the attributes you expect to be filled are not public, the deserializer cannot access them. Declare the serializer class as a `FRIEND` of your class. See [Serializing protected and private attributes](advanced.md#serializing-of-protected-and-private-attributes).
+
+If neither applies, enable `STRICT_MODE` and use `DESERIALIZE_INT` to surface the actual error. See [Exception Handling](advanced.md#exception-handling-in-ui2cl_json).
 
 # Continue reading
 * [Basic usage of the class](basic.md)
