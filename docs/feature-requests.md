@@ -13,21 +13,20 @@ migration are tracked separately.
 
 | # | Item | Type | Priority |
 |---|------|------|----------|
-| 1 | `it_no_compress_fields` / `it_always_compress_fields` constructor params | Feature | High |
-| 2 | Custom boolean types via static `SERIALIZE`/`DESERIALIZE` (no subclassing) | Feature | High |
-| 3 | `DESERIALIZE` returns success/failure flag | Usability | High |
-| 4 | `INITIAL_DATE` / `INITIAL_TIME` / `INITIAL_TS` on static `SERIALIZE` | Usability | Medium |
-| 5 | `IS_VALID( json )` method | Usability | Medium |
-| 6 | Streaming / chunked serialization for huge tables | Feature | Medium |
-| 7 | ENUM deserialization throws on BASIS < 7.51 instead of silently ignoring | Bug | Medium |
-| 8 | `path` parameter for `DESERIALIZE` — deserialize a JSON subnode directly | Feature | Medium |
-| 9 | ASSOC_ARRAYS composite key separator not configurable | Config | Low |
-| 10 | Deprecate `pretty_name = abap_true` boolean form | Cleanup | Low |
-| 11 | Promote `Z_UI2_DATA_ACCESS` for post-GENERATE use | Docs | Low |
+| 1 | ENUM deserialization throws on BASIS < 7.51 instead of silently ignoring | Bug | High |
+| 2 | `it_no_compress_fields` / `it_always_compress_fields` constructor params | Feature | High |
+| 3 | `path` parameter for `DESERIALIZE` / `GENERATE` — deserialize a JSON subnode | Feature | Medium |
+| 4 | Strict-on-unknown-fields (raise on JSON keys not mapped to a structure component) | Feature | Medium |
+| 5 | `IS_VALID( json )` method | Usability | Low |
+| 6 | `BOOL_TYPES` on static API | Feature | Low |
+| 7 | No distinction between JSON `null` and absent field | Feature | Low |
+| 8 | Field ordering in GENERATE output | Feature | Low |
+| 9 | `MAX_DEPTH` constructor parameter — bound recursion depth | Feature | Low |
+| 10 | Catch-all field for unknown JSON keys (lossless round-trip) | Feature | Low |
 
 ---
 
-## Part 1: Feature Requests
+## Part 1: Open Feature Requests
 
 ### 1.1 Built-in compression control: `it_no_compress_fields` / `it_always_compress_fields`
 
@@ -39,90 +38,18 @@ migration are tracked separately.
 
 Both cases are straightforward enough to support natively via constructor parameters, eliminating the most common reason to subclass.
 
-**Suggestion**: Add to the constructor and to `SERIALIZE`:
+**Suggestion**: Add to `CONSTRUCTOR`:
 ```abap
 IMPORTING
   it_no_compress_fields     TYPE string_table OPTIONAL   " field names: never compress
   it_always_compress_fields TYPE string_table OPTIONAL   " field names: always compress
 ```
+Field names match the raw ABAP names already passed to `IS_COMPRESSABLE` (uppercase, as
+declared in the structure).
 
 ---
 
-### 1.2 Custom boolean types via static API
-
-**Status**: Not implemented for static methods. `BOOL_TYPES` is a constructor-only parameter.
-
-**Frequency**: High — one of the most common user questions.
-
-Users have `CHAR 1` boolean types not in the default list (`ABAP_BOOLEAN`, `BOOLEAN`, `XFELD`, etc.) and want `true`/`false` conversion without creating an instance. Currently the only options are: pass `BOOL_TYPES` to the constructor (requires instance API), or subclass and override `MC_BOOL_TYPES` in `class_constructor`.
-
-**Suggestion**: Add `bool_types TYPE string OPTIONAL` to static `SERIALIZE` and `DESERIALIZE`.
-
----
-
-### 1.3 Streaming / chunked serialization for huge tables
-
-**Status**: Not implemented.
-
-**Frequency**: Medium — dedicated FAQ entry.
-
-Users get `SYSTEM_NO_ROLL`, `STRING_SIZE_TOO_LARGE`, `MEMORY_NO_MORE_PAGING` when serializing tables that produce >1 GB JSON strings. Memory exceptions are not catchable, so size cannot be validated up front.
-
-**Workaround**: Manually split the table into chunks before calling the class.
-
-**Suggestion**: A `serialize_chunk( data start end )` API that serializes a table slice into a partial JSON array fragment, allowing callers to write to a stream or combine chunks themselves.
-
----
-
-### 1.4 Configurable ASSOC_ARRAYS composite key separator
-
-**Status**: Not implemented. Hardcoded as `-` (`MC_KEY_SEPARATOR` constant).
-
-**Frequency**: Low.
-
-The key separator for composite multi-key tables serialized as associative arrays is always `-`. If any key value contains `-`, the round-trip breaks silently.
-
-**Suggestion**: Add `key_separator TYPE string DEFAULT '-'` to the constructor and static methods.
-
----
-
-### 1.5 No distinction between JSON `null` and absent field
-
-**Status**: Not implemented. `null` always maps to the ABAP initial value; no way to detect it.
-
-**Frequency**: Medium — relevant for REST APIs that distinguish explicit null from field omission.
-
-No nullable wrapper type or null-indicator field pattern is supported.
-
----
-
-### 1.6 Currency/quantity field pair formatting (CURR/CUKY)
-
-**Status**: Not planned — maintainer explicitly declines default support (implementation complexity, performance penalty). Documented in FAQ.
-
-**Workaround**: Subclass and override `DUMP_INT`/`RESTORE_TYPE`.
-
----
-
-### 1.7 Deserialization of `REF TO <interface>` attributes
-
-**Status**: Not implemented — cannot determine concrete class to instantiate. Documented in FAQ.
-
-Classes with `TYPE REF TO <interface>` attributes cannot be deserialized. The deserializer cannot determine which concrete class to instantiate for an interface reference.
-
----
-
-### 1.8 Field ordering in GENERATE output
-
-**Status**: Not implemented. Current behavior: alphabetical order (for cache normalization). Documented in FAQ.
-
-Users ask for generated ABAP structures to have fields in the same order as the JSON keys.
-
-**Workaround**: Pre-populate `mt_struct_type` cache via subclass constructor.
-
----
-
-### 1.9 `path` parameter for `DESERIALIZE` / `GENERATE` — deserialize a JSON subnode directly
+### 1.2 `path` parameter for `DESERIALIZE` / `GENERATE` — deserialize a JSON subnode directly
 
 **Status**: Not implemented.
 
@@ -164,47 +91,23 @@ DATA lt_results TYPE STANDARD TABLE OF ts_result WITH DEFAULT KEY.
 
 ---
 
-## Part 2: Open Bugs
+### 1.3 Strict-on-unknown-fields
 
-### 2.1 ENUM deserialization throws on BASIS < 7.51 instead of silently ignoring
+**Status**: Not implemented. Today, `STRICT_MODE = abap_true` raises `CX_SY_MOVE_CAST_ERROR` only on type mismatches; JSON keys with no matching ABAP component are silently ignored regardless of strict mode.
 
-**Status**: Open. Serialization works on all BASIS levels. For deserialization, the class tries `CL_ABAP_XSD=>TO_VALUE` dynamically; when this call fails (BASIS < 7.51 where `CL_ABAP_XSD` doesn't exist), it throws instead of silently ignoring the field as documented.
+**Frequency**: Medium — common defensive feature in modern parsers (Go `DisallowUnknownFields`, .NET `UnmappedMemberHandling.Disallow`, Pydantic `extra='forbid'`). Catches contract drift and typos when consuming external APIs with stable schemas.
 
-**Source**: `src/z_ui2_json.clas.abap:2350`
+**Suggestion**: Extend strict mode behavior, or add a sibling constructor parameter (e.g. `disallow_unknown TYPE abap_bool`) so unknown JSON keys raise the same exception with the offending key name in the cast error's `source_typename`.
 
-Note 2650040 states: "From SAP_BASIS 7.51, below, the enums are **ignored**." The current code throws rather than ignoring — the behavior diverges from the documented contract.
-
----
-
-## Part 3: Usability Improvements
-
-### 3.1 `INITIAL_DATE` / `INITIAL_TIME` / `INITIAL_TS` on static `SERIALIZE`
-
-**Status**: Not on static `SERIALIZE`. These three parameters are constructor-only.
-
-**Frequency**: Medium — acknowledged in `docs/faq.md`: "If I get multiple requests regarding extending SERIALIZE with these defaults, I will do it."
-
-Teams using static methods everywhere must switch to the instance API just to control initial date/time rendering.
-
-**Suggestion**: Add `initial_ts`, `initial_date`, `initial_time TYPE string OPTIONAL` to static `SERIALIZE`.
+**Design note**: Constructor-only — the static API stays untouched. Pairs naturally with `STRICT_MODE`; could be folded into it (strict implies disallow-unknown) or kept separate (strict = type-only, disallow-unknown = membership-only) depending on whether existing strict-mode consumers would break under the stricter contract.
 
 ---
 
-### 3.2 `DESERIALIZE` returns success/failure flag
-
-**Status**: Not implemented. `DESERIALIZE` always succeeds silently in non-strict mode.
-
-**Frequency**: High — consumer code analysis shows a widespread pattern of checking `IS INITIAL` after DESERIALIZE as a proxy for "did it work?", and wrapping DESERIALIZE in service-layer classes that raise exceptions when the result is empty.
-
-**Suggestion**: Add a `rv_success TYPE abap_bool` returning parameter to `DESERIALIZE` (or a separate `TRY_DESERIALIZE` method) that returns `abap_false` when the JSON did not match the target type, without requiring `STRICT_MODE`.
-
----
-
-### 3.3 `IS_VALID( json )` method
+### 1.4 `IS_VALID( json )` method
 
 **Status**: Not implemented.
 
-**Frequency**: Medium — users want to validate JSON before processing without side effects on a CHANGING data target.
+**Frequency**: Low — confirmed demand is unclear (no tracked user requests). Could still be a cheap addition: a parse-only call that returns `abap_bool` without a `CHANGING` data target.
 
 **Suggestion**:
 ```abap
@@ -212,55 +115,92 @@ CLASS-METHODS is_valid
   IMPORTING json            TYPE string
   RETURNING VALUE(rv_valid) TYPE abap_bool.
 ```
+No bloat to existing signatures (standalone new method).
 
 ---
 
-### 3.4 Static methods cannot be subclassed — verbose wrapper required
+### 1.5 Custom boolean types via static API
 
-**Status**: By design — ABAP static methods cannot be redefined. Documented in `docs/class-extension.md`.
+**Status**: Constructor-only. `BOOL_TYPES` is exposed only on `CONSTRUCTOR`.
 
-**Frequency**: Very common.
+Users with custom `CHAR 1` boolean types who otherwise use only static methods must switch to the instance API for one parameter.
 
-Subclasses must copy the full `SERIALIZE`/`DESERIALIZE` signature into new static wrapper methods (`SERIALIZE_EX`, etc.) and maintain them. This is standard ABAP but creates friction.
-
-**Mitigation**: The class-extension guide documents the recommended pattern. No immediate API change feasible.
-
----
-
-### 3.5 Class instance deserialization fails silently for mandatory constructor parameters
-
-**Status**: Open — documented in `docs/advanced.md` but not in FAQ.
-
-Deserializing JSON into ABAP class instances where the constructor has mandatory parameters silently produces empty results. No exception is raised.
-
-**Suggestion**: Add to FAQ; consider throwing a specific exception when instantiation fails due to mandatory parameters.
+**Workaround**: Use the instance API:
+```abap
+DATA(lo_json) = NEW /ui2/cl_json( bool_types = `MY_BOOL,ZBOOL,` && /ui2/cl_json=>mc_bool_types ).
+DATA(lv_json) = lo_json->serialize_int( ls_data ).
+```
 
 ---
 
-### 3.6 Private/protected attribute serialization requires FRIENDS declaration
+### 1.6 No distinction between JSON `null` and absent field
 
-**Status**: By design — documented in `docs/advanced.md` but not in FAQ.
+**Status**: Not implemented. `null` always maps to the ABAP initial value; no way to detect it.
 
-To serialize private/protected attributes of ABAP objects, the target class must declare the serializer as a FRIEND. Not possible without modifying the target class.
+**Frequency**: Medium — relevant for REST APIs that distinguish explicit null from field omission.
 
-**Suggestion**: Add to FAQ so users discover this constraint before attempting it.
-
----
-
-### 3.7 Deprecate `pretty_name = abap_true` boolean form
-
-**Status**: Still accepted silently. The boolean `abap_true` form of `pretty_name` (equivalent to `pretty_mode-low_case`) is legacy but still appears in active production code.
-
-**Suggestion**: Add a deprecation note to docs.
+No nullable wrapper type or null-indicator field pattern is supported. A general fix would require either nullable wrapper types or a parallel "presence map" — both invasive.
 
 ---
 
-## Part 4: Observed Usage Patterns in Consumer Code
+### 1.7 Field ordering in GENERATE output
+
+**Status**: Not implemented. Current behavior: alphabetical order (for cache normalization). Documented in FAQ.
+
+Users ask for generated ABAP structures to have fields in the same order as the JSON keys.
+
+**Workaround**: Pre-populate `mt_struct_type` cache via subclass constructor.
+
+**Risk**: Changing the order could affect `mt_struct_type` cache hit rate; would need verification.
+
+---
+
+### 1.8 `MAX_DEPTH` constructor parameter
+
+**Status**: Not implemented. Current parser recurses without an upper bound.
+
+**Frequency**: Low — defensive feature. Common in modern parsers (.NET `MaxDepth = 64` default, most languages cap at 32–512).
+
+Protects against deeply-nested JSON used to exhaust stack / cause DoS in shared services.
+
+**Suggestion**: Add `max_depth TYPE i DEFAULT 0` to `CONSTRUCTOR` only (0 = unlimited, preserves current behavior). When exceeded, raise `CX_SY_MOVE_CAST_ERROR` (or a dedicated subclass) noting depth and position.
+
+---
+
+### 1.9 Catch-all field for unknown JSON keys (lossless round-trip)
+
+**Status**: Not implemented. Unknown JSON keys are silently dropped today.
+
+**Frequency**: Low. Niche — relevant for gateway/proxy scenarios where the class needs to read JSON, modify some known fields, and write it back without losing the rest.
+
+**Inspiration**: Pydantic `extra='allow'` + `model_extra`, Jackson `@JsonAnyGetter`/`@JsonAnySetter`.
+
+**Suggestion**: A convention-based marker — designate one structure component (by name, e.g. `_extras`, or by a constructor parameter naming the catch-all field) of type `string` (raw JSON fragment) or `string_table` / hash table to receive unmapped JSON keys, and serialize them back out on `SERIALIZE`. Constructor-only.
+
+**Design note**: One-way friendly — no DOM access required; the caller just sees an extra field in their structure. Should interact predictably with `STRICT_MODE` and the proposed strict-on-unknown-fields (1.3) — likely: catch-all wins, no exception raised when the field is present.
+
+---
+
+## Part 2: Open Bugs
+
+### 2.1 ENUM deserialization throws on BASIS < 7.51 instead of silently ignoring — **agreed to fix**
+
+**Status**: Open, fix agreed.
+
+**Source**: `src/z_ui2_json.clas.abap:2350`
+
+Serialization works on all BASIS levels. For deserialization, the class tries `CL_ABAP_XSD=>TO_VALUE` dynamically; when this call fails (BASIS < 7.51 where `CL_ABAP_XSD` doesn't exist), it currently calls `throw_error`. Note 2650040 states: "From SAP_BASIS 7.51, below, the enums are **ignored**." The current code throws rather than ignoring — the behavior diverges from the documented contract.
+
+**Fix**: One-line — replace `throw_error` in the `CATCH cx_sy_dyn_call_error` block with `eat_name sdummy. RETURN.` (consume the JSON value and continue, matching the documented "silently ignore" contract).
+
+---
+
+## Part 3: Observed Usage Patterns in Consumer Code
 
 These patterns were identified through analysis of real-world `/UI2/CL_JSON` consumers.
 No internal system names or class names are included.
 
-### 4.1 Pre-processing before DESERIALIZE
+### 3.1 Pre-processing before DESERIALIZE
 
 **LLM output stripping** — the most common pre-processing pattern found. Any code that sends an LLM prompt asking for JSON output must strip the markdown code fence the LLM wraps around it:
 ```abap
@@ -277,11 +217,11 @@ REPLACE ALL OCCURRENCES OF cl_abap_char_utilities=>cr_lf IN lv_json WITH space.
 REPLACE ALL OCCURRENCES OF cl_abap_char_utilities=>newline IN lv_json WITH space.
 ```
 
-**OData envelope rewriting** — examining the top-level key of a JSON response and rewriting the outer array/object shape to match the ABAP target type. Compensates for `DESERIALIZE` requiring an exact shape match.
+**OData envelope rewriting** — examining the top-level key of a JSON response and rewriting the outer array/object shape to match the ABAP target type. Compensates for `DESERIALIZE` requiring an exact shape match. Item 1.2 (`path` parameter) addresses this directly.
 
 ---
 
-### 4.2 Post-processing after SERIALIZE
+### 3.2 Post-processing after SERIALIZE
 
 **JSON-in-a-field** — storing serialized JSON as a string field in an OData entity, DB table, or RFC parameter. Very common pattern; the serializer output is treated as an opaque string.
 
@@ -297,7 +237,7 @@ Suggests demand for a "serialize with named root key" option or partial-document
 
 ---
 
-### 4.3 Most Common Parameter Combinations
+### 3.3 Most Common Parameter Combinations
 
 | Combination | Frequency | Context |
 |---|---|---|
@@ -305,7 +245,7 @@ Suggests demand for a "serialize with named root key" option or partial-document
 | `pretty_name = pretty_mode-camel_case` + `name_mappings` | High | camelCase base + specific field overrides (e.g. `@context`) |
 | `compress = abap_true` + `pretty_mode-low_case` | Medium | LLM prompt context |
 | `pretty_mode-low_case` + `assoc_arrays = abap_true` | Seen | REST APIs returning dicts/maps |
-| `pretty_name = abap_true` (deprecated boolean) | Seen | Legacy code still in production |
+| `pretty_name = abap_true` (legacy boolean) | Seen | Legacy code still in production |
 | No parameters | Common | Simple round-trips with uppercase field names |
 | Inline `name_mappings = VALUE #( ... )` | Seen | Small one-off mappings, preferred style |
 
@@ -314,7 +254,7 @@ Inline `VALUE #(...)` for name_mappings should be documented as the recommended 
 
 ---
 
-### 4.4 Error Handling Patterns
+### 3.4 Error Handling Patterns
 
 **No error handling** — most common. Consumers rely on non-strict mode silently ignoring mismatches. Works in practice but produces silent data loss when JSON doesn't match the ABAP type.
 
@@ -325,7 +265,7 @@ IF ls_result IS INITIAL.
   RAISE EXCEPTION TYPE cx_my_error.
 ENDIF.
 ```
-This is a workaround for the missing success/failure return (see 3.2).
+Anti-pattern. Recommended replacement is `STRICT_MODE = abap_true` + `DESERIALIZE_INT` → `CATCH CX_SY_MOVE_CAST_ERROR`. Documented in FAQ.
 
 **Two-attempt pattern** — try primary type, fall back to error structure:
 ```abap
@@ -337,7 +277,7 @@ ENDIF.
 
 ---
 
-### 4.5 Subclassing Patterns
+### 3.5 Subclassing Patterns
 
 Analysis confirms `IS_COMPRESSABLE` is the dominant — and essentially the only — extension point overridden in practice. Three subclass patterns were observed:
 
@@ -350,29 +290,3 @@ Analysis confirms `IS_COMPRESSABLE` is the dominant — and essentially the only
 No `PRETTY_NAME` / `PRETTY_NAME_EX` overrides were observed in consumer code. `DUMP_TYPE` overrides appear only in specialized wrappers.
 
 Building `it_no_compress_fields` and `it_always_compress_fields` into the constructor (see 1.1) would eliminate the most common subclassing reason.
-
----
-
-### 4.6 Dynamic Data Access after GENERATE
-
-The post-GENERATE navigation pattern using `ASSIGN COMPONENT` is widespread in consumer code:
-```abap
-ASSIGN lr_data->* TO <root>.
-ASSIGN COMPONENT 'MY_FIELD' OF STRUCTURE <root> TO <field>.
-ASSIGN <field>->* TO <value>.
-```
-Consumers appear unaware of `Z_UI2_DATA_ACCESS`, which provides a cleaner path-based API for exactly this pattern. Better promotion in the docs would help.
-
----
-
-## Part 5: GitHub Issues Summary
-
-All issues are currently closed. Key findings:
-
-| Issue | Summary | Status |
-|-------|---------|--------|
-| #7 | Infinite loop on malformed JSON | Fixed in a subsequent patch level |
-| #11 | Option to skip escaping for specific values (e.g. Windows paths) | Closed without documented resolution — no built-in "skip escaping" flag exists |
-| #12 | Scientific notation (TYPE F) from dynamic data access | TYPE F always serializes scientific in ABAP; concern is in the data access layer, not the serializer |
-| #19 | Apache Parquet support | Out of scope — JSON-only library |
-| #20 | OData `/Date(...)` off-by-one-second rounding | Fixed in a subsequent patch level |
