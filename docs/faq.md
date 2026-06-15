@@ -18,6 +18,7 @@
 * [How do I know if DESERIALIZE succeeded?](#how-do-i-know-if-deserialize-succeeded)
 * [How do I access fields in data returned by GENERATE?](#how-do-i-access-fields-in-data-returned-by-generate)
 * [Why does deserialization silently return empty results for my ABAP object?](#why-does-deserialization-silently-return-empty-results-for-my-abap-object)
+* [Data is lost or corrupted after a DESERIALIZE / SERIALIZE round-trip](#data-is-lost-or-corrupted-after-a-deserialize--serialize-round-trip)
 
 ## It is slow
 It is as fast as possible to achieve, and it is already heavily optimized in pure ABAP. If you have suggestions on how to make it faster, we welcome them. Features like type conversions, type detections, renaming, data generation, etc, require processing time, and even if they are not active, you may pay the penalty because the class design allows this feature. Operations on strings are not fast in ABAP, and method calls are costly, which is why macros are used within the class. However, the class is robust and can handle any data type for serialization and deserialization, offering many convenient functions that would otherwise need to be implemented manually. It performs well in numerous use cases.
@@ -208,6 +209,51 @@ WRITE: lv_val.  " -> Value1
 See the full API in [data-access.md](data-access.md).
 
 Alternatively, without the helper class, you can chain `ASSIGN COMPONENT` calls manually — see the verbose example in [advanced.md](advanced.md#simple-generate-example).
+
+## Data is lost or corrupted after a DESERIALIZE / SERIALIZE round-trip
+
+This usually means the JSON input contains **conflicting key names** that all normalize to the same ABAP component name, or keys that cannot be represented as ABAP field names at all.
+
+### Conflicting keys
+
+The class normalizes JSON key names to ABAP component names before matching them to fields. Under the default mode (`pretty_name = none`), all keys are uppercased. Under camelCase mode, they are split on case boundaries and then uppercased. The normalization is lossy: the following three JSON keys all map to the same ABAP component `SAP_BASIS_PG_UI_MYHOME`:
+
+- `sapBasisPgUiMyhome` (camelCase)
+- `SAP_BASIS_PG_UI_MYHOME` (already uppercase)
+- `sapbasispguimyhome` (plain lowercase)
+
+When multiple keys map to the same component, the class applies "last value wins" — earlier values are silently overwritten. This is documented behavior.
+
+**Root cause**: the input JSON is inconsistent — it was accumulated from multiple sources or serialized with different `pretty_name` settings at different times. Any single consistent deserialization mode will cause collisions.
+
+**Solution**: use `name_mappings` to assign each distinct JSON key to a separate ABAP component name, and use the same mappings for both serialize and deserialize:
+
+```abap
+" Define mappings once — same parameters used in both directions
+DATA(lt_mappings) = VALUE /ui2/cl_json=>name_mappings(
+  ( abap = 'HOME_CAMEL'  json = 'sapBasisPgUiMyhome'    )
+  ( abap = 'HOME_UPPER'  json = 'SAP_BASIS_PG_UI_MYHOME' )
+  ( abap = 'HOME_LOWER'  json = 'sapbasispguimyhome'     )
+  ( abap = 'X_VERSION'   json = '_version'               )
+).
+
+" Deserialize
+/ui2/cl_json=>deserialize(
+  EXPORTING json          = lv_json
+            name_mappings = lt_mappings
+  CHANGING  data          = ls_data ).
+
+" Serialize — pass same mappings so keys are written back correctly
+DATA(lv_json_out) = /ui2/cl_json=>serialize(
+  data          = ls_data
+  name_mappings = lt_mappings ).
+```
+
+Your ABAP structure must have separate components for each mapped field (`HOME_CAMEL`, `HOME_UPPER`, `HOME_LOWER`, `X_VERSION`).
+
+### Keys starting with `_` or containing special characters
+
+ABAP component names cannot start with `_` or contain characters like `.` or `-`. Keys such as `_version` or `sap.flp` are silently dropped during deserialization unless you provide an explicit `name_mappings` entry for them (as shown above for `_version`).
 
 ## Why does deserialization silently return empty results for my ABAP object?
 Two common causes:
