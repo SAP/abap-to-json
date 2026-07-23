@@ -125,7 +125,7 @@ DEFINE dump_type_int.
       ELSE.
         &3 = &1.
       ENDIF.
-    WHEN cl_abap_typedescr=>typekind_decfloat16 OR cl_abap_typedescr=>typekind_decfloat34.
+    WHEN z_ui2_json=>e_typekind-decfloat16 OR z_ui2_json=>e_typekind-decfloat34.
       IF &1 IS INITIAL.
         &3 = `0`.
       ELSE.
