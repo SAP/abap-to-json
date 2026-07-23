@@ -125,6 +125,13 @@ DEFINE dump_type_int.
       ELSE.
         &3 = &1.
       ENDIF.
+    WHEN cl_abap_typedescr=>typekind_decfloat16 OR cl_abap_typedescr=>typekind_decfloat34.
+      IF &1 IS INITIAL.
+        &3 = `0`.
+      ELSE.
+        &3 = &1.
+        CONDENSE &3.
+      ENDIF.
     WHEN e_typekind-int OR e_typekind-int1 OR e_typekind-int2 OR e_typekind-packed OR e_typekind-int8.
       IF &1 IS INITIAL.
         &3 = `0`.

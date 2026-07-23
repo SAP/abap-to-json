@@ -1098,6 +1098,13 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
         ELSE.
           r_json = data.
         ENDIF.
+      WHEN cl_abap_typedescr=>typekind_decfloat16 OR cl_abap_typedescr=>typekind_decfloat34.
+        IF data IS INITIAL.
+          r_json = `0`.
+        ELSE.
+          r_json = data.
+          CONDENSE r_json.
+        ENDIF.
       WHEN e_typekind-int OR e_typekind-int1 OR e_typekind-int2 OR e_typekind-packed OR e_typekind-int8.
         IF data IS INITIAL.
           r_json = `0`.
