@@ -274,83 +274,20 @@ CLASS lcl_util IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD read_json_to_string.
-    " Workaround: IF_JSON_READER=>skip_node( writer ) does not work correctly
-    " on member positions mid-document. Replace with skip_node( writer ) once fixed.
+    " skip_node( writer ) fails on named nodes — envelope workaround:
+    " wrap in a temporary object, skip, then strip prefix/suffix via string arithmetic.
     DATA(lo_writer) = cl_json_string_writer=>create( ).
-    DATA(lv_depth) = 0.
-    DATA lv_is_member TYPE c LENGTH 64.
-    DO.
-      CASE reader->node-type.
-        WHEN if_json_node=>open_object.
-          IF reader->node-name IS NOT INITIAL AND lv_depth > 0.
-            lo_writer->open_member( reader->node-name ).
-            lv_is_member+lv_depth(1) = 'X'.
-          ELSE.
-            lv_is_member+lv_depth(1) = ' '.
-          ENDIF.
-          lo_writer->open_object( ).
-          lv_depth = lv_depth + 1.
-        WHEN if_json_node=>close_object.
-          lo_writer->close_object( ).
-          lv_depth = lv_depth - 1.
-          IF lv_is_member+lv_depth(1) = 'X'.
-            lo_writer->close_member( ).
-          ENDIF.
-          IF lv_depth = 0. EXIT. ENDIF.
-        WHEN if_json_node=>open_array.
-          IF reader->node-name IS NOT INITIAL AND lv_depth > 0.
-            lo_writer->open_member( reader->node-name ).
-            lv_is_member+lv_depth(1) = 'X'.
-          ELSE.
-            lv_is_member+lv_depth(1) = ' '.
-          ENDIF.
-          lo_writer->open_array( ).
-          lv_depth = lv_depth + 1.
-        WHEN if_json_node=>close_array.
-          lo_writer->close_array( ).
-          lv_depth = lv_depth - 1.
-          IF lv_is_member+lv_depth(1) = 'X'.
-            lo_writer->close_member( ).
-          ENDIF.
-          IF lv_depth = 0. EXIT. ENDIF.
-        WHEN if_json_node=>string.
-          IF reader->node-name IS NOT INITIAL AND lv_depth > 0.
-            lo_writer->open_member( reader->node-name ).
-          ENDIF.
-          lo_writer->write_string( reader->node-value ).
-          IF reader->node-name IS NOT INITIAL AND lv_depth > 0.
-            lo_writer->close_member( ).
-          ENDIF.
-        WHEN if_json_node=>number.
-          IF reader->node-name IS NOT INITIAL AND lv_depth > 0.
-            lo_writer->open_member( reader->node-name ).
-          ENDIF.
-          lo_writer->write_number( reader->node-value ).
-          IF reader->node-name IS NOT INITIAL AND lv_depth > 0.
-            lo_writer->close_member( ).
-          ENDIF.
-        WHEN if_json_node=>boolean.
-          IF reader->node-name IS NOT INITIAL AND lv_depth > 0.
-            lo_writer->open_member( reader->node-name ).
-          ENDIF.
-          lo_writer->write_boolean( reader->node-value ).
-          IF reader->node-name IS NOT INITIAL AND lv_depth > 0.
-            lo_writer->close_member( ).
-          ENDIF.
-        WHEN if_json_node=>null.
-          IF reader->node-name IS NOT INITIAL AND lv_depth > 0.
-            lo_writer->open_member( reader->node-name ).
-          ENDIF.
-          lo_writer->write_null( ).
-          IF reader->node-name IS NOT INITIAL AND lv_depth > 0.
-            lo_writer->close_member( ).
-          ENDIF.
-        WHEN OTHERS.
-          EXIT.
-      ENDCASE.
-      reader->next_node( ).
-    ENDDO.
-    rv_json = CAST cl_json_string_writer( lo_writer )->get_json( ).
+    IF reader->node-name IS NOT INITIAL.
+      lo_writer->open_object( ).
+      reader->skip_node( lo_writer ).
+      lo_writer->close_object( ).
+      DATA(lv_raw) = CAST cl_json_string_writer( lo_writer )->get_json( ).
+      DATA(lv_off) = strlen( reader->node-name ) + 4.
+      rv_json = substring( val = lv_raw off = lv_off len = strlen( lv_raw ) - lv_off - 1 ).
+    ELSE.
+      reader->skip_node( lo_writer ).
+      rv_json = CAST cl_json_string_writer( lo_writer )->get_json( ).
+    ENDIF.
   ENDMETHOD.
 
 ENDCLASS.                    "lcl_util IMPLEMENTATION
