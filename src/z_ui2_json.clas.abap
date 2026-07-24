@@ -99,6 +99,7 @@ public section.
       !CONVERSION_EXITS type BOOL default C_BOOL-FALSE
       !HEX_AS_BASE64 type BOOL default C_BOOL-TRUE
       !GEN_OPTIMIZE type BOOL default C_BOOL-FALSE
+      !PATH type STRING optional
     changing
       !DATA type DATA .
   class-methods SERIALIZE
@@ -124,6 +125,7 @@ public section.
       !JSON type JSON optional
       !JSONX type XSTRING optional
       !JSONX_CP type STRING default `UTF-8`
+      !PATH type STRING optional
     changing
       !DATA type DATA
     raising
@@ -661,6 +663,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
             EXPORTING
               json  = json
               jsonx = jsonx
+              path  = path
             CHANGING
               data  = data.
         CATCH cx_sy_move_cast_error.                    "#EC NO_HANDLER

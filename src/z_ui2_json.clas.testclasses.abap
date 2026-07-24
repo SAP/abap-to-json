@@ -81,6 +81,8 @@ INHERITING FROM z_ui2_json.
     METHODS serialize_time_stamp FOR TESTING.
     "! DECFLOAT16/DECFLOAT34 zero must serialize as 0, not null
     METHODS serialize_decfloat FOR TESTING.
+    "! deserialize a JSON subnode directly via PATH, skipping the wrapper structure
+    METHODS deserialize_path FOR TESTING.
 
 ENDCLASS.       "abap_unit_testclass
 * ----------------------------------------------------------------------
@@ -3090,6 +3092,40 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     lv_json = serialize( data = lv_d34_nz ).
     cl_abap_unit_assert=>assert_not_initial( act = lv_json msg = 'DECFLOAT34 non-zero must serialize to non-empty' ).
     cl_abap_unit_assert=>assert_differs( act = lv_json exp = `null` msg = 'DECFLOAT34 non-zero must not serialize as null' ).
+
+  ENDMETHOD.
+
+  METHOD deserialize_path.
+    " deserialize a JSON subnode directly via PATH, without declaring the wrapper structure
+
+    TYPES:
+      BEGIN OF ts_result,
+        id   TYPE string,
+        name TYPE string,
+      END OF ts_result.
+
+    DATA: lv_json    TYPE json,
+          lt_results TYPE STANDARD TABLE OF ts_result WITH DEFAULT KEY,
+          ls_single  TYPE ts_result.
+
+    " OData v2 envelope: target is the inner d-results array
+    lv_json = `{"d":{"results":[{"id":"1","name":"foo"},{"id":"2","name":"bar"}]}}`.
+
+    deserialize( EXPORTING json = lv_json path = `d-results` CHANGING data = lt_results ).
+
+    cl_abap_unit_assert=>assert_equals( exp = 2 act = lines( lt_results ) msg = 'PATH: wrong number of rows extracted' ).
+    READ TABLE lt_results INDEX 1 INTO ls_single.
+    cl_abap_unit_assert=>assert_equals( exp = `1`   act = ls_single-id   msg = 'PATH: row 1 id mismatch' ).
+    cl_abap_unit_assert=>assert_equals( exp = `foo` act = ls_single-name msg = 'PATH: row 1 name mismatch' ).
+    READ TABLE lt_results INDEX 2 INTO ls_single.
+    cl_abap_unit_assert=>assert_equals( exp = `bar` act = ls_single-name msg = 'PATH: row 2 name mismatch' ).
+
+    " single-segment path into an object node
+    CLEAR ls_single.
+    lv_json = `{"payload":{"id":"42","name":"answer"}}`.
+    deserialize( EXPORTING json = lv_json path = `payload` CHANGING data = ls_single ).
+    cl_abap_unit_assert=>assert_equals( exp = `42`     act = ls_single-id   msg = 'PATH: single-segment id mismatch' ).
+    cl_abap_unit_assert=>assert_equals( exp = `answer` act = ls_single-name msg = 'PATH: single-segment name mismatch' ).
 
   ENDMETHOD.
 
