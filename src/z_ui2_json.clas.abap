@@ -432,6 +432,15 @@ protected section.
       !OFFSET type I default 0
     raising
       CX_SY_MOVE_CAST_ERROR .
+  methods SEEK_PATH
+    importing
+      !JSON type JSON
+      !LENGTH type I
+      !PATH type STRING
+    changing
+      !OFFSET type I
+    raising
+      CX_SY_MOVE_CAST_ERROR .
   methods DUMP_TYPE
     importing
       !DATA type DATA
@@ -699,6 +708,9 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     while_offset_not_cs '"{[aeflnrstu0123456789+-eE.' lv_json offset.
 
     TRY.
+        IF path IS NOT INITIAL.
+          seek_path( EXPORTING json = lv_json length = length path = path CHANGING offset = offset ).
+        ENDIF.
         restore_type( EXPORTING json = lv_json length = length CHANGING data = data offset = offset ).
       CATCH cx_sy_move_cast_error INTO lx_move.
         RAISE EXCEPTION TYPE cx_sy_move_cast_error
@@ -2479,6 +2491,62 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     ENDTRY.
 
   ENDMETHOD.                    "restore_type
+
+
+  METHOD seek_path.
+
+    DATA: mark     LIKE offset,
+          match    LIKE offset,
+          pos      LIKE offset,                             "#EC NEEDED
+          segments TYPE STANDARD TABLE OF string,
+          segment  TYPE string,
+          name     TYPE string,
+          found    TYPE abap_bool.
+
+    " PATH navigation: position OFFSET at the start of the requested subnode.
+    " Segments are raw JSON attribute names separated by MC_KEY_SEPARATOR ('-').
+    " Only object-member traversal is supported (no array indexing).
+    SPLIT path AT mc_key_separator INTO TABLE segments.
+
+    LOOP AT segments INTO segment.
+
+      eat_white.
+      eat_char '{'.
+      eat_white.
+
+      found = abap_false.
+      WHILE offset < length AND json+offset(1) NE '}'.
+
+        eat_name name.
+        eat_white.
+        eat_char ':'.
+        eat_white.
+
+        IF name EQ segment.
+          " matched this level; leave OFFSET on the value and descend
+          found = abap_true.
+          EXIT.
+        ENDIF.
+
+        " not our segment: consume and discard the value, then continue
+        restore_type( EXPORTING json = json length = length CHANGING offset = offset ).
+        eat_white.
+        IF offset < length AND json+offset(1) NE '}'.
+          eat_char ','.
+          eat_white.
+        ELSE.
+          EXIT.
+        ENDIF.
+
+      ENDWHILE.
+
+      IF found EQ abap_false.
+        throw_error.
+      ENDIF.
+
+    ENDLOOP.
+
+  ENDMETHOD.                    "seek_path
 
 
   METHOD serialize.
