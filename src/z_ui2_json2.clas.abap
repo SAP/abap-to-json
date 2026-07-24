@@ -95,6 +95,7 @@ CLASS z_ui2_json2 DEFINITION
         !name_mappings    TYPE name_mappings OPTIONAL
         !conversion_exits TYPE bool DEFAULT c_bool-false
         !hex_as_base64    TYPE bool DEFAULT c_bool-true
+        !path             TYPE string OPTIONAL
       CHANGING
         !data             TYPE data .
     CLASS-METHODS serialize
@@ -119,6 +120,7 @@ CLASS z_ui2_json2 DEFINITION
       IMPORTING
         !json  TYPE json OPTIONAL
         !jsonx TYPE xstring OPTIONAL
+        !path  TYPE string OPTIONAL
       CHANGING
         !data  TYPE data
       RAISING
@@ -275,6 +277,12 @@ CLASS z_ui2_json2 DEFINITION
         !typekind         TYPE abap_typekind OPTIONAL
       CHANGING
         !data             TYPE data OPTIONAL
+      RAISING
+        cx_sy_move_cast_error .
+    METHODS seek_path
+      IMPORTING
+        !reader TYPE REF TO if_json_reader
+        !path   TYPE string
       RAISING
         cx_sy_move_cast_error .
     METHODS dump_type
@@ -459,6 +467,48 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
   ENDMETHOD.
 
 
+  METHOD seek_path.
+
+    " PATH navigation: position READER at the requested subnode before restore.
+    " Segments are raw JSON attribute names separated by MC_KEY_SEPARATOR ('-').
+    " Only object-member traversal is supported (no array indexing).
+    DATA: segments TYPE STANDARD TABLE OF string,
+          segment  TYPE string,
+          found    TYPE abap_bool.
+
+    SPLIT path AT mc_key_separator INTO TABLE segments.
+
+    LOOP AT segments INTO segment.
+
+      IF reader->node-type <> if_json_node=>open_object.
+        RAISE EXCEPTION TYPE cx_sy_move_cast_error.
+      ENDIF.
+      reader->next_node( ).
+
+      found = abap_false.
+      WHILE reader->node-type <> if_json_node=>close_object AND reader->node-type <> if_json_node=>final.
+
+        IF reader->node-name = segment.
+          " matched this level; leave READER on the value node and descend
+          found = abap_true.
+          EXIT.
+        ENDIF.
+
+        " not our segment: skip the whole value, advance to next member
+        reader->skip_node( ).
+        reader->next_node( ).
+
+      ENDWHILE.
+
+      IF found = abap_false.
+        RAISE EXCEPTION TYPE cx_sy_move_cast_error.
+      ENDIF.
+
+    ENDLOOP.
+
+  ENDMETHOD.
+
+
   METHOD deserialize.
 
     " **********************************************************************
@@ -481,6 +531,7 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
             EXPORTING
               json  = json
               jsonx = jsonx
+              path  = path
             CHANGING
               data  = data ).
         CATCH cx_sy_move_cast_error.                    "#EC NO_HANDLER
@@ -509,6 +560,9 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
         ENDIF.
 
         lo_reader->next_node( ).
+        IF path IS NOT INITIAL.
+          seek_path( reader = lo_reader path = path ).
+        ENDIF.
         TRY.
             DATA(lo_descr) = cl_abap_typedescr=>describe_by_data( data ).
             DATA(lv_init_typekind) = lcl_util=>detect_typekind( type_descr = lo_descr numc_as_string = mv_numc_as_string bool_types = mv_bool_types bool_3state = mv_bool_3state ).
