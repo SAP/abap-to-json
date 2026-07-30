@@ -120,6 +120,7 @@ CLASS lcl_parser DEFINITION.
       EXPORTING key          TYPE string
                 inline_value TYPE string
                 has_inline   TYPE abap_bool
+                is_mapping   TYPE abap_bool
       RAISING   cx_sy_conversion_error.
     CLASS-METHODS value_or_block
       IMPORTING lines        TYPE ty_lines

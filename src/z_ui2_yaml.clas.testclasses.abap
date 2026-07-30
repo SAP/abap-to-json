@@ -70,12 +70,13 @@ ENDCLASS.
 
 CLASS ltc_parser DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
   PRIVATE SECTION.
-    METHODS flat_mapping     FOR TESTING RAISING cx_sy_conversion_error.
-    METHODS nested_mapping   FOR TESTING RAISING cx_sy_conversion_error.
-    METHODS block_sequence   FOR TESTING RAISING cx_sy_conversion_error.
-    METHODS seq_of_mappings  FOR TESTING RAISING cx_sy_conversion_error.
-    METHODS key_null_value   FOR TESTING RAISING cx_sy_conversion_error.
-    METHODS bad_dedent_fails FOR TESTING.
+    METHODS flat_mapping       FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS nested_mapping     FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS block_sequence     FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS seq_of_mappings    FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS key_null_value     FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS bad_dedent_fails   FOR TESTING.
+    METHODS scalar_with_colon  FOR TESTING RAISING cx_sy_conversion_error.
     METHODS p IMPORTING t TYPE string RETURNING VALUE(r) TYPE ty_node_ref RAISING cx_sy_conversion_error.
 ENDCLASS.
 CLASS ltc_parser IMPLEMENTATION.
@@ -121,5 +122,12 @@ CLASS ltc_parser IMPLEMENTATION.
         cl_abap_unit_assert=>fail( `expected bad dedent` ).
       CATCH cx_sy_conversion_error.
     ENDTRY.
+  ENDMETHOD.
+  METHOD scalar_with_colon.
+    " a sequence item that is a URL must stay a scalar, not become a mapping
+    DATA(r) = p( |- http://example.com\n- plain| ).
+    cl_abap_unit_assert=>assert_equals( act = r->node-kind exp = c_node=>sequence ).
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 1 ]-node->node-kind exp = c_node=>scalar ).
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 1 ]-node->node-value exp = `http://example.com` ).
   ENDMETHOD.
 ENDCLASS.

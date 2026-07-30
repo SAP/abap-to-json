@@ -93,12 +93,16 @@ CLASS lcl_parser IMPLEMENTATION.
     DATA(first) = lines[ idx ]-content.
     IF first CP `- *` OR first = `-`.
       node = parse_sequence( EXPORTING lines = lines own_indent = own CHANGING idx = idx ).
-    ELSEIF first CA `:`.
-      node = parse_mapping( EXPORTING lines = lines own_indent = own CHANGING idx = idx ).
     ELSE.
-      " plain scalar line
-      node = lcl_tree=>new_scalar( value = first ).
-      idx = idx + 1.
+      DATA lv_is_mapping TYPE abap_bool.
+      split_key_value( EXPORTING content = first lineno = lines[ idx ]-lineno
+                       IMPORTING is_mapping = lv_is_mapping ).
+      IF lv_is_mapping = abap_true.
+        node = parse_mapping( EXPORTING lines = lines own_indent = own CHANGING idx = idx ).
+      ELSE.
+        node = lcl_tree=>new_scalar( value = first ).
+        idx = idx + 1.
+      ENDIF.
     ENDIF.
   ENDMETHOD.
 
@@ -137,6 +141,11 @@ CLASS lcl_parser IMPLEMENTATION.
                                     CHANGING  idx = idx ).
       lcl_tree=>add_child( node = node child = child ).
     ENDWHILE.
+    " bad-dedent: next line is deeper than own but wasn't consumed
+    IF idx <= lines( lines ) AND lines[ idx ]-indent > own_indent.
+      RAISE EXCEPTION TYPE cx_sy_conversion_no_number
+        EXPORTING value = |Bad indentation at line { lines[ idx ]-lineno }|.
+    ENDIF.
   ENDMETHOD.
 
   METHOD parse_seq_item.
@@ -172,8 +181,10 @@ CLASS lcl_parser IMPLEMENTATION.
         DATA(next_pos) = i + 1.
         IF next_pos >= len.
           " key: (nothing after colon)
-          key        = substring( val = content len = i ).
-          has_inline = abap_false.
+          key          = substring( val = content len = i ).
+          inline_value = ``.
+          has_inline   = abap_false.
+          is_mapping   = abap_true.
           RETURN.
         ENDIF.
         DATA(next_ch) = substring( val = content off = next_pos len = 1 ).
@@ -184,14 +195,16 @@ CLASS lcl_parser IMPLEMENTATION.
             inline_value = substring( val = content off = val_off ).
           ENDIF.
           has_inline = abap_true.
+          is_mapping = abap_true.
           RETURN.
         ENDIF.
       ENDIF.
       i = i + 1.
     ENDWHILE.
-    " no ':' found — treat whole content as key
+    " no valid key separator found — plain scalar
     key        = content.
     has_inline = abap_false.
+    is_mapping = abap_false.
   ENDMETHOD.
 
   METHOD value_or_block.
