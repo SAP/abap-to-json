@@ -260,3 +260,53 @@ CLASS ltc_block_scalar IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( act = v( |k: \|+\n  line1\n| ) exp = |line1\n\n| ).
   ENDMETHOD.
 ENDCLASS.
+
+CLASS ltc_deser DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
+  PRIVATE SECTION.
+    METHODS flat_struct        FOR TESTING.
+    METHODS nested_struct      FOR TESTING.
+    METHODS table_of_struct    FOR TESTING.
+    METHODS strict_bad_number  FOR TESTING.
+    METHODS lenient_bad_number FOR TESTING.
+ENDCLASS.
+CLASS ltc_deser IMPLEMENTATION.
+  METHOD flat_struct.
+    TYPES: BEGIN OF ty, name TYPE string, port TYPE i, END OF ty.
+    DATA out TYPE ty.
+    z_ui2_yaml=>deserialize( EXPORTING yaml = |name: web\nport: 8080| CHANGING data = out ).
+    cl_abap_unit_assert=>assert_equals( act = out-name exp = `web` ).
+    cl_abap_unit_assert=>assert_equals( act = out-port exp = 8080 ).
+  ENDMETHOD.
+  METHOD nested_struct.
+    TYPES: BEGIN OF ty_i, host TYPE string, port TYPE i, END OF ty_i.
+    TYPES: BEGIN OF ty, name TYPE string, inner TYPE ty_i, END OF ty.
+    DATA out TYPE ty.
+    z_ui2_yaml=>deserialize( EXPORTING yaml = |name: x\ninner:\n  host: h\n  port: 5| CHANGING data = out ).
+    cl_abap_unit_assert=>assert_equals( act = out-inner-host exp = `h` ).
+    cl_abap_unit_assert=>assert_equals( act = out-inner-port exp = 5 ).
+  ENDMETHOD.
+  METHOD table_of_struct.
+    TYPES: BEGIN OF ty, name TYPE string, port TYPE i, END OF ty.
+    DATA out TYPE STANDARD TABLE OF ty WITH DEFAULT KEY.
+    z_ui2_yaml=>deserialize( EXPORTING yaml = |- name: a\n  port: 1\n- name: b\n  port: 2| CHANGING data = out ).
+    cl_abap_unit_assert=>assert_equals( act = lines( out ) exp = 2 ).
+    cl_abap_unit_assert=>assert_equals( act = out[ 2 ]-port exp = 2 ).
+  ENDMETHOD.
+  METHOD strict_bad_number.
+    TYPES: BEGIN OF ty, port TYPE i, END OF ty.
+    DATA out TYPE ty.
+    DATA(o) = NEW z_ui2_yaml( strict_mode = abap_true ).
+    TRY.
+        o->deserialize_int( EXPORTING yaml = |port: notanumber| CHANGING data = out ).
+        cl_abap_unit_assert=>fail( `expected cast error` ).
+      CATCH cx_sy_move_cast_error.
+    ENDTRY.
+  ENDMETHOD.
+  METHOD lenient_bad_number.
+    TYPES: BEGIN OF ty, port TYPE i, END OF ty.
+    DATA out TYPE ty.
+    " lenient (static): bad number left initial, no raise
+    z_ui2_yaml=>deserialize( EXPORTING yaml = |port: notanumber| CHANGING data = out ).
+    cl_abap_unit_assert=>assert_equals( act = out-port exp = 0 ).
+  ENDMETHOD.
+ENDCLASS.

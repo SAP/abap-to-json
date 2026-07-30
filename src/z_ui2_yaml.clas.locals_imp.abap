@@ -759,6 +759,91 @@ CLASS lcl_parser IMPLEMENTATION.
 ENDCLASS.
 
 CLASS lcl_typed_mapper IMPLEMENTATION.
+
+  METHOD map.
+    " Describe the target data
+    DATA(td) = cl_abap_typedescr=>describe_by_data( data ).
+
+    CASE td->kind.
+
+      WHEN cl_abap_typedescr=>kind_struct.
+        " mapping node → structure: match children by component name
+        IF node->node-kind <> c_node=>mapping.
+          RETURN.  " wrong node kind — leave data initial
+        ENDIF.
+        DATA(sd) = CAST cl_abap_structdescr( td ).
+        LOOP AT node->children INTO DATA(child).
+          " find matching component: check name_mappings first, then case-insensitive
+          DATA lv_compname TYPE abap_compname.
+          CLEAR lv_compname.
+          " check name_mappings (yaml key → abap name)
+          LOOP AT name_mappings INTO DATA(nm).
+            IF nm-yaml = child-key.
+              lv_compname = nm-abap.
+              EXIT.
+            ENDIF.
+          ENDLOOP.
+          IF lv_compname IS INITIAL.
+            " case-insensitive match: yaml key uppercased vs component name
+            DATA(upper_key) = to_upper( child-key ).
+            LOOP AT sd->components INTO DATA(comp).
+              IF comp-name = upper_key.
+                lv_compname = comp-name.
+                EXIT.
+              ENDIF.
+            ENDLOOP.
+          ENDIF.
+          CHECK lv_compname IS NOT INITIAL.
+          " assign component via field-symbol
+          ASSIGN COMPONENT lv_compname OF STRUCTURE data TO FIELD-SYMBOL(<comp_data>).
+          CHECK sy-subrc = 0.
+          map( EXPORTING node          = child-node
+                         pretty_name   = pretty_name
+                         name_mappings = name_mappings
+                         strict        = strict
+               CHANGING  data          = <comp_data> ).
+        ENDLOOP.
+
+      WHEN cl_abap_typedescr=>kind_table.
+        " sequence node → internal table
+        IF node->node-kind <> c_node=>sequence.
+          RETURN.
+        ENDIF.
+        DATA(tabd) = CAST cl_abap_tabledescr( td ).
+        DATA(line_td) = tabd->get_table_line_type( ).
+        LOOP AT node->children INTO DATA(seq_child).
+          " create a line instance via RTTI and recurse
+          DATA lv_line_ref TYPE REF TO data.
+          CREATE DATA lv_line_ref TYPE HANDLE line_td.
+          ASSIGN lv_line_ref->* TO FIELD-SYMBOL(<line>).
+          map( EXPORTING node          = seq_child-node
+                         pretty_name   = pretty_name
+                         name_mappings = name_mappings
+                         strict        = strict
+               CHANGING  data          = <line> ).
+          INSERT <line> INTO TABLE data.
+        ENDLOOP.
+
+      WHEN cl_abap_typedescr=>kind_elem.
+        " scalar → elementary
+        IF node->node-is_null = abap_true.
+          RETURN.  " leave initial
+        ENDIF.
+        TRY.
+            data = node->node-value.
+          CATCH cx_sy_conversion_error cx_sy_move_cast_error INTO DATA(lx).
+            IF strict = abap_true.
+              " bridge: wrap in cx_sy_move_cast_error
+              RAISE EXCEPTION TYPE cx_sy_move_cast_error.
+            ENDIF.
+            " lenient: leave data initial (already initial before failed MOVE)
+        ENDTRY.
+
+      WHEN OTHERS.
+        " reference, object, etc. — skip
+    ENDCASE.
+  ENDMETHOD.
+
 ENDCLASS.
 
 CLASS lcl_gen_mapper IMPLEMENTATION.
