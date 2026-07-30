@@ -49,6 +49,23 @@ CLASS lcl_node_ref DEFINITION FINAL.
     DATA children  TYPE ty_children.
 ENDCLASS.
 
+"=== Node-tree factory =================================================
+
+CLASS lcl_tree DEFINITION.
+  PUBLIC SECTION.
+    CLASS-METHODS new_scalar
+      IMPORTING value   TYPE string
+                is_null TYPE abap_bool DEFAULT abap_false
+      RETURNING VALUE(node) TYPE ty_node_ref.
+    CLASS-METHODS new_collection
+      IMPORTING kind        TYPE c
+      RETURNING VALUE(node) TYPE ty_node_ref.
+    CLASS-METHODS add_child
+      IMPORTING node  TYPE ty_node_ref
+                key   TYPE string OPTIONAL
+                child TYPE ty_node_ref.
+ENDCLASS.
+
 "=== Scanner ===========================================================
 
 CLASS lcl_scanner DEFINITION.
