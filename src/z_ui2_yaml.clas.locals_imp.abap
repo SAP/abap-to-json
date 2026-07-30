@@ -7,6 +7,20 @@ ENDCLASS.
 CLASS lcl_node_ref IMPLEMENTATION.
 ENDCLASS.
 
+CLASS lcl_tree IMPLEMENTATION.
+  METHOD new_scalar.
+    node = NEW lcl_node_ref( ).
+    node->node = VALUE ty_node( kind = c_node=>scalar value = value is_null = is_null ).
+  ENDMETHOD.
+  METHOD new_collection.
+    node = NEW lcl_node_ref( ).
+    node->node-kind = kind.
+  ENDMETHOD.
+  METHOD add_child.
+    APPEND VALUE ty_child( key = key node = child ) TO node->children.
+  ENDMETHOD.
+ENDCLASS.
+
 CLASS lcl_scanner IMPLEMENTATION.
 
   METHOD scan.

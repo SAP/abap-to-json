@@ -47,3 +47,23 @@ CLASS ltc_scanner IMPLEMENTATION.
     ENDTRY.
   ENDMETHOD.
 ENDCLASS.
+
+CLASS ltc_tree DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
+  PRIVATE SECTION.
+    METHODS build_mapping FOR TESTING.
+ENDCLASS.
+CLASS ltc_tree IMPLEMENTATION.
+  METHOD build_mapping.
+    DATA(m) = lcl_tree=>new_collection( c_node=>mapping ).
+    lcl_tree=>add_child( node = m key = `a` child = lcl_tree=>new_scalar( `1` ) ).
+    lcl_tree=>add_child( node = m key = `b` child = lcl_tree=>new_scalar( `2` ) ).
+    cl_abap_unit_assert=>assert_equals( act = m->node-kind exp = c_node=>mapping ).
+    cl_abap_unit_assert=>assert_equals( act = lines( m->children ) exp = 2 ).
+    cl_abap_unit_assert=>assert_equals( act = m->children[ 1 ]-key exp = `a` ).
+    cl_abap_unit_assert=>assert_equals( act = m->children[ 1 ]-node->node-value exp = `1` ).
+    cl_abap_unit_assert=>assert_equals( act = m->children[ 2 ]-node->node-value exp = `2` ).
+    " a scalar built with default is_null must be false
+    DATA(s) = lcl_tree=>new_scalar( `x` ).
+    cl_abap_unit_assert=>assert_equals( act = s->node-is_null exp = abap_false ).
+  ENDMETHOD.
+ENDCLASS.
