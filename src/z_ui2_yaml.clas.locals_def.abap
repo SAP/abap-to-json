@@ -165,6 +165,13 @@ ENDCLASS.
 
 CLASS lcl_typed_mapper DEFINITION.
   PUBLIC SECTION.
+    CLASS-METHODS map
+      IMPORTING node          TYPE ty_node_ref
+                pretty_name   TYPE z_ui2_yaml=>pretty_name_mode
+                name_mappings TYPE z_ui2_yaml=>name_mappings
+                strict        TYPE abap_bool
+      CHANGING  data          TYPE data
+      RAISING   cx_sy_move_cast_error.
 ENDCLASS.
 
 CLASS lcl_gen_mapper DEFINITION.
