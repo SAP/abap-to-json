@@ -472,8 +472,12 @@ CLASS lcl_parser IMPLEMENTATION.
     IF has_inline = abap_true.
       " trim leading/trailing only — preserve internal spaces in quoted scalars
       DATA(trimmed) = lcl_scanner=>trim( inline_value ).
-      " alias?
-      IF strlen( trimmed ) > 0 AND substring( val = trimmed off = 0 len = 1 ) = `*`.
+      " alias? require *<valid-name> — whole token, name chars only (A-Za-z0-9_-)
+      DATA(alias_rest) = COND string( WHEN strlen( trimmed ) > 1
+                                      THEN substring( val = trimmed off = 1 ) ELSE `` ).
+      IF strlen( trimmed ) > 1
+         AND substring( val = trimmed off = 0 len = 1 ) = `*`
+         AND alias_rest CO `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-`.
         node = resolve_alias( raw = trimmed lineno = 0 ).
         RETURN.
       ENDIF.
@@ -721,8 +725,8 @@ CLASS lcl_parser IMPLEMENTATION.
 
   METHOD strip_anchor.
     " Detect and remove a leading &name prefix from raw.
+    " &name must be &[A-Za-z0-9_-]+ — bare & or &.foo is not an anchor.
     " Returns anchor name if found, empty string otherwise.
-    " raw is CHANGING — the anchor prefix is stripped in-place.
     DATA(len) = strlen( raw ).
     IF len < 2 OR substring( val = raw off = 0 len = 1 ) <> `&`.
       RETURN.
@@ -731,7 +735,13 @@ CLASS lcl_parser IMPLEMENTATION.
     WHILE i < len AND substring( val = raw off = i len = 1 ) <> ` `.
       i = i + 1.
     ENDWHILE.
-    aname = substring( val = raw off = 1 len = i - 1 ).
+    DATA(candidate) = substring( val = raw off = 1 len = i - 1 ).
+    IF candidate IS INITIAL
+       OR NOT ( candidate CO
+         `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-` ).
+      RETURN.
+    ENDIF.
+    aname = candidate.
     raw   = lcl_scanner=>trim( substring( val = raw off = i ) ).
   ENDMETHOD.
 
