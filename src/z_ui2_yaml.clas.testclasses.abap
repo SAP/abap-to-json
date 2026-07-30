@@ -201,6 +201,7 @@ CLASS ltc_anchor DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
     METHODS scalar_alias          FOR TESTING RAISING cx_sy_conversion_error.
     METHODS mapping_alias         FOR TESTING RAISING cx_sy_conversion_error.
     METHODS undefined_alias_fails FOR TESTING.
+    METHODS glob_is_not_alias     FOR TESTING RAISING cx_sy_conversion_error.
 ENDCLASS.
 CLASS ltc_anchor IMPLEMENTATION.
   METHOD scalar_alias.
@@ -213,6 +214,8 @@ CLASS ltc_anchor IMPLEMENTATION.
     DATA(other) = r->children[ 2 ]-node.
     cl_abap_unit_assert=>assert_equals( act = other->node-kind exp = c_node=>mapping ).
     cl_abap_unit_assert=>assert_equals( act = other->children[ 1 ]-node->node-value exp = `30` ).
+    " shared-reference contract: both children must point to the same lcl_node_ref instance
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 1 ]-node exp = r->children[ 2 ]-node ).
   ENDMETHOD.
   METHOD undefined_alias_fails.
     TRY.
@@ -220,6 +223,14 @@ CLASS ltc_anchor IMPLEMENTATION.
         cl_abap_unit_assert=>fail( `expected undefined alias` ).
       CATCH cx_sy_conversion_error.
     ENDTRY.
+  ENDMETHOD.
+  METHOD glob_is_not_alias.
+    " a value starting with * that isn't a valid alias name stays a scalar
+    DATA(r) = lcl_parser=>parse( lcl_scanner=>scan( |pattern: '*.txt'| ) ).
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 1 ]-node->node-value exp = `*.txt` ).
+    " unquoted bare-ish glob also must not raise as an undefined alias
+    DATA(r2) = lcl_parser=>parse( lcl_scanner=>scan( |g: *.log| ) ).
+    cl_abap_unit_assert=>assert_equals( act = r2->children[ 1 ]-node->node-value exp = `*.log` ).
   ENDMETHOD.
 ENDCLASS.
 CLASS ltc_block_scalar DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
