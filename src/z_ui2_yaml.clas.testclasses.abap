@@ -195,3 +195,31 @@ CLASS ltc_parser IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( act = r->children[ 1 ]-node->node-value exp = `http://example.com` ).
   ENDMETHOD.
 ENDCLASS.
+
+CLASS ltc_block_scalar DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
+  PRIVATE SECTION.
+    METHODS literal_keeps_newlines FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS folded_joins_lines     FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS strip_chomp            FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS keep_chomp             FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS v IMPORTING t TYPE string RETURNING VALUE(r) TYPE string RAISING cx_sy_conversion_error.
+ENDCLASS.
+CLASS ltc_block_scalar IMPLEMENTATION.
+  METHOD v.
+    DATA(root) = lcl_parser=>parse( lcl_scanner=>scan( t ) ).
+    r = root->children[ 1 ]-node->node-value.
+  ENDMETHOD.
+  METHOD literal_keeps_newlines.
+    cl_abap_unit_assert=>assert_equals( act = v( |k: \|\n  line1\n  line2| ) exp = |line1\nline2\n| ).
+  ENDMETHOD.
+  METHOD folded_joins_lines.
+    cl_abap_unit_assert=>assert_equals( act = v( |k: >\n  line1\n  line2| ) exp = |line1 line2\n| ).
+  ENDMETHOD.
+  METHOD strip_chomp.
+    cl_abap_unit_assert=>assert_equals( act = v( |k: \|-\n  line1| ) exp = `line1` ).
+  ENDMETHOD.
+  METHOD keep_chomp.
+    " |+ keeps trailing blank line -> "line1\n\n"
+    cl_abap_unit_assert=>assert_equals( act = v( |k: \|+\n  line1\n| ) exp = |line1\n\n| ).
+  ENDMETHOD.
+ENDCLASS.
