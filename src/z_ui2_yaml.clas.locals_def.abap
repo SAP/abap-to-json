@@ -85,7 +85,50 @@ ENDCLASS.
 
 CLASS lcl_parser DEFINITION.
   PUBLIC SECTION.
-    " filled in Task 4
+    CLASS-METHODS parse
+      IMPORTING lines       TYPE ty_lines
+      RETURNING VALUE(root) TYPE ty_node_ref
+      RAISING   cx_sy_conversion_error.
+  PRIVATE SECTION.
+    CLASS-METHODS parse_block
+      IMPORTING lines        TYPE ty_lines
+      CHANGING  idx          TYPE i
+      RETURNING VALUE(node)  TYPE ty_node_ref
+      RAISING   cx_sy_conversion_error.
+    CLASS-METHODS parse_mapping
+      IMPORTING lines        TYPE ty_lines
+                own_indent   TYPE i
+      CHANGING  idx          TYPE i
+      RETURNING VALUE(node)  TYPE ty_node_ref
+      RAISING   cx_sy_conversion_error.
+    CLASS-METHODS parse_sequence
+      IMPORTING lines        TYPE ty_lines
+                own_indent   TYPE i
+      CHANGING  idx          TYPE i
+      RETURNING VALUE(node)  TYPE ty_node_ref
+      RAISING   cx_sy_conversion_error.
+    CLASS-METHODS parse_seq_item
+      IMPORTING lines        TYPE ty_lines
+                own_indent   TYPE i
+                rest         TYPE string
+      CHANGING  idx          TYPE i
+      RETURNING VALUE(node)  TYPE ty_node_ref
+      RAISING   cx_sy_conversion_error.
+    CLASS-METHODS split_key_value
+      IMPORTING content      TYPE string
+                lineno       TYPE i
+      EXPORTING key          TYPE string
+                inline_value TYPE string
+                has_inline   TYPE abap_bool
+      RAISING   cx_sy_conversion_error.
+    CLASS-METHODS value_or_block
+      IMPORTING lines        TYPE ty_lines
+                own_indent   TYPE i
+                has_inline   TYPE abap_bool
+                inline_value TYPE string
+      CHANGING  idx          TYPE i
+      RETURNING VALUE(node)  TYPE ty_node_ref
+      RAISING   cx_sy_conversion_error.
 ENDCLASS.
 
 CLASS lcl_typed_mapper DEFINITION.
