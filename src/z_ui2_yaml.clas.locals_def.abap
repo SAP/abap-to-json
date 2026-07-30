@@ -49,11 +49,21 @@ CLASS lcl_node_ref DEFINITION FINAL.
     DATA children  TYPE ty_children.
 ENDCLASS.
 
-"=== Empty local class definitions (implementations in locals_imp) ====
+"=== Scanner ===========================================================
 
 CLASS lcl_scanner DEFINITION.
   PUBLIC SECTION.
-    " filled in Task 2
+    CLASS-METHODS scan
+      IMPORTING text         TYPE string
+      RETURNING VALUE(lines) TYPE ty_lines
+      RAISING   cx_sy_conversion_error.
+  PRIVATE SECTION.
+    CLASS-METHODS strip_comment
+      IMPORTING body          TYPE string
+      RETURNING VALUE(result) TYPE string.
+    CLASS-METHODS trim_right
+      IMPORTING body          TYPE string
+      RETURNING VALUE(result) TYPE string.
 ENDCLASS.
 
 CLASS lcl_parser DEFINITION.
