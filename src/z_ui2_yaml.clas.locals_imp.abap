@@ -29,7 +29,7 @@ CLASS lcl_scanner IMPLEMENTATION.
         ENDCASE.
       ENDWHILE.
       DATA(indent) = off.
-      DATA(body)   = CONV string( r+off ).
+      DATA(body)   = r+off.
       body = strip_comment( body ).
       body = trim_right( body ).
       CHECK body IS NOT INITIAL AND body <> `---`.
@@ -44,6 +44,7 @@ CLASS lcl_scanner IMPLEMENTATION.
   METHOD strip_comment.
     " '#' at pos 0 or preceded by whitespace -- strip from there
     " Quoted-# awareness deferred to Task 5
+    ##REGEX_POSIX
     FIND FIRST OCCURRENCE OF REGEX `(^|\s)#` IN body MATCH OFFSET DATA(mo).
     IF sy-subrc = 0.
       result = body(mo).
