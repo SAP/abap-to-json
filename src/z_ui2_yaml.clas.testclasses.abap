@@ -67,3 +67,59 @@ CLASS ltc_tree IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( act = s->node-is_null exp = abap_false ).
   ENDMETHOD.
 ENDCLASS.
+
+CLASS ltc_parser DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
+  PRIVATE SECTION.
+    METHODS flat_mapping     FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS nested_mapping   FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS block_sequence   FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS seq_of_mappings  FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS key_null_value   FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS bad_dedent_fails FOR TESTING.
+    METHODS p IMPORTING t TYPE string RETURNING VALUE(r) TYPE ty_node_ref RAISING cx_sy_conversion_error.
+ENDCLASS.
+CLASS ltc_parser IMPLEMENTATION.
+  METHOD p.
+    r = lcl_parser=>parse( lcl_scanner=>scan( t ) ).
+  ENDMETHOD.
+  METHOD flat_mapping.
+    DATA(r) = p( |a: 1\nb: 2| ).
+    cl_abap_unit_assert=>assert_equals( act = r->node-kind exp = c_node=>mapping ).
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 1 ]-key exp = `a` ).
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 1 ]-node->node-value exp = `1` ).
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 2 ]-node->node-value exp = `2` ).
+  ENDMETHOD.
+  METHOD nested_mapping.
+    DATA(r) = p( |parent:\n  child: v| ).
+    DATA(pn) = r->children[ 1 ]-node.
+    cl_abap_unit_assert=>assert_equals( act = pn->node-kind exp = c_node=>mapping ).
+    cl_abap_unit_assert=>assert_equals( act = pn->children[ 1 ]-key exp = `child` ).
+    cl_abap_unit_assert=>assert_equals( act = pn->children[ 1 ]-node->node-value exp = `v` ).
+  ENDMETHOD.
+  METHOD block_sequence.
+    DATA(r) = p( |- x\n- y| ).
+    cl_abap_unit_assert=>assert_equals( act = r->node-kind exp = c_node=>sequence ).
+    cl_abap_unit_assert=>assert_equals( act = lines( r->children ) exp = 2 ).
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 2 ]-node->node-value exp = `y` ).
+  ENDMETHOD.
+  METHOD seq_of_mappings.
+    DATA(r) = p( |- name: a\n  port: 1\n- name: b\n  port: 2| ).
+    cl_abap_unit_assert=>assert_equals( act = lines( r->children ) exp = 2 ).
+    DATA(first) = r->children[ 1 ]-node.
+    cl_abap_unit_assert=>assert_equals( act = first->node-kind exp = c_node=>mapping ).
+    cl_abap_unit_assert=>assert_equals( act = first->children[ 1 ]-node->node-value exp = `a` ).
+    cl_abap_unit_assert=>assert_equals( act = first->children[ 2 ]-key exp = `port` ).
+  ENDMETHOD.
+  METHOD key_null_value.
+    DATA(r) = p( |a:\nb: 2| ).
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 1 ]-node->node-is_null exp = abap_true ).
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 2 ]-node->node-value exp = `2` ).
+  ENDMETHOD.
+  METHOD bad_dedent_fails.
+    TRY.
+        lcl_parser=>parse( lcl_scanner=>scan( |a:\n    b: 1\n   c: 2| ) ).
+        cl_abap_unit_assert=>fail( `expected bad dedent` ).
+      CATCH cx_sy_conversion_error.
+    ENDTRY.
+  ENDMETHOD.
+ENDCLASS.
