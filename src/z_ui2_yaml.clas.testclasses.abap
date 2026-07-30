@@ -77,6 +77,8 @@ CLASS ltc_scalar DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
     METHODS flow_seq           FOR TESTING RAISING cx_sy_conversion_error.
     METHODS colon_in_quotes    FOR TESTING RAISING cx_sy_conversion_error.
     METHODS unterminated_fails FOR TESTING.
+    METHODS flow_map_varlen    FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS flow_nested        FOR TESTING RAISING cx_sy_conversion_error.
 ENDCLASS.
 CLASS ltc_scalar IMPLEMENTATION.
   METHOD single_quote.
@@ -113,6 +115,20 @@ CLASS ltc_scalar IMPLEMENTATION.
         cl_abap_unit_assert=>fail( `expected unterminated` ).
       CATCH cx_sy_conversion_error.
     ENDTRY.
+  ENDMETHOD.
+  METHOD flow_map_varlen.
+    DATA(r) = lcl_parser=>parse_flow( `{abc: 1, b: 2}` ).
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 1 ]-key exp = `abc` ).
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 1 ]-node->node-value exp = `1` ).
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 2 ]-key exp = `b` ).
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 2 ]-node->node-value exp = `2` ).
+  ENDMETHOD.
+  METHOD flow_nested.
+    DATA(r) = lcl_parser=>parse_flow( `{a: [1, 2]}` ).
+    DATA(av) = r->children[ 1 ]-node.
+    cl_abap_unit_assert=>assert_equals( act = av->node-kind exp = c_node=>sequence ).
+    cl_abap_unit_assert=>assert_equals( act = lines( av->children ) exp = 2 ).
+    cl_abap_unit_assert=>assert_equals( act = av->children[ 2 ]-node->node-value exp = `2` ).
   ENDMETHOD.
 ENDCLASS.
 
