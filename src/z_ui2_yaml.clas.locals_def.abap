@@ -89,6 +89,15 @@ CLASS lcl_parser DEFINITION.
       IMPORTING lines       TYPE ty_lines
       RETURNING VALUE(root) TYPE ty_node_ref
       RAISING   cx_sy_conversion_error.
+    CLASS-METHODS resolve_scalar
+      IMPORTING raw     TYPE string
+      EXPORTING value   TYPE string
+                is_null TYPE abap_bool
+      RAISING   cx_sy_conversion_error.
+    CLASS-METHODS parse_flow
+      IMPORTING raw          TYPE string
+      RETURNING VALUE(node)  TYPE ty_node_ref
+      RAISING   cx_sy_conversion_error.
   PRIVATE SECTION.
     CLASS-METHODS parse_block
       IMPORTING lines        TYPE ty_lines

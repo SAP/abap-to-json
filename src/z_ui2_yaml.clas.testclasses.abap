@@ -68,6 +68,54 @@ CLASS ltc_tree IMPLEMENTATION.
   ENDMETHOD.
 ENDCLASS.
 
+CLASS ltc_scalar DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
+  PRIVATE SECTION.
+    METHODS single_quote       FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS double_escapes     FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS tilde_is_null      FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS flow_map           FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS flow_seq           FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS colon_in_quotes    FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS unterminated_fails FOR TESTING.
+ENDCLASS.
+CLASS ltc_scalar IMPLEMENTATION.
+  METHOD single_quote.
+    lcl_parser=>resolve_scalar( EXPORTING raw = `'it''s'` IMPORTING value = DATA(v) is_null = DATA(n) ).
+    cl_abap_unit_assert=>assert_equals( act = v exp = `it's` ).
+  ENDMETHOD.
+  METHOD double_escapes.
+    lcl_parser=>resolve_scalar( EXPORTING raw = `"a\tb"` IMPORTING value = DATA(v) is_null = DATA(n) ).
+    cl_abap_unit_assert=>assert_equals( act = v exp = |a\tb| ).
+  ENDMETHOD.
+  METHOD tilde_is_null.
+    lcl_parser=>resolve_scalar( EXPORTING raw = `~` IMPORTING value = DATA(v) is_null = DATA(n) ).
+    cl_abap_unit_assert=>assert_equals( act = n exp = abap_true ).
+  ENDMETHOD.
+  METHOD flow_map.
+    DATA(r) = lcl_parser=>parse_flow( `{a: 1, b: 2}` ).
+    cl_abap_unit_assert=>assert_equals( act = r->node-kind exp = c_node=>mapping ).
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 2 ]-key exp = `b` ).
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 2 ]-node->node-value exp = `2` ).
+  ENDMETHOD.
+  METHOD flow_seq.
+    DATA(r) = lcl_parser=>parse_flow( `[x, y, z]` ).
+    cl_abap_unit_assert=>assert_equals( act = r->node-kind exp = c_node=>sequence ).
+    cl_abap_unit_assert=>assert_equals( act = lines( r->children ) exp = 3 ).
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 3 ]-node->node-value exp = `z` ).
+  ENDMETHOD.
+  METHOD colon_in_quotes.
+    DATA(r) = lcl_parser=>parse( lcl_scanner=>scan( |a: "x: y"| ) ).
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 1 ]-node->node-value exp = `x: y` ).
+  ENDMETHOD.
+  METHOD unterminated_fails.
+    TRY.
+        lcl_parser=>resolve_scalar( EXPORTING raw = `"oops` IMPORTING value = DATA(v) is_null = DATA(n) ).
+        cl_abap_unit_assert=>fail( `expected unterminated` ).
+      CATCH cx_sy_conversion_error.
+    ENDTRY.
+  ENDMETHOD.
+ENDCLASS.
+
 CLASS ltc_parser DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
   PRIVATE SECTION.
     METHODS flat_mapping       FOR TESTING RAISING cx_sy_conversion_error.
