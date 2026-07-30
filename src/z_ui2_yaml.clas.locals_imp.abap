@@ -75,6 +75,16 @@ CLASS lcl_scanner IMPLEMENTATION.
     ENDWHILE.
   ENDMETHOD.
 
+  METHOD trim.
+    " Leading/trailing whitespace only — does NOT collapse internal spaces
+    DATA(len) = strlen( val ).
+    DATA(l_off) = 0.
+    WHILE l_off < len AND substring( val = val off = l_off len = 1 ) = ` `.
+      l_off = l_off + 1.
+    ENDWHILE.
+    result = trim_right( substring( val = val off = l_off ) ).
+  ENDMETHOD.
+
 ENDCLASS.
 
 CLASS lcl_parser IMPLEMENTATION.
@@ -230,7 +240,8 @@ CLASS lcl_parser IMPLEMENTATION.
 
   METHOD value_or_block.
     IF has_inline = abap_true.
-      DATA(trimmed) = condense( inline_value ).
+      " trim leading/trailing only — preserve internal spaces in quoted scalars
+      DATA(trimmed) = lcl_scanner=>trim( inline_value ).
       IF strlen( trimmed ) > 0 AND
          ( substring( val = trimmed off = 0 len = 1 ) = `{` OR
            substring( val = trimmed off = 0 len = 1 ) = `[` ).
@@ -258,7 +269,7 @@ CLASS lcl_parser IMPLEMENTATION.
     ENDIF.
     DATA(first) = substring( val = raw off = 0 len = 1 ).
     IF first = `'`.
-      " single-quoted: strip outer quotes, '' → '
+      " ponytail: last-char termination check; full inner walk if strict mode needed
       IF len < 2 OR substring( val = raw off = len - 1 len = 1 ) <> `'`.
         RAISE EXCEPTION TYPE cx_sy_conversion_no_number
           EXPORTING value = `Unterminated single-quoted scalar`.
@@ -277,8 +288,8 @@ CLASS lcl_parser IMPLEMENTATION.
       DATA(i)    = 0.
       DATA(slen) = strlen( src ).
       WHILE i < slen.
-        DATA(c) = substring( val = src off = i len = 1 ).
-        IF c = `\` AND i + 1 < slen.
+        DATA(cv) = substring( val = src off = i len = 1 ).
+        IF cv = `\` AND i + 1 < slen.
           DATA(esc) = substring( val = src off = i + 1 len = 1 ).
           CASE esc.
             WHEN `n`.  res = res && cl_abap_char_utilities=>newline.        i = i + 2.
@@ -296,7 +307,7 @@ CLASS lcl_parser IMPLEMENTATION.
             WHEN OTHERS. res = res && esc. i = i + 2.
           ENDCASE.
         ELSE.
-          res = res && c.
+          res = res && cv.
           i = i + 1.
         ENDIF.
       ENDWHILE.
@@ -328,14 +339,15 @@ CLASS lcl_parser IMPLEMENTATION.
     ENDIF.
 
     " split inner body on ',' at depth 0, respecting quotes and nesting
-    DATA(body) = substring( val = raw off = 1 len = len - 2 ).
-    DATA tokens    TYPE string_table.
-    DATA cur_tok   TYPE string VALUE ``.
-    DATA depth     TYPE i VALUE 0.
-    DATA in_sq     TYPE abap_bool VALUE abap_false.
-    DATA in_dq     TYPE abap_bool VALUE abap_false.
-    DATA(blen)     = strlen( body ).
-    DATA j         TYPE i VALUE 0.
+    DATA(body)  = substring( val = raw off = 1 len = len - 2 ).
+    DATA tokens TYPE string_table.
+    DATA cur_tok TYPE string.
+    DATA depth   TYPE i.
+    DATA in_sq   TYPE abap_bool.
+    DATA in_dq   TYPE abap_bool.
+    DATA(blen)   = strlen( body ).
+    DATA j       TYPE i.
+
     WHILE j < blen.
       DATA(bc) = substring( val = body off = j len = 1 ).
       IF in_sq = abap_true.
@@ -375,20 +387,25 @@ CLASS lcl_parser IMPLEMENTATION.
     ENDWHILE.
     APPEND cur_tok TO tokens.
 
+    " Declare map-branch work vars outside loop — ABAP DATA VALUE init is method-scope, not loop-scope
+    DATA entry_key TYPE string.
+    DATA entry_val TYPE string.
+    DATA k         TYPE i.
+    DATA fc        TYPE abap_bool.
+    DATA tsq       TYPE abap_bool.
+    DATA tdq       TYPE abap_bool.
+    DATA tdepth    TYPE i.
+
     " process each token
     LOOP AT tokens INTO DATA(tok).
-      DATA(trimmed) = condense( tok ).
+      DATA(trimmed) = lcl_scanner=>trim( tok ).
       CHECK trimmed IS NOT INITIAL.
       IF lv_is_map = abap_true.
+        " reset per-entry work vars each iteration — DATA VALUE is method-scope, not loop-scope
+        CLEAR: entry_key, entry_val, fc, tsq, tdq, tdepth.
+        k = 0.
         " find ':' at depth 0, not in quotes
-        DATA entry_key TYPE string VALUE ``.
-        DATA entry_val TYPE string VALUE ``.
-        DATA k         TYPE i VALUE 0.
-        DATA(tlen)     = strlen( trimmed ).
-        DATA fc        TYPE abap_bool VALUE abap_false.
-        DATA tsq       TYPE abap_bool VALUE abap_false.
-        DATA tdq       TYPE abap_bool VALUE abap_false.
-        DATA tdepth    TYPE i VALUE 0.
+        DATA(tlen) = strlen( trimmed ).
         WHILE k < tlen.
           DATA(tc) = substring( val = trimmed off = k len = 1 ).
           IF tsq = abap_true.
@@ -409,8 +426,7 @@ CLASS lcl_parser IMPLEMENTATION.
                 IF tdepth = 0.
                   IF k + 1 >= tlen OR substring( val = trimmed off = k + 1 len = 1 ) = ` `.
                     entry_key = substring( val = trimmed len = k ).
-                    DATA ks TYPE i.
-                    ks = k + 2.
+                    DATA(ks) = k + 2.
                     IF ks < tlen.
                       entry_val = substring( val = trimmed off = ks ).
                     ENDIF.
@@ -425,13 +441,22 @@ CLASS lcl_parser IMPLEMENTATION.
         IF fc = abap_false.
           entry_key = trimmed.
         ENDIF.
-        DATA ev TYPE string.
-        DATA en TYPE abap_bool.
-        resolve_scalar( EXPORTING raw = condense( entry_val ) IMPORTING value = ev is_null = en ).
-        lcl_tree=>add_child( node = node key = condense( entry_key )
-                             child = lcl_tree=>new_scalar( value = ev is_null = en ) ).
+        " dispatch map value: nested collection or scalar
+        DATA(ev_trim) = lcl_scanner=>trim( entry_val ).
+        DATA child_node TYPE ty_node_ref.
+        IF strlen( ev_trim ) > 0 AND
+           ( substring( val = ev_trim off = 0 len = 1 ) = `{` OR
+             substring( val = ev_trim off = 0 len = 1 ) = `[` ).
+          child_node = parse_flow( ev_trim ).
+        ELSE.
+          DATA ev TYPE string.
+          DATA en TYPE abap_bool.
+          resolve_scalar( EXPORTING raw = ev_trim IMPORTING value = ev is_null = en ).
+          child_node = lcl_tree=>new_scalar( value = ev is_null = en ).
+        ENDIF.
+        lcl_tree=>add_child( node = node key = lcl_scanner=>trim( entry_key ) child = child_node ).
       ELSE.
-        " sequence item
+        " sequence item: nested collection or scalar
         DATA(fc1) = substring( val = trimmed off = 0 len = 1 ).
         IF fc1 = `{` OR fc1 = `[`.
           lcl_tree=>add_child( node = node child = parse_flow( trimmed ) ).

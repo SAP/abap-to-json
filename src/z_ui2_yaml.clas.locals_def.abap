@@ -74,6 +74,9 @@ CLASS lcl_scanner DEFINITION.
       IMPORTING text         TYPE string
       RETURNING VALUE(lines) TYPE ty_lines
       RAISING   cx_sy_conversion_error.
+    CLASS-METHODS trim
+      IMPORTING val           TYPE string
+      RETURNING VALUE(result) TYPE string.
   PRIVATE SECTION.
     CLASS-METHODS strip_comment
       IMPORTING body          TYPE string
