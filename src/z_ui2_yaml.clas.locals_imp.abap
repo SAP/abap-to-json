@@ -314,6 +314,7 @@ ENDCLASS.
 CLASS lcl_parser IMPLEMENTATION.
 
   METHOD parse.
+    CLEAR mt_anchors.
     DATA(idx) = 1.
     IF lines IS INITIAL.
       root = lcl_tree=>new_scalar( value = `` is_null = abap_true ).
@@ -471,18 +472,37 @@ CLASS lcl_parser IMPLEMENTATION.
     IF has_inline = abap_true.
       " trim leading/trailing only — preserve internal spaces in quoted scalars
       DATA(trimmed) = lcl_scanner=>trim( inline_value ).
-      IF strlen( trimmed ) > 0 AND
-         ( substring( val = trimmed off = 0 len = 1 ) = `{` OR
-           substring( val = trimmed off = 0 len = 1 ) = `[` ).
-        node = parse_flow( trimmed ).
-      ELSE.
-        DATA lv_val  TYPE string.
-        DATA lv_null TYPE abap_bool.
-        resolve_scalar( EXPORTING raw = trimmed IMPORTING value = lv_val is_null = lv_null ).
-        node = lcl_tree=>new_scalar( value = lv_val is_null = lv_null ).
+      " alias?
+      IF strlen( trimmed ) > 0 AND substring( val = trimmed off = 0 len = 1 ) = `*`.
+        node = resolve_alias( raw = trimmed lineno = 0 ).
+        RETURN.
       ENDIF.
-    ELSEIF idx <= lines( lines ) AND lines[ idx ]-indent > own_indent.
+      " strip anchor prefix — trimmed may become empty if anchor was the only inline content
+      DATA(aname) = strip_anchor( CHANGING raw = trimmed ).
+      IF trimmed IS NOT INITIAL.
+        " inline value exists after optional anchor
+        IF strlen( trimmed ) > 0 AND
+           ( substring( val = trimmed off = 0 len = 1 ) = `{` OR
+             substring( val = trimmed off = 0 len = 1 ) = `[` ).
+          node = parse_flow( trimmed ).
+        ELSE.
+          DATA lv_val  TYPE string.
+          DATA lv_null TYPE abap_bool.
+          resolve_scalar( EXPORTING raw = trimmed IMPORTING value = lv_val is_null = lv_null ).
+          node = lcl_tree=>new_scalar( value = lv_val is_null = lv_null ).
+        ENDIF.
+        IF aname IS NOT INITIAL.
+          INSERT VALUE ty_anchor_entry( name = aname node = node ) INTO TABLE mt_anchors.
+        ENDIF.
+        RETURN.
+      ENDIF.
+      " anchor was entire inline content — fall through to block/null with anchor registration
+    ENDIF.
+    IF idx <= lines( lines ) AND lines[ idx ]-indent > own_indent.
       node = parse_block( EXPORTING lines = lines CHANGING idx = idx ).
+      IF aname IS NOT INITIAL.
+        INSERT VALUE ty_anchor_entry( name = aname node = node ) INTO TABLE mt_anchors.
+      ENDIF.
     ELSE.
       node = lcl_tree=>new_scalar( value = `` is_null = abap_true ).
     ENDIF.
@@ -697,6 +717,33 @@ CLASS lcl_parser IMPLEMENTATION.
         ENDIF.
       ENDIF.
     ENDLOOP.
+  ENDMETHOD.
+
+  METHOD strip_anchor.
+    " Detect and remove a leading &name prefix from raw.
+    " Returns anchor name if found, empty string otherwise.
+    " raw is CHANGING — the anchor prefix is stripped in-place.
+    DATA(len) = strlen( raw ).
+    IF len < 2 OR substring( val = raw off = 0 len = 1 ) <> `&`.
+      RETURN.
+    ENDIF.
+    DATA(i) = 1.
+    WHILE i < len AND substring( val = raw off = i len = 1 ) <> ` `.
+      i = i + 1.
+    ENDWHILE.
+    aname = substring( val = raw off = 1 len = i - 1 ).
+    raw   = lcl_scanner=>trim( substring( val = raw off = i ) ).
+  ENDMETHOD.
+
+  METHOD resolve_alias.
+    " raw must be exactly *name (already trimmed)
+    DATA(name) = substring( val = raw off = 1 ).
+    READ TABLE mt_anchors WITH TABLE KEY name = name INTO DATA(entry).
+    IF sy-subrc <> 0.
+      RAISE EXCEPTION TYPE cx_sy_conversion_no_number
+        EXPORTING value = |Undefined alias '{ raw }' at line { lineno }|.
+    ENDIF.
+    node = entry-node.
   ENDMETHOD.
 
 ENDCLASS.

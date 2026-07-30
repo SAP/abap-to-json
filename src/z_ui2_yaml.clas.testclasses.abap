@@ -196,6 +196,32 @@ CLASS ltc_parser IMPLEMENTATION.
   ENDMETHOD.
 ENDCLASS.
 
+CLASS ltc_anchor DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
+  PRIVATE SECTION.
+    METHODS scalar_alias          FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS mapping_alias         FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS undefined_alias_fails FOR TESTING.
+ENDCLASS.
+CLASS ltc_anchor IMPLEMENTATION.
+  METHOD scalar_alias.
+    DATA(r) = lcl_parser=>parse( lcl_scanner=>scan( |a: &v hello\nb: *v| ) ).
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 1 ]-node->node-value exp = `hello` ).
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 2 ]-node->node-value exp = `hello` ).
+  ENDMETHOD.
+  METHOD mapping_alias.
+    DATA(r) = lcl_parser=>parse( lcl_scanner=>scan( |base: &d\n  timeout: 30\nother: *d| ) ).
+    DATA(other) = r->children[ 2 ]-node.
+    cl_abap_unit_assert=>assert_equals( act = other->node-kind exp = c_node=>mapping ).
+    cl_abap_unit_assert=>assert_equals( act = other->children[ 1 ]-node->node-value exp = `30` ).
+  ENDMETHOD.
+  METHOD undefined_alias_fails.
+    TRY.
+        lcl_parser=>parse( lcl_scanner=>scan( |a: *missing| ) ).
+        cl_abap_unit_assert=>fail( `expected undefined alias` ).
+      CATCH cx_sy_conversion_error.
+    ENDTRY.
+  ENDMETHOD.
+ENDCLASS.
 CLASS ltc_block_scalar DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
   PRIVATE SECTION.
     METHODS literal_keeps_newlines FOR TESTING RAISING cx_sy_conversion_error.

@@ -32,6 +32,14 @@ TYPES:
   END OF ty_line.
 TYPES ty_lines TYPE STANDARD TABLE OF ty_line WITH DEFAULT KEY.
 
+"=== Anchor table entry ================================================
+
+TYPES:
+  BEGIN OF ty_anchor_entry,
+    name TYPE string,
+    node TYPE ty_node_ref,
+  END OF ty_anchor_entry.
+
 "=== Node kind constants ===============================================
 
 CLASS c_node DEFINITION FINAL.
@@ -103,6 +111,16 @@ CLASS lcl_parser DEFINITION.
       RETURNING VALUE(node)  TYPE ty_node_ref
       RAISING   cx_sy_conversion_error.
   PRIVATE SECTION.
+    " ponytail: class-data anchor table — single-threaded/one-run state, cleared at parse() entry
+    CLASS-DATA mt_anchors TYPE HASHED TABLE OF ty_anchor_entry WITH UNIQUE KEY name.
+    CLASS-METHODS strip_anchor
+      CHANGING  raw          TYPE string
+      RETURNING VALUE(aname) TYPE string.
+    CLASS-METHODS resolve_alias
+      IMPORTING raw          TYPE string
+                lineno        TYPE i DEFAULT 0
+      RETURNING VALUE(node)  TYPE ty_node_ref
+      RAISING   cx_sy_conversion_error.
     CLASS-METHODS parse_block
       IMPORTING lines        TYPE ty_lines
       CHANGING  idx          TYPE i
