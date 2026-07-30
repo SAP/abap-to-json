@@ -7,6 +7,7 @@ TYPES:
   BEGIN OF ty_node,
     kind     TYPE c LENGTH 1,  "S"=scalar "M"=mapping "Q"=sequence
     value    TYPE string,
+    is_null  TYPE abap_bool,
   END OF ty_node.
 
 CLASS lcl_node_ref DEFINITION DEFERRED.
@@ -22,6 +23,7 @@ TYPES ty_children TYPE STANDARD TABLE OF ty_child WITH DEFAULT KEY.
 
 TYPES:
   BEGIN OF ty_line,
+    lineno        TYPE i,
     indent        TYPE i,
     content       TYPE string,
     doc_marker    TYPE abap_bool,
