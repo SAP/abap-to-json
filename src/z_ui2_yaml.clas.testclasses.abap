@@ -360,3 +360,46 @@ CLASS ltc_gen IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( act = lines( td->components ) exp = 2 ).
   ENDMETHOD.
 ENDCLASS.
+
+CLASS ltc_ser DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
+  PRIVATE SECTION.
+    METHODS flat_struct              FOR TESTING.
+    METHODS quotes_colon             FOR TESTING.
+    METHODS quotes_numeric_string    FOR TESTING.
+    METHODS table_seq                FOR TESTING.
+    METHODS round_trip               FOR TESTING.
+ENDCLASS.
+CLASS ltc_ser IMPLEMENTATION.
+  METHOD flat_struct.
+    TYPES: BEGIN OF ty, name TYPE string, port TYPE i, END OF ty.
+    DATA(in) = VALUE ty( name = `web` port = 8080 ).
+    cl_abap_unit_assert=>assert_equals( act = z_ui2_yaml=>serialize( in ) exp = |NAME: web\nPORT: 8080| ).
+  ENDMETHOD.
+  METHOD quotes_colon.
+    TYPES: BEGIN OF ty, t TYPE string, END OF ty.
+    DATA(in) = VALUE ty( t = `x: y` ).
+    cl_abap_unit_assert=>assert_equals( act = z_ui2_yaml=>serialize( in ) exp = |T: "x: y"| ).
+  ENDMETHOD.
+  METHOD quotes_numeric_string.
+    TYPES: BEGIN OF ty, code TYPE string, END OF ty.
+    DATA(in) = VALUE ty( code = `007` ).
+    cl_abap_unit_assert=>assert_equals( act = z_ui2_yaml=>serialize( in ) exp = |CODE: "007"| ).
+  ENDMETHOD.
+  METHOD table_seq.
+    TYPES: BEGIN OF ty, name TYPE string, port TYPE i, END OF ty.
+    DATA tab TYPE STANDARD TABLE OF ty WITH DEFAULT KEY.
+    tab = VALUE #( ( name = `a` port = 1 ) ( name = `b` port = 2 ) ).
+    DATA(y) = z_ui2_yaml=>serialize( tab ).
+    DATA out TYPE STANDARD TABLE OF ty WITH DEFAULT KEY.
+    z_ui2_yaml=>deserialize( EXPORTING yaml = y CHANGING data = out ).
+    cl_abap_unit_assert=>assert_equals( act = lines( out ) exp = 2 ).
+    cl_abap_unit_assert=>assert_equals( act = out[ 2 ]-name exp = `b` ).
+  ENDMETHOD.
+  METHOD round_trip.
+    TYPES: BEGIN OF ty, name TYPE string, port TYPE i, END OF ty.
+    DATA(in) = VALUE ty( name = `a: b` port = 7 ).
+    DATA out TYPE ty.
+    z_ui2_yaml=>deserialize( EXPORTING yaml = z_ui2_yaml=>serialize( in ) CHANGING data = out ).
+    cl_abap_unit_assert=>assert_equals( act = out exp = in ).
+  ENDMETHOD.
+ENDCLASS.

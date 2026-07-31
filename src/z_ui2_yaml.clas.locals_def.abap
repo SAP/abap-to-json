@@ -202,4 +202,43 @@ ENDCLASS.
 
 CLASS lcl_emitter DEFINITION.
   PUBLIC SECTION.
+    CLASS-METHODS emit
+      IMPORTING data             TYPE data
+                name             TYPE string        OPTIONAL
+                compress         TYPE abap_bool
+                pretty_name      TYPE z_ui2_yaml=>pretty_name_mode
+                name_mappings    TYPE z_ui2_yaml=>name_mappings
+                indent_step      TYPE i
+                quote_style      TYPE c
+                emit_doc_markers TYPE abap_bool
+                header_comment   TYPE string        OPTIONAL
+      RETURNING VALUE(r_yaml)    TYPE string.
+  PRIVATE SECTION.
+    CLASS-METHODS emit_node
+      IMPORTING data          TYPE data
+                compress      TYPE abap_bool
+                pretty_name   TYPE z_ui2_yaml=>pretty_name_mode
+                name_mappings TYPE z_ui2_yaml=>name_mappings
+                indent_step   TYPE i
+                quote_style   TYPE c
+      RETURNING VALUE(result) TYPE string.
+    CLASS-METHODS format_key
+      IMPORTING comp_name     TYPE abap_compname
+                pretty_name   TYPE z_ui2_yaml=>pretty_name_mode
+                name_mappings TYPE z_ui2_yaml=>name_mappings
+      RETURNING VALUE(result) TYPE string.
+    CLASS-METHODS quote_scalar
+      IMPORTING value         TYPE string
+                quote_style   TYPE c
+      RETURNING VALUE(result) TYPE string.
+    CLASS-METHODS escape_dq
+      IMPORTING value         TYPE string
+      RETURNING VALUE(result) TYPE string.
+    CLASS-METHODS looks_like_number
+      IMPORTING value         TYPE string
+      RETURNING VALUE(result) TYPE abap_bool.
+    CLASS-METHODS indent_block
+      IMPORTING text          TYPE string
+                n             TYPE i
+      RETURNING VALUE(result) TYPE string.
 ENDCLASS.

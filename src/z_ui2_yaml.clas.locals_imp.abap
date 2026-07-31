@@ -1082,4 +1082,366 @@ CLASS lcl_gen_mapper IMPLEMENTATION.
 ENDCLASS.
 
 CLASS lcl_emitter IMPLEMENTATION.
+
+  METHOD emit.
+    " prepend header_comment lines (before doc marker)
+    IF header_comment IS NOT INITIAL.
+      DATA lines_str TYPE string_table.
+      SPLIT header_comment AT cl_abap_char_utilities=>newline INTO TABLE lines_str.
+      LOOP AT lines_str INTO DATA(hl).
+        r_yaml = r_yaml && `# ` && hl && cl_abap_char_utilities=>newline.
+      ENDLOOP.
+    ENDIF.
+    IF emit_doc_markers = abap_true.
+      r_yaml = r_yaml && `---` && cl_abap_char_utilities=>newline.
+    ENDIF.
+    DATA(body) = emit_node( data           = data
+                            compress       = compress
+                            pretty_name    = pretty_name
+                            name_mappings  = name_mappings
+                            indent_step    = indent_step
+                            quote_style    = quote_style ).
+    IF name IS NOT INITIAL.
+      " wrap body under name key — indent each line of body
+      r_yaml = r_yaml && name && `:` && cl_abap_char_utilities=>newline
+                      && indent_block( text = body n = indent_step ).
+    ELSE.
+      r_yaml = r_yaml && body.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD emit_node.
+    DATA(td) = cl_abap_typedescr=>describe_by_data( data ).
+
+    CASE td->kind.
+
+      WHEN cl_abap_typedescr=>kind_struct.
+        DATA(sd) = CAST cl_abap_structdescr( td ).
+        DATA lv_first TYPE abap_bool VALUE abap_true.
+        LOOP AT sd->components INTO DATA(comp).
+          " get component value via field-symbol
+          ASSIGN COMPONENT comp-name OF STRUCTURE data TO FIELD-SYMBOL(<v>).
+          CHECK sy-subrc = 0.
+          " compress: skip initial values
+          IF compress = abap_true.
+            DATA(comp_td) = cl_abap_typedescr=>describe_by_data( <v> ).
+            IF comp_td->kind = cl_abap_typedescr=>kind_elem.
+              ASSIGN <v> TO FIELD-SYMBOL(<ev>).
+              " compare to initial — create a same-typed initial ref
+              DATA lv_init_ref TYPE REF TO data.
+              DATA(comp_datadescr) = CAST cl_abap_datadescr( comp_td ).
+              CREATE DATA lv_init_ref TYPE HANDLE comp_datadescr.
+              ASSIGN lv_init_ref->* TO FIELD-SYMBOL(<iv>).
+              IF <ev> = <iv>. CONTINUE. ENDIF.
+            ENDIF.
+          ENDIF.
+          DATA(key)   = format_key( comp_name = comp-name pretty_name = pretty_name name_mappings = name_mappings ).
+          DATA(val_s) = emit_node( data = <v> compress = compress pretty_name = pretty_name
+                                   name_mappings = name_mappings indent_step = indent_step
+                                   quote_style = quote_style ).
+          IF lv_first = abap_false.
+            result = result && cl_abap_char_utilities=>newline.
+          ENDIF.
+          lv_first = abap_false.
+          " check if val_s is a multi-line block (contains newline)
+          IF val_s CA cl_abap_char_utilities=>newline.
+            result = result && key && `:` && cl_abap_char_utilities=>newline
+                            && indent_block( text = val_s n = indent_step ).
+          ELSE.
+            result = result && key && `: ` && val_s.
+          ENDIF.
+        ENDLOOP.
+
+      WHEN cl_abap_typedescr=>kind_table.
+        DATA(tabd) = CAST cl_abap_tabledescr( td ).
+        DATA(line_td) = tabd->get_table_line_type( ).
+        DATA lv_tfirst TYPE abap_bool VALUE abap_true.
+        DATA nl_pos TYPE i.
+        ASSIGN data TO FIELD-SYMBOL(<tab>).
+        LOOP AT <tab> ASSIGNING FIELD-SYMBOL(<row>).
+          DATA(row_s) = emit_node( data = <row> compress = compress pretty_name = pretty_name
+                                   name_mappings = name_mappings indent_step = indent_step
+                                   quote_style = quote_style ).
+          IF lv_tfirst = abap_false.
+            result = result && cl_abap_char_utilities=>newline.
+          ENDIF.
+          lv_tfirst = abap_false.
+          IF row_s CA cl_abap_char_utilities=>newline.
+            " multi-line mapping row: first field inline after dash, rest indented
+            FIND FIRST OCCURRENCE OF cl_abap_char_utilities=>newline IN row_s MATCH OFFSET nl_pos.
+            DATA(first_line) = substring( val = row_s len = nl_pos ).
+            DATA(rest_lines) = substring( val = row_s off = nl_pos + 1 ).
+            result = result && `- ` && first_line && cl_abap_char_utilities=>newline
+                            && indent_block( text = rest_lines n = 2 ).
+          ELSE.
+            result = result && `- ` && row_s.
+          ENDIF.
+        ENDLOOP.
+
+      WHEN cl_abap_typedescr=>kind_elem.
+        DATA(eld) = CAST cl_abap_elemdescr( td ).
+        ASSIGN data TO FIELD-SYMBOL(<elem>).
+        DATA lv_raw TYPE string.
+        " type-specific serialization
+        CASE eld->type_kind.
+          WHEN cl_abap_typedescr=>typekind_date.
+            " d → YYYY-MM-DD
+            DATA lv_d TYPE string.
+            lv_d = <elem>.
+            IF strlen( lv_d ) = 8 AND lv_d <> `00000000`.
+              result = substring( val = lv_d len = 4 ) && `-`
+                    && substring( val = lv_d off = 4 len = 2 ) && `-`
+                    && substring( val = lv_d off = 6 len = 2 ).
+            ELSE.
+              result = quote_scalar( value = lv_d quote_style = quote_style ).
+            ENDIF.
+          WHEN cl_abap_typedescr=>typekind_bool.
+            result = COND string( WHEN <elem> = abap_true THEN `true` ELSE `false` ).
+          WHEN cl_abap_typedescr=>typekind_char.
+            " abap_bool (c len 1) is already handled above; other c-type: treat as string
+            lv_raw = <elem>.
+            result = quote_scalar( value = lv_raw quote_style = quote_style ).
+          WHEN cl_abap_typedescr=>typekind_string.
+            lv_raw = <elem>.
+            result = quote_scalar( value = lv_raw quote_style = quote_style ).
+          WHEN OTHERS.
+            " numeric types: integer, packed, float, decfloat — emit unquoted
+            lv_raw = <elem>.
+            " strip trailing spaces that ABAP adds to numeric string conversion
+            WHILE strlen( lv_raw ) > 0
+              AND substring( val = lv_raw off = strlen( lv_raw ) - 1 len = 1 ) = ` `.
+              lv_raw = substring( val = lv_raw len = strlen( lv_raw ) - 1 ).
+            ENDWHILE.
+            result = lv_raw.
+        ENDCASE.
+
+      WHEN OTHERS.
+        result = `~`.
+
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD format_key.
+    " check name_mappings first
+    READ TABLE name_mappings WITH TABLE KEY abap = comp_name INTO DATA(nm).
+    IF sy-subrc = 0.
+      result = nm-yaml.
+      RETURN.
+    ENDIF.
+    " apply pretty_name transform
+    DATA(raw) = to_lower( comp_name ).
+    CASE pretty_name.
+      WHEN z_ui2_yaml=>pretty_mode-none.
+        result = comp_name.
+      WHEN z_ui2_yaml=>pretty_mode-low_case.
+        result = raw.
+      WHEN z_ui2_yaml=>pretty_mode-camel_case.
+        " MY_FIELD → myField
+        DATA lv_out TYPE string.
+        DATA lv_cap TYPE abap_bool VALUE abap_false.
+        DATA i TYPE i.
+        DATA(len) = strlen( raw ).
+        WHILE i < len.
+          DATA(c) = substring( val = raw off = i len = 1 ).
+          IF c = `_`.
+            lv_cap = abap_true.
+          ELSE.
+            IF lv_cap = abap_true.
+              lv_out = lv_out && to_upper( c ).
+              lv_cap = abap_false.
+            ELSE.
+              lv_out = lv_out && c.
+            ENDIF.
+          ENDIF.
+          i = i + 1.
+        ENDWHILE.
+        result = lv_out.
+      WHEN z_ui2_yaml=>pretty_mode-pascal_case.
+        DATA lv_out2 TYPE string.
+        DATA lv_cap2 TYPE abap_bool VALUE abap_true.
+        DATA j TYPE i.
+        DATA(len2) = strlen( raw ).
+        WHILE j < len2.
+          DATA(c2) = substring( val = raw off = j len = 1 ).
+          IF c2 = `_`.
+            lv_cap2 = abap_true.
+          ELSE.
+            IF lv_cap2 = abap_true.
+              lv_out2 = lv_out2 && to_upper( c2 ).
+              lv_cap2 = abap_false.
+            ELSE.
+              lv_out2 = lv_out2 && c2.
+            ENDIF.
+          ENDIF.
+          j = j + 1.
+        ENDWHILE.
+        result = lv_out2.
+      WHEN OTHERS.
+        result = comp_name.
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD looks_like_number.
+    DATA(len) = strlen( value ).
+    IF len = 0. RETURN. ENDIF.
+    DATA off TYPE i.
+    IF substring( val = value off = 0 len = 1 ) = `-`. off = 1. ENDIF.
+    DATA(rem) = len - off.
+    IF rem = 0. RETURN. ENDIF.
+    " integer: all digits (1-9 digits: avoid huge numbers causing issues for round-trip)
+    DATA(digits_only) = substring( val = value off = off ).
+    IF digits_only CO `0123456789`.
+      result = abap_true.
+      RETURN.
+    ENDIF.
+    " decimal: digits dot digits
+    DATA dot_seen TYPE abap_bool VALUE abap_false.
+    DATA di TYPE i VALUE 0.
+    WHILE di < strlen( digits_only ).
+      DATA(dc) = substring( val = digits_only off = di len = 1 ).
+      IF dc = `.`.
+        IF dot_seen = abap_true. RETURN. ENDIF.
+        dot_seen = abap_true.
+      ELSEIF NOT ( dc CO `0123456789` ).
+        RETURN.
+      ENDIF.
+      di = di + 1.
+    ENDWHILE.
+    IF dot_seen = abap_true AND di > 1.
+      result = abap_true.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD quote_scalar.
+    " Decide whether quoting is needed; if so, always double-quote.
+    DATA lv_need TYPE abap_bool.
+    DATA(len) = strlen( value ).
+
+    " always-double mode
+    IF quote_style = 'D'.
+      result = `"` && escape_dq( value ) && `"`.
+      RETURN.
+    ENDIF.
+
+    " empty string must be quoted
+    IF len = 0.
+      result = `""`.
+      RETURN.
+    ENDIF.
+
+    DATA(first) = substring( val = value off = 0 len = 1 ).
+
+    " starts with a YAML indicator or space
+    IF first CA `- ? : , [ ] { } # & * ! | > ' " % @ ` && '`'.
+      lv_need = abap_true.
+    ENDIF.
+
+    " ends with ':'
+    IF lv_need = abap_false AND substring( val = value off = len - 1 len = 1 ) = `:`.
+      lv_need = abap_true.
+    ENDIF.
+
+    " contains ': ' or ' #'
+    IF lv_need = abap_false.
+      IF value CS `: ` OR value CS ` #`.
+        lv_need = abap_true.
+      ENDIF.
+    ENDIF.
+
+    " leading or trailing whitespace
+    IF lv_need = abap_false.
+      IF first = ` ` OR substring( val = value off = len - 1 len = 1 ) = ` `.
+        lv_need = abap_true.
+      ENDIF.
+    ENDIF.
+
+    " looks like a non-string YAML type: bool, null, number
+    IF lv_need = abap_false.
+      IF value = `true` OR value = `false` OR value = `null` OR value = `~`.
+        lv_need = abap_true.
+      ENDIF.
+    ENDIF.
+
+    IF lv_need = abap_false.
+      IF looks_like_number( value ) = abap_true.
+        lv_need = abap_true.
+      ENDIF.
+    ENDIF.
+
+    " date-like: YYYY-MM-DD
+    IF lv_need = abap_false AND len = 10.
+      IF substring( val = value off = 4 len = 1 ) = `-`
+         AND substring( val = value off = 7 len = 1 ) = `-`
+         AND substring( val = value off = 0 len = 4 ) CO `0123456789`
+         AND substring( val = value off = 5 len = 2 ) CO `0123456789`
+         AND substring( val = value off = 8 len = 2 ) CO `0123456789`.
+        lv_need = abap_true.
+      ENDIF.
+    ENDIF.
+
+    IF lv_need = abap_true.
+      result = `"` && escape_dq( value ) && `"`.
+    ELSE.
+      result = value.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD escape_dq.
+    DATA i TYPE i.
+    DATA(len) = strlen( value ).
+    WHILE i < len.
+      DATA(c) = substring( val = value off = i len = 1 ).
+      CASE c.
+        WHEN `"`.  result = result && `\"`.
+        WHEN `\`.  result = result && `\\`.
+        WHEN cl_abap_char_utilities=>newline.       result = result && `\n`.
+        WHEN cl_abap_char_utilities=>horizontal_tab. result = result && `\t`.
+        WHEN OTHERS. result = result && c.
+      ENDCASE.
+      i = i + 1.
+    ENDWHILE.
+  ENDMETHOD.
+
+  METHOD indent_block.
+    " Prepend n spaces to every non-empty line of text.
+    " text may or may not end with newline.
+    DATA pad TYPE string.
+    DATA k TYPE i.
+    WHILE k < n.
+      pad = pad && ` `.
+      k = k + 1.
+    ENDWHILE.
+    DATA lines_t TYPE string_table.
+    SPLIT text AT cl_abap_char_utilities=>newline INTO TABLE lines_t.
+    DATA lv_last TYPE i VALUE 0.
+    " detect trailing newline: if text ends with NL, last token is empty
+    DATA(tlen) = strlen( text ).
+    DATA lv_has_trail TYPE abap_bool.
+    IF tlen > 0 AND substring( val = text off = tlen - 1 len = 1 ) = cl_abap_char_utilities=>newline.
+      lv_has_trail = abap_true.
+    ENDIF.
+    DATA(total) = lines( lines_t ).
+    DATA idx TYPE i VALUE 1.
+    WHILE idx <= total.
+      DATA(ln) = lines_t[ idx ].
+      " skip the trailing empty entry produced by trailing NL
+      IF idx = total AND lv_has_trail = abap_true AND ln IS INITIAL.
+        EXIT.
+      ENDIF.
+      IF result IS NOT INITIAL.
+        result = result && cl_abap_char_utilities=>newline.
+      ENDIF.
+      IF ln IS NOT INITIAL.
+        result = result && pad && ln.
+      ELSE.
+        result = result && ln.
+      ENDIF.
+      idx = idx + 1.
+    ENDWHILE.
+    " restore trailing newline
+    IF lv_has_trail = abap_true.
+      result = result && cl_abap_char_utilities=>newline.
+    ENDIF.
+  ENDMETHOD.
+
 ENDCLASS.
