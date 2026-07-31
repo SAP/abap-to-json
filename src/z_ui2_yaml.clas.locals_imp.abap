@@ -975,38 +975,58 @@ CLASS lcl_gen_mapper IMPLEMENTATION.
 
       WHEN c_node=>mapping.
         " Build a dynamic structure: one component per child, typed from recursive generate()
-        DATA lt_comps   TYPE cl_abap_structdescr=>component_table.
-        DATA lt_refs    TYPE STANDARD TABLE OF REF TO data WITH DEFAULT KEY.
+        DATA lt_comps  TYPE cl_abap_structdescr=>component_table.
+        DATA lt_refs   TYPE STANDARD TABLE OF REF TO data WITH DEFAULT KEY.
+        " lt_names: deduped final component names, index-parallel to lt_comps/lt_refs
+        DATA lt_names  TYPE STANDARD TABLE OF abap_compname WITH DEFAULT KEY.
+        DATA lt_used   TYPE SORTED TABLE OF abap_compname WITH UNIQUE KEY table_line.
+        DATA lv_final  TYPE abap_compname.
+        DATA lv_sfx    TYPE i.
+        DATA lv_sfxs   TYPE string.
+        DATA lv_sfxl   TYPE i.
+        DATA lv_basl   TYPE i.
+        DATA lv_triml  TYPE i.
         LOOP AT node->children INTO DATA(child).
-          DATA(comp_name) = sanitize_name( child-key ).
-          " recursively generate child value to get its type
+          DATA(base_name) = sanitize_name( child-key ).
+          lv_final = base_name.
+          lv_sfx   = 1.
+          " ponytail: O(n) collision scan per key, fine for typical config mappings
+          WHILE line_exists( lt_used[ table_line = lv_final ] ).
+            lv_sfx  = lv_sfx + 1.
+            lv_sfxs = |_{ lv_sfx }|.
+            lv_sfxl = strlen( lv_sfxs ).
+            lv_basl = strlen( base_name ).
+            lv_triml = COND i( WHEN lv_basl + lv_sfxl > 30 THEN 30 - lv_sfxl ELSE lv_basl ).
+            lv_final = substring( val = base_name len = lv_triml ) && lv_sfxs.
+          ENDWHILE.
+          INSERT lv_final INTO TABLE lt_used.
+          APPEND lv_final TO lt_names.
           DATA(child_ref) = generate( child-node ).
           DATA(child_td)  = cl_abap_typedescr=>describe_by_data_ref( child_ref ).
-          APPEND VALUE abap_componentdescr( name = comp_name
+          APPEND VALUE abap_componentdescr( name = lv_final
                                             type = CAST cl_abap_datadescr( child_td ) )
                  TO lt_comps.
           APPEND child_ref TO lt_refs.
         ENDLOOP.
         IF lt_comps IS INITIAL.
-          " empty mapping → empty structure
+          " empty mapping → string fallback (empty struct not creatable)
           CREATE DATA rr_data TYPE string.
           RETURN.
         ENDIF.
         DATA(struct_td) = cl_abap_structdescr=>create( lt_comps ).
         CREATE DATA rr_data TYPE HANDLE struct_td.
-        " fill each component from the pre-generated child refs
+        " fill each component using deduped names (index-parallel to lt_refs)
         ASSIGN rr_data->* TO FIELD-SYMBOL(<struct>).
         DATA(ci) = 1.
-        LOOP AT node->children INTO DATA(fill_child).
-          DATA(fill_name) = sanitize_name( fill_child-key ).
-          ASSIGN COMPONENT fill_name OF STRUCTURE <struct> TO FIELD-SYMBOL(<comp>).
+        WHILE ci <= lines( lt_names ).
+          ASSIGN COMPONENT lt_names[ ci ] OF STRUCTURE <struct> TO FIELD-SYMBOL(<comp>).
           IF sy-subrc = 0.
             DATA(fill_ref) = lt_refs[ ci ].
             ASSIGN fill_ref->* TO FIELD-SYMBOL(<val>).
             <comp> = <val>.
           ENDIF.
           ci = ci + 1.
-        ENDLOOP.
+        ENDWHILE.
 
       WHEN c_node=>sequence.
         " Build typed table: detect element type from first child, fall back to string if mixed
