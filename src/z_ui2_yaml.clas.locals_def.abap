@@ -136,7 +136,9 @@ CLASS lcl_parser DEFINITION.
       RETURNING VALUE(node)  TYPE ty_node_ref
       RAISING   cx_sy_conversion_error.
   PRIVATE SECTION.
-    " NOT thread-safe: class-data is cleared at parse() entry; concurrent calls will corrupt anchor state
+    " mt_anchors: per-parse state, CLEARed at parse() entry. ABAP class-data is session-scoped
+    " and single-threaded — no cross-call concern. Reset-at-entry means parse() is not reentrant
+    " (never call it recursively), but the current call tree never does.
     CLASS-DATA mt_anchors TYPE HASHED TABLE OF ty_anchor_entry WITH UNIQUE KEY name.
     CLASS-METHODS strip_anchor
       CHANGING  raw          TYPE string
