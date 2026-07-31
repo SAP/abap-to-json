@@ -829,6 +829,21 @@ CLASS lcl_typed_mapper IMPLEMENTATION.
         IF node->node-is_null = abap_true.
           RETURN.  " leave initial
         ENDIF.
+        " bool target: map true/false/x → abap_true/abap_false
+        DATA(eld2) = CAST cl_abap_elemdescr( td ).
+        IF eld2->absolute_name CP `*ABAP_BOOL*` OR eld2->absolute_name CP `*BOOLEAN*`
+           OR eld2->absolute_name CP `*BOOLE_D*`  OR eld2->absolute_name CP `*XFELD*`
+           OR eld2->absolute_name CP `*XSDBOOLEAN*`.
+          DATA(lv_lower) = to_lower( node->node-value ).
+          IF lv_lower = `true` OR lv_lower = `x`.
+            data = abap_true.
+          ELSEIF lv_lower = `false` OR lv_lower = ``.
+            data = abap_false.
+          ELSEIF strict = abap_true.
+            RAISE EXCEPTION TYPE cx_sy_move_cast_error.
+          ENDIF.
+          RETURN.
+        ENDIF.
         TRY.
             data = node->node-value.
           CATCH cx_sy_conversion_error cx_sy_move_cast_error INTO DATA(lx).
