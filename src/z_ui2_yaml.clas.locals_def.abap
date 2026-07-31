@@ -27,11 +27,13 @@ TYPES:
     indent        TYPE i,
     content       TYPE string,
     doc_marker    TYPE abap_bool,
+    doc_start     TYPE abap_bool,
     blk_scalar_hd TYPE abap_bool,
     blk_value     TYPE string,
     blk_anchor    TYPE string,
   END OF ty_line.
 TYPES ty_lines TYPE STANDARD TABLE OF ty_line WITH DEFAULT KEY.
+TYPES tt_line_blocks TYPE STANDARD TABLE OF ty_lines WITH DEFAULT KEY.
 
 "=== Anchor table entry ================================================
 
@@ -102,6 +104,9 @@ CLASS lcl_parser DEFINITION.
       IMPORTING lines       TYPE ty_lines
       RETURNING VALUE(root) TYPE ty_node_ref
       RAISING   cx_sy_conversion_error.
+    CLASS-METHODS split_documents
+      IMPORTING lines          TYPE ty_lines
+      RETURNING VALUE(rt_blocks) TYPE tt_line_blocks.
     CLASS-METHODS resolve_scalar
       IMPORTING raw     TYPE string
       EXPORTING value   TYPE string

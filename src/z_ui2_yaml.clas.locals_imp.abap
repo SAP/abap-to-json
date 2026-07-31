@@ -111,6 +111,9 @@ CLASS lcl_scanner IMPLEMENTATION.
       body   = strip_comment( body ).
       body   = trim_right( body ).
       IF body IS INITIAL OR body = `---`.
+        IF body = `---`.
+          APPEND VALUE ty_line( lineno = n indent = 0 doc_start = abap_true ) TO lines.
+        ENDIF.
         n = n + 1.
         CONTINUE.
       ENDIF.
@@ -364,12 +367,53 @@ CLASS lcl_parser IMPLEMENTATION.
 
   METHOD parse.
     CLEAR mt_anchors.
+    " Build first-doc view: a leading doc_start (---) with no prior content is skipped
+    " (preamble marker); a doc_start encountered AFTER content ends the first doc.
+    " doc_marker (...) also ends the first doc.
+    " This preserves backward-compat: single-doc parse sees exactly the first document.
+    DATA first_doc TYPE ty_lines.
+    LOOP AT lines INTO DATA(scan_ln).
+      IF scan_ln-doc_start = abap_true.
+        IF first_doc IS NOT INITIAL.
+          EXIT.  " content already collected — this --- starts doc 2
+        ENDIF.
+        CONTINUE.  " leading --- with no prior content: preamble, skip
+      ENDIF.
+      IF scan_ln-doc_marker = abap_true.
+        EXIT.  " ... ends first doc
+      ENDIF.
+      APPEND scan_ln TO first_doc.
+    ENDLOOP.
     DATA(idx) = 1.
-    IF lines IS INITIAL.
+    IF first_doc IS INITIAL.
       root = lcl_tree=>new_scalar( value = `` is_null = abap_true ).
       RETURN.
     ENDIF.
-    root = parse_block( EXPORTING lines = lines CHANGING idx = idx ).
+    root = parse_block( EXPORTING lines = first_doc CHANGING idx = idx ).
+  ENDMETHOD.
+
+  METHOD split_documents.
+    " Partition lines at doc_start (---) and doc_marker (...) boundaries.
+    " A leading --- does NOT produce an empty first block.
+    DATA cur_block TYPE ty_lines.
+    LOOP AT lines INTO DATA(ln).
+      IF ln-doc_start = abap_true.
+        IF cur_block IS NOT INITIAL.
+          APPEND cur_block TO rt_blocks.
+          CLEAR cur_block.
+        ENDIF.
+      ELSEIF ln-doc_marker = abap_true.
+        IF cur_block IS NOT INITIAL.
+          APPEND cur_block TO rt_blocks.
+          CLEAR cur_block.
+        ENDIF.
+      ELSE.
+        APPEND ln TO cur_block.
+      ENDIF.
+    ENDLOOP.
+    IF cur_block IS NOT INITIAL.
+      APPEND cur_block TO rt_blocks.
+    ENDIF.
   ENDMETHOD.
 
   METHOD parse_block.

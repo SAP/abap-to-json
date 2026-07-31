@@ -507,3 +507,39 @@ CLASS ltc_fixtures IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( act = w-servers[ 2 ]-host exp = `b` ).
   ENDMETHOD.
 ENDCLASS.
+
+CLASS ltc_multidoc DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
+  PRIVATE SECTION.
+    METHODS generate_all_three    FOR TESTING.
+    METHODS deserialize_all_typed FOR TESTING.
+    METHODS single_doc_degenerate FOR TESTING.
+    METHODS legacy_first_doc_only FOR TESTING.
+ENDCLASS.
+CLASS ltc_multidoc IMPLEMENTATION.
+  METHOD generate_all_three.
+    DATA(rt) = z_ui2_yaml=>generate_all( |a: 1\n---\na: 2\n---\na: 3| ).
+    cl_abap_unit_assert=>assert_equals( act = lines( rt ) exp = 3 ).
+    FIELD-SYMBOLS <s> TYPE any. ASSIGN rt[ 2 ]->* TO <s>.
+    FIELD-SYMBOLS <f> TYPE any. ASSIGN COMPONENT `A` OF STRUCTURE <s> TO <f>.
+    cl_abap_unit_assert=>assert_equals( act = <f> exp = 2 ).
+  ENDMETHOD.
+  METHOD deserialize_all_typed.
+    TYPES: BEGIN OF ty, name TYPE string, port TYPE i, END OF ty.
+    DATA results TYPE STANDARD TABLE OF ty WITH DEFAULT KEY.
+    z_ui2_yaml=>deserialize_all( EXPORTING yaml = |name: a\nport: 1\n---\nname: b\nport: 2|
+                                 CHANGING  results = results ).
+    cl_abap_unit_assert=>assert_equals( act = lines( results ) exp = 2 ).
+    cl_abap_unit_assert=>assert_equals( act = results[ 2 ]-name exp = `b` ).
+    cl_abap_unit_assert=>assert_equals( act = results[ 2 ]-port exp = 2 ).
+  ENDMETHOD.
+  METHOD single_doc_degenerate.
+    DATA(rt) = z_ui2_yaml=>generate_all( |a: 1| ).
+    cl_abap_unit_assert=>assert_equals( act = lines( rt ) exp = 1 ).
+  ENDMETHOD.
+  METHOD legacy_first_doc_only.
+    TYPES: BEGIN OF ty, a TYPE i, END OF ty.
+    DATA out TYPE ty.
+    z_ui2_yaml=>deserialize( EXPORTING yaml = |a: 1\n---\na: 2| CHANGING data = out ).
+    cl_abap_unit_assert=>assert_equals( act = out-a exp = 1 ).
+  ENDMETHOD.
+ENDCLASS.
