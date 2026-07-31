@@ -20,6 +20,8 @@ CLASS z_ui2_yaml DEFINITION
         extended    TYPE c LENGTH 1 VALUE 'Y',
       END OF pretty_mode.
 
+    TYPES ref_tab TYPE STANDARD TABLE OF REF TO data WITH DEFAULT KEY.
+
     CONSTANTS version TYPE i VALUE 1 ##NO_TEXT.
 
     METHODS constructor
@@ -36,6 +38,11 @@ CLASS z_ui2_yaml DEFINITION
       IMPORTING yaml  TYPE string  OPTIONAL
                 yamlx TYPE xstring OPTIONAL
       CHANGING  data  TYPE data
+      RAISING   cx_sy_move_cast_error.
+
+    METHODS deserialize_all_int
+      IMPORTING yaml TYPE string
+      CHANGING  results TYPE STANDARD TABLE
       RAISING   cx_sy_move_cast_error.
 
     CLASS-METHODS serialize
@@ -59,9 +66,20 @@ CLASS z_ui2_yaml DEFINITION
                 name_mappings TYPE name_mappings    OPTIONAL
       CHANGING  data          TYPE data.
 
+    CLASS-METHODS deserialize_all
+      IMPORTING yaml          TYPE string
+                pretty_name   TYPE pretty_name_mode DEFAULT pretty_mode-none
+                name_mappings TYPE name_mappings    OPTIONAL
+      CHANGING  results       TYPE STANDARD TABLE.
+
     CLASS-METHODS generate
       IMPORTING yaml           TYPE string
       RETURNING VALUE(rr_data) TYPE REF TO data
+      RAISING   cx_sy_conversion_error.
+
+    CLASS-METHODS generate_all
+      IMPORTING yaml           TYPE string
+      RETURNING VALUE(rt_data) TYPE ref_tab
       RAISING   cx_sy_conversion_error.
 
   PROTECTED SECTION.
@@ -144,6 +162,57 @@ CLASS z_ui2_yaml IMPLEMENTATION.
   METHOD generate.
     DATA(root) = lcl_parser=>parse( lcl_scanner=>scan( yaml ) ).
     rr_data = lcl_gen_mapper=>generate( root ).
+  ENDMETHOD.
+
+  METHOD generate_all.
+    DATA(all_lines) = lcl_scanner=>scan( yaml ).
+    DATA(blocks) = lcl_parser=>split_documents( all_lines ).
+    IF blocks IS INITIAL.
+      " no boundaries found — treat whole input as single doc
+      DATA(single_root) = lcl_parser=>parse( all_lines ).
+      APPEND lcl_gen_mapper=>generate( single_root ) TO rt_data.
+      RETURN.
+    ENDIF.
+    LOOP AT blocks INTO DATA(block).
+      DATA(root) = lcl_parser=>parse( block ).
+      APPEND lcl_gen_mapper=>generate( root ) TO rt_data.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD deserialize_all_int.
+    DATA(all_lines) = lcl_scanner=>scan( yaml ).
+    DATA(blocks) = lcl_parser=>split_documents( all_lines ).
+    IF blocks IS INITIAL.
+      " no boundaries — single doc
+      DATA single_block TYPE ty_lines.
+      single_block = all_lines.
+      INSERT single_block INTO TABLE blocks.
+    ENDIF.
+    DATA(tabd) = CAST cl_abap_tabledescr( cl_abap_typedescr=>describe_by_data( results ) ).
+    DATA(line_td) = tabd->get_table_line_type( ).
+    LOOP AT blocks INTO DATA(block).
+      DATA lv_line_ref TYPE REF TO data.
+      CREATE DATA lv_line_ref TYPE HANDLE line_td.
+      ASSIGN lv_line_ref->* TO FIELD-SYMBOL(<line>).
+      DATA(root) = lcl_parser=>parse( block ).
+      lcl_typed_mapper=>map( EXPORTING node          = root
+                                       pretty_name   = mv_pretty_name
+                                       name_mappings = mt_name_mappings
+                                       strict        = mv_strict
+                             CHANGING  data          = <line> ).
+      INSERT <line> INTO TABLE results.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD deserialize_all.
+    DATA(o) = NEW z_ui2_yaml( pretty_name   = pretty_name
+                              name_mappings = name_mappings ).
+    TRY.
+        o->deserialize_all_int( EXPORTING yaml    = yaml
+                                CHANGING  results = results ).
+      CATCH cx_sy_move_cast_error.
+        " lenient — mirrors static deserialize
+    ENDTRY.
   ENDMETHOD.
 
 ENDCLASS.
