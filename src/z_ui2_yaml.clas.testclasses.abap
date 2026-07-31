@@ -367,6 +367,7 @@ CLASS ltc_ser DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
     METHODS quotes_colon             FOR TESTING.
     METHODS quotes_numeric_string    FOR TESTING.
     METHODS table_seq                FOR TESTING.
+    METHODS bool_emits_true_false        FOR TESTING.
     METHODS round_trip               FOR TESTING.
 ENDCLASS.
 CLASS ltc_ser IMPLEMENTATION.
@@ -394,6 +395,11 @@ CLASS ltc_ser IMPLEMENTATION.
     z_ui2_yaml=>deserialize( EXPORTING yaml = y CHANGING data = out ).
     cl_abap_unit_assert=>assert_equals( act = lines( out ) exp = 2 ).
     cl_abap_unit_assert=>assert_equals( act = out[ 2 ]-name exp = `b` ).
+  ENDMETHOD.
+  METHOD bool_emits_true_false.
+    TYPES: BEGIN OF ty, enabled TYPE abap_bool, disabled TYPE abap_bool, END OF ty.
+    DATA(in) = VALUE ty( enabled = abap_true disabled = abap_false ).
+    cl_abap_unit_assert=>assert_equals( act = z_ui2_yaml=>serialize( in ) exp = |ENABLED: true\nDISABLED: false| ).
   ENDMETHOD.
   METHOD round_trip.
     TYPES: BEGIN OF ty, name TYPE string, port TYPE i, END OF ty.

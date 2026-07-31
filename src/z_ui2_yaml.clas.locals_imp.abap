@@ -1198,9 +1198,16 @@ CLASS lcl_emitter IMPLEMENTATION.
           WHEN cl_abap_typedescr=>typekind_bool.
             result = COND string( WHEN <elem> = abap_true THEN `true` ELSE `false` ).
           WHEN cl_abap_typedescr=>typekind_char.
-            " abap_bool (c len 1) is already handled above; other c-type: treat as string
+            " ponytail: abap_bool is c len 1 so typekind_char fires, not typekind_bool.
+            " Check type name against known ABAP boolean types; emit true/false for those.
             lv_raw = <elem>.
-            result = quote_scalar( value = lv_raw quote_style = quote_style ).
+            IF eld->absolute_name CP `*ABAP_BOOL*` OR eld->absolute_name CP `*BOOLEAN*`
+               OR eld->absolute_name CP `*BOOLE_D*`  OR eld->absolute_name CP `*XFELD*`
+               OR eld->absolute_name CP `*XSDBOOLEAN*`.
+              result = COND string( WHEN lv_raw = abap_true THEN `true` ELSE `false` ).
+            ELSE.
+              result = quote_scalar( value = lv_raw quote_style = quote_style ).
+            ENDIF.
           WHEN cl_abap_typedescr=>typekind_string.
             lv_raw = <elem>.
             result = quote_scalar( value = lv_raw quote_style = quote_style ).

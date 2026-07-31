@@ -101,8 +101,6 @@ CLASS z_ui2_yaml IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD serialize.
-    DATA(o) = NEW z_ui2_yaml( pretty_name   = pretty_name
-                              name_mappings = name_mappings ).
     r_yaml = lcl_emitter=>emit( data           = data
                                 name           = name
                                 compress       = compress
