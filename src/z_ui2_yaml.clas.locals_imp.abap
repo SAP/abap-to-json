@@ -8,6 +8,22 @@ CLASS lcl_node_ref IMPLEMENTATION.
 ENDCLASS.
 
 CLASS lcl_tree IMPLEMENTATION.
+  METHOD is_bool_type.
+    result = xsdbool(
+      eld->absolute_name CP `*ABAP_BOOL*`  OR eld->absolute_name CP `*BOOLEAN*`
+      OR eld->absolute_name CP `*BOOLE_D*` OR eld->absolute_name CP `*XFELD*`
+      OR eld->absolute_name CP `*XSDBOOLEAN*` ).
+  ENDMETHOD.
+  METHOD is_date_like.
+    DATA(len) = strlen( value ).
+    result = xsdbool(
+      len = 10
+      AND substring( val = value off = 4 len = 1 ) = `-`
+      AND substring( val = value off = 7 len = 1 ) = `-`
+      AND substring( val = value off = 0 len = 4 ) CO `0123456789`
+      AND substring( val = value off = 5 len = 2 ) CO `0123456789`
+      AND substring( val = value off = 8 len = 2 ) CO `0123456789` ).
+  ENDMETHOD.
   METHOD new_scalar.
     node = NEW lcl_node_ref( ).
     node->node = VALUE ty_node( kind = c_node=>scalar value = value is_null = is_null ).
@@ -167,8 +183,7 @@ CLASS lcl_scanner IMPLEMENTATION.
             ENDWHILE.
             blk_anchor_cand = substring( val = blk_after_colon off = 1 len = blk_an_end - 1 ).
             IF blk_anchor_cand IS NOT INITIAL
-               AND blk_anchor_cand CO
-                 `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-`.
+               AND blk_anchor_cand CO lcl_tree=>c_yaml_name_chars.
               line-blk_anchor = blk_anchor_cand.
               blk_key0 = substring( val = blk_key0 len = blk_colon_pos + 1 ).
             ENDIF.
@@ -349,11 +364,12 @@ CLASS lcl_scanner IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD trim_right.
-    result = body.
-    WHILE strlen( result ) > 0
-      AND substring( val = result off = strlen( result ) - 1 len = 1 ) = ` `.
-      result = substring( val = result len = strlen( result ) - 1 ).
+    DATA n TYPE i.
+    n = strlen( body ).
+    WHILE n > 0 AND substring( val = body off = n - 1 len = 1 ) = ` `.
+      n = n - 1.
     ENDWHILE.
+    result = substring( val = body len = n ).
   ENDMETHOD.
 
   METHOD trim.
@@ -423,6 +439,10 @@ CLASS lcl_parser IMPLEMENTATION.
     ENDLOOP.
     IF cur_block IS NOT INITIAL.
       APPEND cur_block TO rt_blocks.
+    ENDIF.
+    " no doc boundaries found → wrap whole input as single block
+    IF rt_blocks IS INITIAL AND lines IS NOT INITIAL.
+      APPEND lines TO rt_blocks.
     ENDIF.
   ENDMETHOD.
 
@@ -596,7 +616,7 @@ CLASS lcl_parser IMPLEMENTATION.
                                       THEN substring( val = trimmed off = 1 ) ELSE `` ).
       IF strlen( trimmed ) > 1
          AND substring( val = trimmed off = 0 len = 1 ) = `*`
-         AND alias_rest CO `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-`.
+         AND alias_rest CO lcl_tree=>c_yaml_name_chars.
         node = resolve_alias( raw = trimmed lineno = 0 ).
         RETURN.
       ENDIF.
@@ -860,8 +880,7 @@ CLASS lcl_parser IMPLEMENTATION.
     ENDWHILE.
     DATA(candidate) = substring( val = raw off = 1 len = i - 1 ).
     IF candidate IS INITIAL
-       OR NOT ( candidate CO
-         `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-` ).
+       OR NOT ( candidate CO lcl_tree=>c_yaml_name_chars ).
       RETURN.
     ENDIF.
     aname = candidate.
@@ -965,9 +984,7 @@ CLASS lcl_typed_mapper IMPLEMENTATION.
         ENDIF.
         " bool target: map true/false/x → abap_true/abap_false
         DATA(eld2) = CAST cl_abap_elemdescr( td ).
-        IF eld2->absolute_name CP `*ABAP_BOOL*` OR eld2->absolute_name CP `*BOOLEAN*`
-           OR eld2->absolute_name CP `*BOOLE_D*`  OR eld2->absolute_name CP `*XFELD*`
-           OR eld2->absolute_name CP `*XSDBOOLEAN*`.
+        IF lcl_tree=>is_bool_type( eld2 ) = abap_true.
           DATA(lv_lower) = to_lower( node->node-value ).
           IF lv_lower = `true` OR lv_lower = `x`.
             data = abap_true.
@@ -1062,12 +1079,7 @@ CLASS lcl_gen_mapper IMPLEMENTATION.
     ENDIF.
 
     " date: YYYY-MM-DD — exactly 10 chars, '-' at pos 4 and 7, digits elsewhere
-    IF len = 10
-       AND substring( val = value off = 4 len = 1 ) = `-`
-       AND substring( val = value off = 7 len = 1 ) = `-`
-       AND substring( val = value off = 0 len = 4 ) CO `0123456789`
-       AND substring( val = value off = 5 len = 2 ) CO `0123456789`
-       AND substring( val = value off = 8 len = 2 ) CO `0123456789`.
+    IF lcl_tree=>is_date_like( value ) = abap_true.
       CREATE DATA rr_data TYPE d.
       ASSIGN rr_data->* TO FIELD-SYMBOL(<d>).
       DATA(dstr) = substring( val = value off = 0 len = 4 )
@@ -1217,10 +1229,13 @@ CLASS lcl_gen_mapper IMPLEMENTATION.
         DATA(line_type_td)     = CAST cl_abap_datadescr( first_td ).
         " ponytail: type uniformity check — only verify kind matches (not full type equality).
         " Mixed-kind sequences fall back to string table.
+        DATA lt_child_refs TYPE STANDARD TABLE OF REF TO data WITH DEFAULT KEY.
+        APPEND first_ref TO lt_child_refs.
         DATA lv_uniform TYPE abap_bool VALUE abap_true.
         DATA li TYPE i VALUE 2.
         WHILE li <= child_count AND lv_uniform = abap_true.
           DATA(chk_ref) = generate( node->children[ li ]-node ).
+          APPEND chk_ref TO lt_child_refs.
           DATA(chk_td)  = cl_abap_typedescr=>describe_by_data_ref( chk_ref ).
           IF chk_td->kind <> first_td->kind.
             lv_uniform = abap_false.
@@ -1236,16 +1251,11 @@ CLASS lcl_gen_mapper IMPLEMENTATION.
         DATA(tab_td) = cl_abap_tabledescr=>create( line_type_td ).
         CREATE DATA rr_data TYPE HANDLE tab_td.
         ASSIGN rr_data->* TO FIELD-SYMBOL(<table>).
-        " re-generate all children and append (first_ref already done; re-use it)
-        ASSIGN first_ref->* TO FIELD-SYMBOL(<row0>).
-        INSERT <row0> INTO TABLE <table>.
-        li = 2.
-        WHILE li <= child_count.
-          DATA(row_ref) = generate( node->children[ li ]-node ).
+        " fill from collected refs — no regeneration needed
+        LOOP AT lt_child_refs INTO DATA(row_ref).
           ASSIGN row_ref->* TO FIELD-SYMBOL(<row>).
           INSERT <row> INTO TABLE <table>.
-          li = li + 1.
-        ENDWHILE.
+        ENDLOOP.
 
     ENDCASE.
   ENDMETHOD.
@@ -1372,9 +1382,7 @@ CLASS lcl_emitter IMPLEMENTATION.
             " ponytail: abap_bool is c len 1 so typekind_char fires, not typekind_bool.
             " Check type name against known ABAP boolean types; emit true/false for those.
             lv_raw = <elem>.
-            IF eld->absolute_name CP `*ABAP_BOOL*` OR eld->absolute_name CP `*BOOLEAN*`
-               OR eld->absolute_name CP `*BOOLE_D*`  OR eld->absolute_name CP `*XFELD*`
-               OR eld->absolute_name CP `*XSDBOOLEAN*`.
+            IF lcl_tree=>is_bool_type( eld ) = abap_true.
               result = COND string( WHEN lv_raw = abap_true THEN `true` ELSE `false` ).
             ELSE.
               result = quote_scalar( value = lv_raw quote_style = quote_style ).
@@ -1418,12 +1426,13 @@ CLASS lcl_emitter IMPLEMENTATION.
         result = comp_name.
       WHEN z_ui2_yaml=>pretty_mode-low_case.
         result = raw.
-      WHEN z_ui2_yaml=>pretty_mode-camel_case.
-        " MY_FIELD → myField
+      WHEN z_ui2_yaml=>pretty_mode-camel_case OR z_ui2_yaml=>pretty_mode-pascal_case.
+        " MY_FIELD → myField (camel) or MyField (pascal)
         DATA lv_out TYPE string.
-        DATA lv_cap TYPE abap_bool VALUE abap_false.
+        DATA lv_cap TYPE abap_bool.
         DATA i TYPE i.
         DATA(len) = strlen( raw ).
+        lv_cap = xsdbool( pretty_name = z_ui2_yaml=>pretty_mode-pascal_case ).
         WHILE i < len.
           DATA(c) = substring( val = raw off = i len = 1 ).
           IF c = `_`.
@@ -1439,60 +1448,9 @@ CLASS lcl_emitter IMPLEMENTATION.
           i = i + 1.
         ENDWHILE.
         result = lv_out.
-      WHEN z_ui2_yaml=>pretty_mode-pascal_case.
-        DATA lv_out2 TYPE string.
-        DATA lv_cap2 TYPE abap_bool VALUE abap_true.
-        DATA j TYPE i.
-        DATA(len2) = strlen( raw ).
-        WHILE j < len2.
-          DATA(c2) = substring( val = raw off = j len = 1 ).
-          IF c2 = `_`.
-            lv_cap2 = abap_true.
-          ELSE.
-            IF lv_cap2 = abap_true.
-              lv_out2 = lv_out2 && to_upper( c2 ).
-              lv_cap2 = abap_false.
-            ELSE.
-              lv_out2 = lv_out2 && c2.
-            ENDIF.
-          ENDIF.
-          j = j + 1.
-        ENDWHILE.
-        result = lv_out2.
       WHEN OTHERS.
         result = comp_name.
     ENDCASE.
-  ENDMETHOD.
-
-  METHOD looks_like_number.
-    DATA(len) = strlen( value ).
-    IF len = 0. RETURN. ENDIF.
-    DATA off TYPE i.
-    IF substring( val = value off = 0 len = 1 ) = `-`. off = 1. ENDIF.
-    DATA(rem) = len - off.
-    IF rem = 0. RETURN. ENDIF.
-    " integer: all digits (1-9 digits: avoid huge numbers causing issues for round-trip)
-    DATA(digits_only) = substring( val = value off = off ).
-    IF digits_only CO `0123456789`.
-      result = abap_true.
-      RETURN.
-    ENDIF.
-    " decimal: digits dot digits
-    DATA dot_seen TYPE abap_bool VALUE abap_false.
-    DATA di TYPE i VALUE 0.
-    WHILE di < strlen( digits_only ).
-      DATA(dc) = substring( val = digits_only off = di len = 1 ).
-      IF dc = `.`.
-        IF dot_seen = abap_true. RETURN. ENDIF.
-        dot_seen = abap_true.
-      ELSEIF NOT ( dc CO `0123456789` ).
-        RETURN.
-      ENDIF.
-      di = di + 1.
-    ENDWHILE.
-    IF dot_seen = abap_true AND di > 1.
-      result = abap_true.
-    ENDIF.
   ENDMETHOD.
 
   METHOD quote_scalar.
@@ -1546,20 +1504,37 @@ CLASS lcl_emitter IMPLEMENTATION.
     ENDIF.
 
     IF lv_need = abap_false.
-      IF looks_like_number( value ) = abap_true.
-        lv_need = abap_true.
+      " looks like a number? (integer: all digits after optional '-'; decimal: digits.digits)
+      DATA(num_off) = 0.
+      IF len > 0 AND substring( val = value off = 0 len = 1 ) = `-`. num_off = 1. ENDIF.
+      DATA(num_rem) = len - num_off.
+      IF num_rem > 0.
+        DATA(num_rest) = substring( val = value off = num_off ).
+        IF num_rest CO `0123456789`.
+          lv_need = abap_true.
+        ELSE.
+          DATA dot_seen TYPE abap_bool.
+          DATA ndi TYPE i.
+          WHILE ndi < strlen( num_rest ).
+            DATA(ndc) = substring( val = num_rest off = ndi len = 1 ).
+            IF ndc = `.`.
+              IF dot_seen = abap_true. EXIT. ENDIF.
+              dot_seen = abap_true.
+            ELSEIF NOT ( ndc CO `0123456789` ).
+              EXIT.
+            ENDIF.
+            ndi = ndi + 1.
+          ENDWHILE.
+          IF dot_seen = abap_true AND ndi = strlen( num_rest ) AND ndi > 1.
+            lv_need = abap_true.
+          ENDIF.
+        ENDIF.
       ENDIF.
     ENDIF.
 
     " date-like: YYYY-MM-DD
-    IF lv_need = abap_false AND len = 10.
-      IF substring( val = value off = 4 len = 1 ) = `-`
-         AND substring( val = value off = 7 len = 1 ) = `-`
-         AND substring( val = value off = 0 len = 4 ) CO `0123456789`
-         AND substring( val = value off = 5 len = 2 ) CO `0123456789`
-         AND substring( val = value off = 8 len = 2 ) CO `0123456789`.
-        lv_need = abap_true.
-      ENDIF.
+    IF lv_need = abap_false AND lcl_tree=>is_date_like( value ) = abap_true.
+      lv_need = abap_true.
     ENDIF.
 
     IF lv_need = abap_true.

@@ -65,6 +65,14 @@ ENDCLASS.
 
 CLASS lcl_tree DEFINITION.
   PUBLIC SECTION.
+    CONSTANTS c_yaml_name_chars TYPE string
+      VALUE 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-'.
+    CLASS-METHODS is_bool_type
+      IMPORTING eld           TYPE REF TO cl_abap_elemdescr
+      RETURNING VALUE(result) TYPE abap_bool.
+    CLASS-METHODS is_date_like
+      IMPORTING value         TYPE string
+      RETURNING VALUE(result) TYPE abap_bool.
     CLASS-METHODS new_scalar
       IMPORTING value   TYPE string
                 is_null TYPE abap_bool DEFAULT abap_false
@@ -245,9 +253,6 @@ CLASS lcl_emitter DEFINITION.
     CLASS-METHODS escape_dq
       IMPORTING value         TYPE string
       RETURNING VALUE(result) TYPE string.
-    CLASS-METHODS looks_like_number
-      IMPORTING value         TYPE string
-      RETURNING VALUE(result) TYPE abap_bool.
     CLASS-METHODS indent_block
       IMPORTING text          TYPE string
                 n             TYPE i
