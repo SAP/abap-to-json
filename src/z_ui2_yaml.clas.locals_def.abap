@@ -172,6 +172,11 @@ CLASS lcl_typed_mapper DEFINITION.
                 strict        TYPE abap_bool
       CHANGING  data          TYPE data
       RAISING   cx_sy_move_cast_error.
+  PRIVATE SECTION.
+    CLASS-METHODS pretty_inverse
+      IMPORTING yaml_key        TYPE string
+                pretty_name     TYPE z_ui2_yaml=>pretty_name_mode
+      RETURNING VALUE(abap_name) TYPE string.
 ENDCLASS.
 
 CLASS lcl_gen_mapper DEFINITION.
