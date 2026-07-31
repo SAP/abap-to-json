@@ -821,6 +821,16 @@ CLASS lcl_typed_mapper IMPLEMENTATION.
               ENDIF.
             ENDLOOP.
           ENDIF.
+          IF lv_compname IS INITIAL AND pretty_name <> z_ui2_yaml=>pretty_mode-none.
+            " pretty_name active: try inverse transform (myField → MY_FIELD)
+            DATA(inv_key) = pretty_inverse( yaml_key = child-key pretty_name = pretty_name ).
+            LOOP AT sd->components INTO comp.
+              IF comp-name = inv_key.
+                lv_compname = comp-name.
+                EXIT.
+              ENDIF.
+            ENDLOOP.
+          ENDIF.
           CHECK lv_compname IS NOT INITIAL.
           " assign component via field-symbol
           ASSIGN COMPONENT lv_compname OF STRUCTURE data TO FIELD-SYMBOL(<comp_data>).
@@ -885,6 +895,28 @@ CLASS lcl_typed_mapper IMPLEMENTATION.
       WHEN OTHERS.
         " reference, object, etc. — skip
     ENDCASE.
+  ENDMETHOD.
+
+  METHOD pretty_inverse.
+    " Invert pretty_name transform: camel/pascal/extended → insert '_' before interior uppercase, then TO_UPPER.
+    " none/low_case: just TO_UPPER.
+    IF pretty_name = z_ui2_yaml=>pretty_mode-none OR pretty_name = z_ui2_yaml=>pretty_mode-low_case.
+      abap_name = to_upper( yaml_key ).
+      RETURN.
+    ENDIF.
+    DATA(len) = strlen( yaml_key ).
+    DATA lv_out TYPE string.
+    DATA i TYPE i.
+    WHILE i < len.
+      DATA(c) = substring( val = yaml_key off = i len = 1 ).
+      IF i > 0 AND c CA `ABCDEFGHIJKLMNOPQRSTUVWXYZ`.
+        lv_out = lv_out && `_` && c.
+      ELSE.
+        lv_out = lv_out && c.
+      ENDIF.
+      i = i + 1.
+    ENDWHILE.
+    abap_name = to_upper( lv_out ).
   ENDMETHOD.
 
 ENDCLASS.

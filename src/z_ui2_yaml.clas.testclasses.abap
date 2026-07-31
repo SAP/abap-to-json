@@ -277,11 +277,14 @@ ENDCLASS.
 
 CLASS ltc_deser DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
   PRIVATE SECTION.
-    METHODS flat_struct        FOR TESTING.
-    METHODS nested_struct      FOR TESTING.
-    METHODS table_of_struct    FOR TESTING.
-    METHODS strict_bad_number  FOR TESTING.
-    METHODS lenient_bad_number FOR TESTING.
+    METHODS flat_struct          FOR TESTING.
+    METHODS nested_struct        FOR TESTING.
+    METHODS table_of_struct      FOR TESTING.
+    METHODS strict_bad_number    FOR TESTING.
+    METHODS lenient_bad_number   FOR TESTING.
+    METHODS camel_inverse_deser  FOR TESTING.
+    METHODS pascal_inverse_deser FOR TESTING.
+    METHODS camel_round_trip     FOR TESTING.
 ENDCLASS.
 CLASS ltc_deser IMPLEMENTATION.
   METHOD flat_struct.
@@ -322,6 +325,29 @@ CLASS ltc_deser IMPLEMENTATION.
     " lenient (static): bad number left initial, no raise
     z_ui2_yaml=>deserialize( EXPORTING yaml = |port: notanumber| CHANGING data = out ).
     cl_abap_unit_assert=>assert_equals( act = out-port exp = 0 ).
+  ENDMETHOD.
+  METHOD camel_inverse_deser.
+    TYPES: BEGIN OF ty, my_field TYPE string, another_one TYPE i, END OF ty.
+    DATA out TYPE ty.
+    DATA(o) = NEW z_ui2_yaml( pretty_name = z_ui2_yaml=>pretty_mode-camel_case ).
+    o->deserialize_int( EXPORTING yaml = |myField: hello\nanotherOne: 5| CHANGING data = out ).
+    cl_abap_unit_assert=>assert_equals( act = out-my_field exp = `hello` ).
+    cl_abap_unit_assert=>assert_equals( act = out-another_one exp = 5 ).
+  ENDMETHOD.
+  METHOD pascal_inverse_deser.
+    TYPES: BEGIN OF ty, my_field TYPE string, END OF ty.
+    DATA out TYPE ty.
+    DATA(o) = NEW z_ui2_yaml( pretty_name = z_ui2_yaml=>pretty_mode-pascal_case ).
+    o->deserialize_int( EXPORTING yaml = |MyField: hi| CHANGING data = out ).
+    cl_abap_unit_assert=>assert_equals( act = out-my_field exp = `hi` ).
+  ENDMETHOD.
+  METHOD camel_round_trip.
+    TYPES: BEGIN OF ty, my_field TYPE string, port_num TYPE i, END OF ty.
+    DATA(in) = VALUE ty( my_field = `x` port_num = 9 ).
+    DATA out TYPE ty.
+    DATA(o) = NEW z_ui2_yaml( pretty_name = z_ui2_yaml=>pretty_mode-camel_case ).
+    o->deserialize_int( EXPORTING yaml = o->serialize_int( in ) CHANGING data = out ).
+    cl_abap_unit_assert=>assert_equals( act = out exp = in ).
   ENDMETHOD.
 ENDCLASS.
 
