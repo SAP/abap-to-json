@@ -49,53 +49,26 @@ CLASS lcl_scanner IMPLEMENTATION.
     raw[ sentinel_idx ] = COND string( WHEN slen0 > 0
                                        THEN substring( val = sentinel_val len = slen0 - 1 )
                                        ELSE `` ).
-    DATA total    TYPE i.
-    DATA n        TYPE i.
-    DATA rr       TYPE string.
-    DATA rlen     TYPE i.
-    DATA off      TYPE i.
-    DATA indent   TYPE i.
-    DATA body     TYPE string.
-    DATA blen     TYPE i.
-    DATA blk_ind  TYPE string.
-    DATA last2c   TYPE string.
-    DATA last1c   TYPE string.
-    DATA ind_len  TYPE i.
-    DATA pre_char TYPE string.
-    DATA blk_key0 TYPE string.
-    DATA bk_len   TYPE i.
-    DATA line     TYPE ty_line.
+    DATA total        TYPE i.
+    DATA n            TYPE i.
+    DATA lv_raw_line  TYPE string.
+    DATA rlen         TYPE i.
+    DATA off          TYPE i.
+    DATA indent       TYPE i.
+    DATA body         TYPE string.
+    DATA blen         TYPE i.
+    DATA blk_scalar_ind TYPE string.
+    DATA last2c       TYPE string.
+    DATA last1c       TYPE string.
+    DATA ind_len      TYPE i.
+    DATA pre_char     TYPE string.
+    DATA blk_key0     TYPE string.
+    DATA bk_len       TYPE i.
+    DATA line         TYPE ty_line.
 
-    " Block-body collection work vars
+    " Block-body collection work vars (passed to collect_block_body)
     DATA blk_body     TYPE string_table.
-    DATA nn           TYPE i.
-    DATA bbrr         TYPE string.
-    DATA bb_off       TYPE i.
-    DATA bb_len       TYPE i.
-    DATA bb_blank     TYPE abap_bool.
-
-    " Block indent detection
-    DATA blk_ind_col   TYPE i.
-    DATA blk_stripped  TYPE string_table.
-    DATA bsl           TYPE string.
-    DATA bsl_off       TYPE i.
-    DATA bsl_len       TYPE i.
-    DATA strip_from    TYPE i.
-    DATA trailing_blanks TYPE i.
-    DATA tot_stripped  TYPE i.
-    DATA ti            TYPE i.
-    DATA content_lines TYPE i.
-
-    " Block value assembly
-    DATA blk_style TYPE string.
-    DATA blk_chomp TYPE string.
-    DATA blk_val   TYPE string.
-    DATA li        TYPE i.
-    DATA fi        TYPE i.
-    DATA fl        TYPE string.
-    DATA prev_blank TYPE abap_bool.
-    DATA ki        TYPE i.
-    DATA bv_len    TYPE i.
+    DATA lv_next_n    TYPE i.
 
     " Anchor detection on block-scalar header
     DATA blk_colon_pos   TYPE i.
@@ -106,17 +79,17 @@ CLASS lcl_scanner IMPLEMENTATION.
     total = lines( raw ).
     n     = 1.
     WHILE n <= total.
-      rr   = raw[ n ].
+      lv_raw_line   = raw[ n ].
       " strip trailing CR so CRLF input is handled identically to LF
-      DATA(rr_len) = strlen( rr ).
-      IF rr_len > 0 AND substring( val = rr off = rr_len - 1 len = 1 ) = cl_abap_char_utilities=>cr_lf(1).
-        rr = substring( val = rr len = rr_len - 1 ).
+      DATA(rr_len) = strlen( lv_raw_line ).
+      IF rr_len > 0 AND substring( val = lv_raw_line off = rr_len - 1 len = 1 ) = cl_abap_char_utilities=>cr_lf(1).
+        lv_raw_line = substring( val = lv_raw_line len = rr_len - 1 ).
       ENDIF.
-      rlen = strlen( rr ).
+      rlen = strlen( lv_raw_line ).
       off  = 0.
       " count leading spaces; reject tab in leading whitespace
       WHILE off < rlen.
-        CASE substring( val = rr off = off len = 1 ).
+        CASE substring( val = lv_raw_line off = off len = 1 ).
           WHEN ` `.
             off = off + 1.
           WHEN cl_abap_char_utilities=>horizontal_tab.
@@ -128,7 +101,7 @@ CLASS lcl_scanner IMPLEMENTATION.
         ENDCASE.
       ENDWHILE.
       indent = off.
-      body   = substring( val = rr off = off ).
+      body   = substring( val = lv_raw_line off = off ).
       body   = strip_comment( body ).
       body   = trim_right( body ).
       IF body IS INITIAL OR body = `---`.
@@ -147,23 +120,23 @@ CLASS lcl_scanner IMPLEMENTATION.
       ENDIF.
 
       " Detect block scalar indicator: |, >, |-, |+, >-, >+
-      blen    = strlen( body ).
-      blk_ind = ``.
+      blen          = strlen( body ).
+      blk_scalar_ind = ``.
       IF blen >= 2.
         last2c = substring( val = body off = blen - 2 len = 2 ).
         IF last2c = `|-` OR last2c = `|+` OR last2c = `>-` OR last2c = `>+`.
-          blk_ind = last2c.
+          blk_scalar_ind = last2c.
         ENDIF.
       ENDIF.
-      IF blk_ind IS INITIAL AND blen >= 1.
+      IF blk_scalar_ind IS INITIAL AND blen >= 1.
         last1c = substring( val = body off = blen - 1 len = 1 ).
         IF last1c = `|` OR last1c = `>`.
-          blk_ind = last1c.
+          blk_scalar_ind = last1c.
         ENDIF.
       ENDIF.
 
-      IF blk_ind IS NOT INITIAL.
-        ind_len  = strlen( blk_ind ).
+      IF blk_scalar_ind IS NOT INITIAL.
+        ind_len  = strlen( blk_scalar_ind ).
         " pre_char: the character just before the indicator
         pre_char = COND string( WHEN blen > ind_len
                                 THEN substring( val = body off = blen - ind_len - 1 len = 1 )
@@ -195,138 +168,149 @@ CLASS lcl_scanner IMPLEMENTATION.
            AND bk_len > 0
            AND substring( val = blk_key0 off = bk_len - 1 len = 1 ) = `:`.
 
-          " Collect raw body lines: blank OR indent > header indent
-          CLEAR blk_body.
-          nn = n + 1.
-          WHILE nn <= total.
-            bbrr   = raw[ nn ].
-            bb_len = strlen( bbrr ).
-            bb_off = 0.
-            WHILE bb_off < bb_len AND substring( val = bbrr off = bb_off len = 1 ) = ` `.
-              bb_off = bb_off + 1.
-            ENDWHILE.
-            bb_blank = xsdbool( bb_off = bb_len ).
-            IF bb_blank = abap_true.
-              APPEND bbrr TO blk_body.
-              nn = nn + 1.
-            ELSEIF bb_off > indent.
-              APPEND bbrr TO blk_body.
-              nn = nn + 1.
-            ELSE.
-              EXIT.
-            ENDIF.
-          ENDWHILE.
+          collect_block_body( EXPORTING raw     = raw
+                                        start_n = n
+                                        indent  = indent
+                                        total   = total
+                              IMPORTING rt_body   = blk_body
+                                        rv_next_n = lv_next_n ).
 
-          " Block indent = indent of first non-blank body line
-          blk_ind_col = 0.
-          LOOP AT blk_body INTO bsl.
-            bsl_off = 0.
-            bsl_len = strlen( bsl ).
-            WHILE bsl_off < bsl_len AND substring( val = bsl off = bsl_off len = 1 ) = ` `.
-              bsl_off = bsl_off + 1.
-            ENDWHILE.
-            IF bsl_off < bsl_len.
-              blk_ind_col = bsl_off.
-              EXIT.
-            ENDIF.
-          ENDLOOP.
-
-          " Strip block indent from each body line
-          CLEAR blk_stripped.
-          LOOP AT blk_body INTO bsl.
-            bsl_off = 0.
-            bsl_len = strlen( bsl ).
-            WHILE bsl_off < bsl_len AND substring( val = bsl off = bsl_off len = 1 ) = ` `.
-              bsl_off = bsl_off + 1.
-            ENDWHILE.
-            IF bsl_off = bsl_len.
-              APPEND `` TO blk_stripped.
-            ELSE.
-              strip_from = COND i( WHEN bsl_off >= blk_ind_col THEN blk_ind_col ELSE bsl_off ).
-              APPEND substring( val = bsl off = strip_from ) TO blk_stripped.
-            ENDIF.
-          ENDLOOP.
-
-          " Count trailing blank lines
-          tot_stripped   = lines( blk_stripped ).
-          trailing_blanks = 0.
-          ti = tot_stripped.
-          WHILE ti >= 1 AND blk_stripped[ ti ] IS INITIAL.
-            trailing_blanks = trailing_blanks + 1.
-            ti = ti - 1.
-          ENDWHILE.
-          content_lines = tot_stripped - trailing_blanks.
-
-          " Fold/join body lines
-          blk_style = substring( val = blk_ind off = 0 len = 1 ).
-          blk_chomp = COND string( WHEN ind_len > 1
-                                   THEN substring( val = blk_ind off = 1 len = 1 )
-                                   ELSE `` ).
-          blk_val = ``.
-          IF blk_style = `|`.
-            " LITERAL: each content line + LF
-            li = 1.
-            WHILE li <= content_lines.
-              blk_val = blk_val && blk_stripped[ li ] && cl_abap_char_utilities=>newline.
-              li = li + 1.
-            ENDWHILE.
-          ELSE.
-            " FOLDED: consecutive non-blank lines joined by space; blank line → LF
-            prev_blank = abap_false.
-            fi = 1.
-            WHILE fi <= content_lines.
-              fl = blk_stripped[ fi ].
-              IF fl IS INITIAL.
-                blk_val    = blk_val && cl_abap_char_utilities=>newline.
-                prev_blank = abap_true.
-              ELSE.
-                IF fi > 1 AND prev_blank = abap_false.
-                  blk_val = blk_val && ` `.
-                ENDIF.
-                blk_val    = blk_val && fl.
-                prev_blank = abap_false.
-              ENDIF.
-              fi = fi + 1.
-            ENDWHILE.
-            IF content_lines > 0.
-              blk_val = blk_val && cl_abap_char_utilities=>newline.
-            ENDIF.
-          ENDIF.
-
-          " Apply chomping
-          CASE blk_chomp.
-            WHEN `-`.
-              " STRIP: remove trailing LF
-              bv_len = strlen( blk_val ).
-              IF bv_len > 0 AND
-                 substring( val = blk_val off = bv_len - 1 len = 1 ) = cl_abap_char_utilities=>newline.
-                blk_val = substring( val = blk_val len = bv_len - 1 ).
-              ENDIF.
-            WHEN `+`.
-              " KEEP: append trailing blank lines as extra LFs
-              ki = 1.
-              WHILE ki <= trailing_blanks.
-                blk_val = blk_val && cl_abap_char_utilities=>newline.
-                ki = ki + 1.
-              ENDWHILE.
-            WHEN OTHERS.
-              " CLIP (default): exactly one trailing LF already emitted — nothing to do
-          ENDCASE.
-
+          line-blk_value = assemble_block_value( blk_body       = blk_body
+                                                 blk_scalar_ind = blk_scalar_ind ).
           line-blk_scalar_hd = abap_true.
-          line-blk_value     = blk_val.
           line-content       = blk_key0.
           APPEND line TO lines.
-          n = nn.
+          n = lv_next_n.
           CONTINUE.
         ELSE.
-          CLEAR blk_ind.  " not a mapping block header — treat as plain content
+          CLEAR blk_scalar_ind.  " not a mapping block header — treat as plain content
         ENDIF.
       ENDIF.
 
       APPEND line TO lines.
       n = n + 1.
     ENDWHILE.
+  ENDMETHOD.
+
+  METHOD collect_block_body.
+    " Collect raw body lines from raw[start_n+1..]: blank lines or indent > header indent.
+    " Returns collected lines in rt_body; rv_next_n = first line NOT consumed.
+    rv_next_n = start_n + 1.
+    WHILE rv_next_n <= total.
+      DATA(lv_line) = raw[ rv_next_n ].
+      DATA(bb_len)  = strlen( lv_line ).
+      DATA(bb_off)  = 0.
+      WHILE bb_off < bb_len AND substring( val = lv_line off = bb_off len = 1 ) = ` `.
+        bb_off = bb_off + 1.
+      ENDWHILE.
+      IF bb_off = bb_len OR bb_off > indent.
+        APPEND lv_line TO rt_body.
+        rv_next_n = rv_next_n + 1.
+      ELSE.
+        EXIT.
+      ENDIF.
+    ENDWHILE.
+  ENDMETHOD.
+
+  METHOD assemble_block_value.
+    " Detect block indent, strip it, fold/literal join, apply chomping.
+    " blk_scalar_ind: first char = style ('|' literal / '>' folded), second = chomp ('-'/'+'/none).
+
+    " Block indent = indent of first non-blank body line
+    DATA blk_ind_col TYPE i.
+    LOOP AT blk_body INTO DATA(lv_ln).
+      DATA(bsl_off) = 0.
+      DATA(bsl_len) = strlen( lv_ln ).
+      WHILE bsl_off < bsl_len AND substring( val = lv_ln off = bsl_off len = 1 ) = ` `.
+        bsl_off = bsl_off + 1.
+      ENDWHILE.
+      IF bsl_off < bsl_len.
+        blk_ind_col = bsl_off.
+        EXIT.
+      ENDIF.
+    ENDLOOP.
+
+    " Strip block indent from each body line
+    DATA blk_stripped TYPE string_table.
+    LOOP AT blk_body INTO lv_ln.
+      bsl_off = 0.
+      bsl_len = strlen( lv_ln ).
+      WHILE bsl_off < bsl_len AND substring( val = lv_ln off = bsl_off len = 1 ) = ` `.
+        bsl_off = bsl_off + 1.
+      ENDWHILE.
+      IF bsl_off = bsl_len.
+        APPEND `` TO blk_stripped.
+      ELSE.
+        DATA(strip_from) = COND i( WHEN bsl_off >= blk_ind_col THEN blk_ind_col ELSE bsl_off ).
+        APPEND substring( val = lv_ln off = strip_from ) TO blk_stripped.
+      ENDIF.
+    ENDLOOP.
+
+    " Count trailing blank lines
+    DATA(tot_stripped)    = lines( blk_stripped ).
+    DATA trailing_blanks  TYPE i.
+    DATA(ti)              = tot_stripped.
+    WHILE ti >= 1 AND blk_stripped[ ti ] IS INITIAL.
+      trailing_blanks = trailing_blanks + 1.
+      ti = ti - 1.
+    ENDWHILE.
+    DATA(content_lines) = tot_stripped - trailing_blanks.
+
+    " Fold/join body lines
+    DATA(blk_style) = substring( val = blk_scalar_ind off = 0 len = 1 ).
+    DATA(ind_len)   = strlen( blk_scalar_ind ).
+    DATA(blk_chomp) = COND string( WHEN ind_len > 1
+                                   THEN substring( val = blk_scalar_ind off = 1 len = 1 )
+                                   ELSE `` ).
+    IF blk_style = `|`.
+      " LITERAL: each content line + LF
+      DATA(li) = 1.
+      WHILE li <= content_lines.
+        rv_val = rv_val && blk_stripped[ li ] && cl_abap_char_utilities=>newline.
+        li = li + 1.
+      ENDWHILE.
+    ELSE.
+      " FOLDED: consecutive non-blank lines joined by space; blank line → LF
+      DATA prev_blank TYPE abap_bool.
+      DATA(fi) = 1.
+      WHILE fi <= content_lines.
+        DATA(fl) = blk_stripped[ fi ].
+        IF fl IS INITIAL.
+          rv_val     = rv_val && cl_abap_char_utilities=>newline.
+          prev_blank = abap_true.
+        ELSE.
+          IF fi > 1 AND prev_blank = abap_false.
+            rv_val = rv_val && ` `.
+          ENDIF.
+          rv_val     = rv_val && fl.
+          prev_blank = abap_false.
+        ENDIF.
+        fi = fi + 1.
+      ENDWHILE.
+      IF content_lines > 0.
+        rv_val = rv_val && cl_abap_char_utilities=>newline.
+      ENDIF.
+    ENDIF.
+
+    " Apply chomping
+    CASE blk_chomp.
+      WHEN `-`.
+        " STRIP: remove trailing LF
+        DATA(bv_len) = strlen( rv_val ).
+        IF bv_len > 0 AND
+           substring( val = rv_val off = bv_len - 1 len = 1 ) = cl_abap_char_utilities=>newline.
+          rv_val = substring( val = rv_val len = bv_len - 1 ).
+        ENDIF.
+      WHEN `+`.
+        " KEEP: append trailing blank lines as extra LFs
+        DATA(ki) = 1.
+        WHILE ki <= trailing_blanks.
+          rv_val = rv_val && cl_abap_char_utilities=>newline.
+          ki = ki + 1.
+        ENDWHILE.
+      WHEN OTHERS.
+        " CLIP (default): exactly one trailing LF already emitted — nothing to do
+    ENDCASE.
   ENDMETHOD.
 
   METHOD strip_comment.
@@ -608,6 +592,7 @@ CLASS lcl_parser IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD value_or_block.
+    DATA aname TYPE string.
     IF has_inline = abap_true.
       " trim leading/trailing only — preserve internal spaces in quoted scalars
       DATA(trimmed) = lcl_scanner=>trim( inline_value ).
@@ -621,12 +606,11 @@ CLASS lcl_parser IMPLEMENTATION.
         RETURN.
       ENDIF.
       " strip anchor prefix — trimmed may become empty if anchor was the only inline content
-      DATA(aname) = strip_anchor( CHANGING raw = trimmed ).
+      aname = strip_anchor( CHANGING raw = trimmed ).
       IF trimmed IS NOT INITIAL.
         " inline value exists after optional anchor
-        IF strlen( trimmed ) > 0 AND
-           ( substring( val = trimmed off = 0 len = 1 ) = `{` OR
-             substring( val = trimmed off = 0 len = 1 ) = `[` ).
+        IF substring( val = trimmed off = 0 len = 1 ) = `{`
+           OR substring( val = trimmed off = 0 len = 1 ) = `[`.
           node = parse_flow( trimmed ).
         ELSE.
           DATA lv_val  TYPE string.
@@ -784,13 +768,11 @@ CLASS lcl_parser IMPLEMENTATION.
     APPEND cur_tok TO tokens.
 
     " Declare map-branch work vars outside loop — ABAP DATA VALUE init is method-scope, not loop-scope
-    DATA entry_key TYPE string.
-    DATA entry_val TYPE string.
-    DATA k         TYPE i.
-    DATA fc        TYPE abap_bool.
-    DATA tsq       TYPE abap_bool.
-    DATA tdq       TYPE abap_bool.
-    DATA tdepth    TYPE i.
+    " in_sq / in_dq / depth are reused from the tokenizer loop above (same method scope)
+    DATA entry_key       TYPE string.
+    DATA entry_val       TYPE string.
+    DATA k               TYPE i.
+    DATA lv_colon_found  TYPE abap_bool.
 
     " process each token
     LOOP AT tokens INTO DATA(tok).
@@ -798,35 +780,35 @@ CLASS lcl_parser IMPLEMENTATION.
       CHECK trimmed IS NOT INITIAL.
       IF lv_is_map = abap_true.
         " reset per-entry work vars each iteration — DATA VALUE is method-scope, not loop-scope
-        CLEAR: entry_key, entry_val, fc, tsq, tdq, tdepth.
+        CLEAR: entry_key, entry_val, lv_colon_found, in_sq, in_dq, depth.
         k = 0.
         " find ':' at depth 0, not in quotes
         DATA(tlen) = strlen( trimmed ).
         WHILE k < tlen.
           DATA(tc) = substring( val = trimmed off = k len = 1 ).
-          IF tsq = abap_true.
+          IF in_sq = abap_true.
             IF tc = `'` AND k + 1 < tlen AND substring( val = trimmed off = k + 1 len = 1 ) = `'`.
               k = k + 2. CONTINUE.
             ENDIF.
-            IF tc = `'`. tsq = abap_false. ENDIF.
-          ELSEIF tdq = abap_true.
+            IF tc = `'`. in_sq = abap_false. ENDIF.
+          ELSEIF in_dq = abap_true.
             IF tc = `\` AND k + 1 < tlen. k = k + 2. CONTINUE. ENDIF.
-            IF tc = `"`. tdq = abap_false. ENDIF.
+            IF tc = `"`. in_dq = abap_false. ENDIF.
           ELSE.
             CASE tc.
-              WHEN `'`. tsq = abap_true.
-              WHEN `"`. tdq = abap_true.
-              WHEN `{` OR `[`. tdepth = tdepth + 1.
-              WHEN `}` OR `]`. tdepth = tdepth - 1.
+              WHEN `'`. in_sq = abap_true.
+              WHEN `"`. in_dq = abap_true.
+              WHEN `{` OR `[`. depth = depth + 1.
+              WHEN `}` OR `]`. depth = depth - 1.
               WHEN `:`.
-                IF tdepth = 0.
+                IF depth = 0.
                   IF k + 1 >= tlen OR substring( val = trimmed off = k + 1 len = 1 ) = ` `.
                     entry_key = substring( val = trimmed len = k ).
                     DATA(ks) = k + 2.
                     IF ks < tlen.
                       entry_val = substring( val = trimmed off = ks ).
                     ENDIF.
-                    fc = abap_true.
+                    lv_colon_found = abap_true.
                     EXIT.
                   ENDIF.
                 ENDIF.
@@ -834,7 +816,7 @@ CLASS lcl_parser IMPLEMENTATION.
           ENDIF.
           k = k + 1.
         ENDWHILE.
-        IF fc = abap_false.
+        IF lv_colon_found = abap_false.
           entry_key = trimmed.
         ENDIF.
         " dispatch map value: nested collection or scalar
@@ -1042,7 +1024,7 @@ CLASS lcl_gen_mapper IMPLEMENTATION.
     DATA(len)    = strlen( raw_up ).
     DATA lv_out  TYPE string.
     DATA i       TYPE i.
-    WHILE i < len AND strlen( lv_out ) < 30.
+    WHILE i < len AND strlen( lv_out ) < c_max_comp_name_len.
       DATA(c) = substring( val = raw_up off = i len = 1 ).
       IF c CO `ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_`.
         lv_out = lv_out && c.
@@ -1054,7 +1036,7 @@ CLASS lcl_gen_mapper IMPLEMENTATION.
     IF lv_out IS INITIAL.
       lv_out = `F`.
     ELSEIF substring( val = lv_out off = 0 len = 1 ) CO `0123456789`.
-      lv_out = `F` && substring( val = lv_out len = COND i( WHEN strlen( lv_out ) < 30 THEN strlen( lv_out ) ELSE 29 ) ).
+      lv_out = `F` && substring( val = lv_out len = COND i( WHEN strlen( lv_out ) < c_max_comp_name_len THEN strlen( lv_out ) ELSE c_max_comp_name_len - 1 ) ).
     ENDIF.
     result = lv_out.
   ENDMETHOD.
@@ -1179,7 +1161,7 @@ CLASS lcl_gen_mapper IMPLEMENTATION.
             lv_sfxs = |_{ lv_sfx }|.
             lv_sfxl = strlen( lv_sfxs ).
             lv_basl = strlen( base_name ).
-            lv_triml = COND i( WHEN lv_basl + lv_sfxl > 30 THEN 30 - lv_sfxl ELSE lv_basl ).
+            lv_triml = COND i( WHEN lv_basl + lv_sfxl > c_max_comp_name_len THEN c_max_comp_name_len - lv_sfxl ELSE lv_basl ).
             lv_final = substring( val = base_name len = lv_triml ) && lv_sfxs.
           ENDWHILE.
           INSERT lv_final INTO TABLE lt_used.
@@ -1470,7 +1452,7 @@ CLASS lcl_emitter IMPLEMENTATION.
     DATA(len) = strlen( value ).
 
     " always-double mode
-    IF quote_style = 'D'.
+    IF quote_style = z_ui2_yaml=>quote_mode-always_double.
       result = `"` && escape_dq( value ) && `"`.
       RETURN.
     ENDIF.
@@ -1582,7 +1564,6 @@ CLASS lcl_emitter IMPLEMENTATION.
     ENDWHILE.
     DATA lines_t TYPE string_table.
     SPLIT text AT cl_abap_char_utilities=>newline INTO TABLE lines_t.
-    DATA lv_last TYPE i VALUE 0.
     " detect trailing newline: if text ends with NL, last token is empty
     DATA(tlen) = strlen( text ).
     DATA lv_has_trail TYPE abap_bool.

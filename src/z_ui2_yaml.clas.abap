@@ -20,6 +20,12 @@ CLASS z_ui2_yaml DEFINITION
         extended    TYPE c LENGTH 1 VALUE 'Y',
       END OF pretty_mode.
 
+    CONSTANTS:
+      BEGIN OF quote_mode,
+        plain        TYPE c LENGTH 1 VALUE 'P',
+        always_double TYPE c LENGTH 1 VALUE 'D',
+      END OF quote_mode.
+
     TYPES ref_tab TYPE STANDARD TABLE OF REF TO data WITH DEFAULT KEY.
 
     CONSTANTS version TYPE i VALUE 1 ##NO_TEXT.
@@ -84,7 +90,6 @@ CLASS z_ui2_yaml DEFINITION
       RETURNING VALUE(rt_data) TYPE ref_tab
       RAISING   cx_sy_conversion_error.
 
-  PROTECTED SECTION.
   PRIVATE SECTION.
     DATA mv_pretty_name      TYPE pretty_name_mode.
     DATA mt_name_mappings    TYPE name_mappings.
@@ -106,7 +111,7 @@ CLASS z_ui2_yaml IMPLEMENTATION.
     mv_assoc_arrays     = assoc_arrays.
     mv_indent           = COND #( WHEN indent IS SUPPLIED THEN indent ELSE 2 ).
     mv_emit_doc_markers = emit_doc_markers.
-    mv_quote_style      = COND #( WHEN quote_style IS SUPPLIED THEN quote_style ELSE 'P' ).
+    mv_quote_style      = COND #( WHEN quote_style IS SUPPLIED THEN quote_style ELSE quote_mode-plain ).
     mv_flow_threshold   = COND #( WHEN flow_threshold IS SUPPLIED THEN flow_threshold ELSE 0 ).
   ENDMETHOD.
 
@@ -128,7 +133,7 @@ CLASS z_ui2_yaml IMPLEMENTATION.
                                 pretty_name    = pretty_name
                                 name_mappings  = name_mappings
                                 indent_step    = 2
-                                quote_style    = 'P'
+                                quote_style    = quote_mode-plain
                                 emit_doc_markers = abap_false
                                 header_comment = header_comment ).
   ENDMETHOD.
