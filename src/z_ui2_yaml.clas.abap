@@ -168,14 +168,7 @@ CLASS z_ui2_yaml IMPLEMENTATION.
 
   METHOD generate_all.
     DATA(all_lines) = lcl_scanner=>scan( yaml ).
-    DATA(blocks) = lcl_parser=>split_documents( all_lines ).
-    IF blocks IS INITIAL.
-      " no boundaries found — treat whole input as single doc
-      DATA(single_root) = lcl_parser=>parse( all_lines ).
-      APPEND lcl_gen_mapper=>generate( single_root ) TO rt_data.
-      RETURN.
-    ENDIF.
-    LOOP AT blocks INTO DATA(block).
+    LOOP AT lcl_parser=>split_documents( all_lines ) INTO DATA(block).
       DATA(root) = lcl_parser=>parse( block ).
       APPEND lcl_gen_mapper=>generate( root ) TO rt_data.
     ENDLOOP.
@@ -183,16 +176,9 @@ CLASS z_ui2_yaml IMPLEMENTATION.
 
   METHOD deserialize_all_int.
     DATA(all_lines) = lcl_scanner=>scan( yaml ).
-    DATA(blocks) = lcl_parser=>split_documents( all_lines ).
-    IF blocks IS INITIAL.
-      " no boundaries — single doc
-      DATA single_block TYPE ty_lines.
-      single_block = all_lines.
-      INSERT single_block INTO TABLE blocks.
-    ENDIF.
     DATA(tabd) = CAST cl_abap_tabledescr( cl_abap_typedescr=>describe_by_data( results ) ).
     DATA(line_td) = tabd->get_table_line_type( ).
-    LOOP AT blocks INTO DATA(block).
+    LOOP AT lcl_parser=>split_documents( all_lines ) INTO DATA(block).
       DATA lv_line_ref TYPE REF TO data.
       CREATE DATA lv_line_ref TYPE HANDLE line_td.
       ASSIGN lv_line_ref->* TO FIELD-SYMBOL(<line>).
