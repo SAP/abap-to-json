@@ -45,6 +45,10 @@ CLASS z_ui2_yaml DEFINITION
                 name_mappings TYPE name_mappings    OPTIONAL
       CHANGING  data          TYPE data.
 
+    CLASS-METHODS generate
+      IMPORTING yaml           TYPE string
+      RETURNING VALUE(rr_data) TYPE REF TO data.
+
   PROTECTED SECTION.
   PRIVATE SECTION.
     DATA mv_pretty_name      TYPE pretty_name_mode.
@@ -96,6 +100,15 @@ CLASS z_ui2_yaml IMPLEMENTATION.
                             CHANGING  data  = data ).
       CATCH cx_sy_move_cast_error.
         " static API is lenient — strict_mode defaults false, so unreachable by design
+    ENDTRY.
+  ENDMETHOD.
+
+  METHOD generate.
+    TRY.
+        DATA(root) = lcl_parser=>parse( lcl_scanner=>scan( yaml ) ).
+        rr_data = lcl_gen_mapper=>generate( root ).
+      CATCH cx_sy_conversion_error.
+        " parse error — return initial (null ref)
     ENDTRY.
   ENDMETHOD.
 

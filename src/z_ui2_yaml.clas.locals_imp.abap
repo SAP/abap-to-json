@@ -847,6 +847,218 @@ CLASS lcl_typed_mapper IMPLEMENTATION.
 ENDCLASS.
 
 CLASS lcl_gen_mapper IMPLEMENTATION.
+
+  METHOD sanitize_name.
+    " uppercase, replace non-alphanumeric/underscore with '_', prefix digit-start with 'F', max 30
+    DATA(raw_up) = to_upper( raw ).
+    DATA(len)    = strlen( raw_up ).
+    DATA lv_out  TYPE string.
+    DATA i       TYPE i.
+    WHILE i < len AND strlen( lv_out ) < 30.
+      DATA(c) = substring( val = raw_up off = i len = 1 ).
+      IF c CO `ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_`.
+        lv_out = lv_out && c.
+      ELSE.
+        lv_out = lv_out && `_`.
+      ENDIF.
+      i = i + 1.
+    ENDWHILE.
+    IF lv_out IS INITIAL.
+      lv_out = `F`.
+    ELSEIF substring( val = lv_out off = 0 len = 1 ) CO `0123456789`.
+      lv_out = `F` && substring( val = lv_out len = COND i( WHEN strlen( lv_out ) < 30 THEN strlen( lv_out ) ELSE 29 ) ).
+    ENDIF.
+    result = lv_out.
+  ENDMETHOD.
+
+  METHOD detect_scalar_type.
+    " Type detection by character checks only (no regex).
+    " null / empty → string
+    DATA(len) = strlen( value ).
+    IF len = 0.
+      CREATE DATA rr_data TYPE string.
+      RETURN.
+    ENDIF.
+
+    " boolean: exact tokens
+    IF value = `true` OR value = `false`.
+      CREATE DATA rr_data TYPE abap_bool.
+      IF value = `true`.
+        ASSIGN rr_data->* TO FIELD-SYMBOL(<b>).
+        <b> = abap_true.
+      ENDIF.
+      RETURN.
+    ENDIF.
+
+    " date: YYYY-MM-DD — exactly 10 chars, '-' at pos 4 and 7, digits elsewhere
+    IF len = 10
+       AND substring( val = value off = 4 len = 1 ) = `-`
+       AND substring( val = value off = 7 len = 1 ) = `-`
+       AND substring( val = value off = 0 len = 4 ) CO `0123456789`
+       AND substring( val = value off = 5 len = 2 ) CO `0123456789`
+       AND substring( val = value off = 8 len = 2 ) CO `0123456789`.
+      CREATE DATA rr_data TYPE d.
+      ASSIGN rr_data->* TO FIELD-SYMBOL(<d>).
+      DATA(dstr) = substring( val = value off = 0 len = 4 )
+                && substring( val = value off = 5 len = 2 )
+                && substring( val = value off = 8 len = 2 ).
+      <d> = dstr.
+      RETURN.
+    ENDIF.
+
+    " integer: optional leading '-', then 1-9 digits, no dot
+    " ponytail: 10+ digit integers (absolute value) fall back to string to avoid i overflow
+    DATA(scan_off) = 0.
+    IF substring( val = value off = 0 len = 1 ) = `-`.
+      scan_off = 1.
+    ENDIF.
+    DATA(digit_len) = len - scan_off.
+    IF digit_len >= 1
+       AND digit_len <= 9
+       AND substring( val = value off = scan_off ) CO `0123456789`.
+      CREATE DATA rr_data TYPE i.
+      ASSIGN rr_data->* TO FIELD-SYMBOL(<i>).
+      <i> = value.
+      RETURN.
+    ENDIF.
+
+    " decimal: optional '-', digits, single '.', digits — no further dots
+    " ponytail: uses decfloat34 (64-bit, sufficient for YAML numerics)
+    DATA dot_pos TYPE i.
+    DATA di      TYPE i.
+    DATA d_off   TYPE i.
+    dot_pos = -1.
+    d_off   = 0.
+    IF substring( val = value off = 0 len = 1 ) = `-`.
+      d_off = 1.
+    ENDIF.
+    di = d_off.
+    WHILE di < len.
+      DATA(dc) = substring( val = value off = di len = 1 ).
+      IF dc = `.`.
+        IF dot_pos >= 0.
+          " second dot → not a number
+          dot_pos = -1.
+          EXIT.
+        ENDIF.
+        dot_pos = di.
+      ELSEIF NOT ( dc CO `0123456789` ).
+        dot_pos = -1.
+        EXIT.
+      ENDIF.
+      di = di + 1.
+    ENDWHILE.
+    IF dot_pos > d_off AND dot_pos < len - 1.
+      " dot is not at start and not at end
+      CREATE DATA rr_data TYPE decfloat34.
+      ASSIGN rr_data->* TO FIELD-SYMBOL(<df>).
+      <df> = value.
+      RETURN.
+    ENDIF.
+
+    " fallback: string
+    CREATE DATA rr_data TYPE string.
+    ASSIGN rr_data->* TO FIELD-SYMBOL(<s>).
+    <s> = value.
+  ENDMETHOD.
+
+  METHOD generate.
+    CASE node->node-kind.
+
+      WHEN c_node=>scalar.
+        " leaf: detect type and return typed data ref
+        IF node->node-is_null = abap_true.
+          CREATE DATA rr_data TYPE string.
+          RETURN.
+        ENDIF.
+        rr_data = detect_scalar_type( node->node-value ).
+
+      WHEN c_node=>mapping.
+        " Build a dynamic structure: one component per child, typed from recursive generate()
+        DATA lt_comps   TYPE cl_abap_structdescr=>component_table.
+        DATA lt_refs    TYPE STANDARD TABLE OF REF TO data WITH DEFAULT KEY.
+        LOOP AT node->children INTO DATA(child).
+          DATA(comp_name) = sanitize_name( child-key ).
+          " recursively generate child value to get its type
+          DATA(child_ref) = generate( child-node ).
+          DATA(child_td)  = cl_abap_typedescr=>describe_by_data_ref( child_ref ).
+          APPEND VALUE abap_componentdescr( name = comp_name
+                                            type = CAST cl_abap_datadescr( child_td ) )
+                 TO lt_comps.
+          APPEND child_ref TO lt_refs.
+        ENDLOOP.
+        IF lt_comps IS INITIAL.
+          " empty mapping → empty structure
+          CREATE DATA rr_data TYPE string.
+          RETURN.
+        ENDIF.
+        DATA(struct_td) = cl_abap_structdescr=>create( lt_comps ).
+        CREATE DATA rr_data TYPE HANDLE struct_td.
+        " fill each component from the pre-generated child refs
+        ASSIGN rr_data->* TO FIELD-SYMBOL(<struct>).
+        DATA(ci) = 1.
+        LOOP AT node->children INTO DATA(fill_child).
+          DATA(fill_name) = sanitize_name( fill_child-key ).
+          ASSIGN COMPONENT fill_name OF STRUCTURE <struct> TO FIELD-SYMBOL(<comp>).
+          IF sy-subrc = 0.
+            DATA(fill_ref) = lt_refs[ ci ].
+            ASSIGN fill_ref->* TO FIELD-SYMBOL(<val>).
+            <comp> = <val>.
+          ENDIF.
+          ci = ci + 1.
+        ENDLOOP.
+
+      WHEN c_node=>sequence.
+        " Build typed table: detect element type from first child, fall back to string if mixed
+        DATA(child_count) = lines( node->children ).
+        IF child_count = 0.
+          " empty sequence → string table
+          DATA(empty_line_td) = CAST cl_abap_datadescr(
+                                  cl_abap_typedescr=>describe_by_name( `STRING` ) ).
+          DATA(empty_tab_td) = cl_abap_tabledescr=>create( empty_line_td ).
+          CREATE DATA rr_data TYPE HANDLE empty_tab_td.
+          RETURN.
+        ENDIF.
+        " generate first child to detect line type
+        DATA(first_child_node) = node->children[ 1 ]-node.
+        DATA(first_ref)        = generate( first_child_node ).
+        DATA(first_td)         = cl_abap_typedescr=>describe_by_data_ref( first_ref ).
+        DATA(line_type_td)     = CAST cl_abap_datadescr( first_td ).
+        " ponytail: type uniformity check — only verify kind matches (not full type equality).
+        " Mixed-kind sequences fall back to string table.
+        DATA lv_uniform TYPE abap_bool VALUE abap_true.
+        DATA li TYPE i VALUE 2.
+        WHILE li <= child_count AND lv_uniform = abap_true.
+          DATA(chk_ref) = generate( node->children[ li ]-node ).
+          DATA(chk_td)  = cl_abap_typedescr=>describe_by_data_ref( chk_ref ).
+          IF chk_td->kind <> first_td->kind.
+            lv_uniform = abap_false.
+          ENDIF.
+          li = li + 1.
+        ENDWHILE.
+        IF lv_uniform = abap_false.
+          " mixed kinds → string table
+          DATA(fb_line_td) = CAST cl_abap_datadescr(
+                               cl_abap_typedescr=>describe_by_name( `STRING` ) ).
+          line_type_td = fb_line_td.
+        ENDIF.
+        DATA(tab_td) = cl_abap_tabledescr=>create( line_type_td ).
+        CREATE DATA rr_data TYPE HANDLE tab_td.
+        ASSIGN rr_data->* TO FIELD-SYMBOL(<table>).
+        " re-generate all children and append (first_ref already done; re-use it)
+        ASSIGN first_ref->* TO FIELD-SYMBOL(<row0>).
+        INSERT <row0> INTO TABLE <table>.
+        li = 2.
+        WHILE li <= child_count.
+          DATA(row_ref) = generate( node->children[ li ]-node ).
+          ASSIGN row_ref->* TO FIELD-SYMBOL(<row>).
+          INSERT <row> INTO TABLE <table>.
+          li = li + 1.
+        ENDWHILE.
+
+    ENDCASE.
+  ENDMETHOD.
+
 ENDCLASS.
 
 CLASS lcl_emitter IMPLEMENTATION.
