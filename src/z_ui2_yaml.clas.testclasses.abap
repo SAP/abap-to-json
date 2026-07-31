@@ -260,6 +260,7 @@ CLASS ltc_block_scalar DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS
     METHODS folded_joins_lines     FOR TESTING RAISING cx_sy_conversion_error.
     METHODS strip_chomp            FOR TESTING RAISING cx_sy_conversion_error.
     METHODS keep_chomp             FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS crlf_block_scalar      FOR TESTING RAISING cx_sy_conversion_error.
     METHODS v IMPORTING t TYPE string RETURNING VALUE(r) TYPE string RAISING cx_sy_conversion_error.
 ENDCLASS.
 CLASS ltc_block_scalar IMPLEMENTATION.
@@ -279,6 +280,17 @@ CLASS ltc_block_scalar IMPLEMENTATION.
   METHOD keep_chomp.
     " |+ keeps trailing blank line -> "line1\n\n"
     cl_abap_unit_assert=>assert_equals( act = v( |k: \|+\n  line1\n| ) exp = |line1\n\n| ).
+  ENDMETHOD.
+  METHOD crlf_block_scalar.
+    " CRLF input: block-scalar body lines must have CR stripped, no early truncation
+    DATA(crlf) = cl_abap_char_utilities=>cr_lf.
+    DATA(y) = |k: \|{ crlf }  line1{ crlf }{ crlf }  line3{ crlf }next: x|.
+    DATA(r) = lcl_parser=>parse( lcl_scanner=>scan( y ) ).
+    " literal block: line1 + blank line + line3 + clip newline
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 1 ]-node->node-value
+                                        exp = |line1\n\nline3\n| ).
+    " sibling key must be present (no early truncation)
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 2 ]-key exp = `next` ).
   ENDMETHOD.
 ENDCLASS.
 

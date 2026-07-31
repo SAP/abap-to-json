@@ -49,6 +49,14 @@ CLASS lcl_scanner IMPLEMENTATION.
     raw[ sentinel_idx ] = COND string( WHEN slen0 > 0
                                        THEN substring( val = sentinel_val len = slen0 - 1 )
                                        ELSE `` ).
+    " normalize CRLF: strip a trailing CR from every raw line once so block-scalar
+    " bodies (read from raw[] directly by collect_block_body) are covered too
+    LOOP AT raw ASSIGNING FIELD-SYMBOL(<r>).
+      DATA(rl) = strlen( <r> ).
+      IF rl > 0 AND substring( val = <r> off = rl - 1 len = 1 ) = cl_abap_char_utilities=>cr_lf(1).
+        <r> = substring( val = <r> len = rl - 1 ).
+      ENDIF.
+    ENDLOOP.
     DATA total        TYPE i.
     DATA n            TYPE i.
     DATA lv_raw_line  TYPE string.
@@ -80,11 +88,6 @@ CLASS lcl_scanner IMPLEMENTATION.
     n     = 1.
     WHILE n <= total.
       lv_raw_line   = raw[ n ].
-      " strip trailing CR so CRLF input is handled identically to LF
-      DATA(rr_len) = strlen( lv_raw_line ).
-      IF rr_len > 0 AND substring( val = lv_raw_line off = rr_len - 1 len = 1 ) = cl_abap_char_utilities=>cr_lf(1).
-        lv_raw_line = substring( val = lv_raw_line len = rr_len - 1 ).
-      ENDIF.
       rlen = strlen( lv_raw_line ).
       off  = 0.
       " count leading spaces; reject tab in leading whitespace
