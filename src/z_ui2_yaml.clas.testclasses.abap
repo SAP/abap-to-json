@@ -366,6 +366,7 @@ CLASS ltc_gen DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
     METHODS gen_sequence                FOR TESTING.
     METHODS gen_dup_sanitized_keys      FOR TESTING.
     METHODS gen_structural_error_fatal  FOR TESTING.
+    METHODS gen_nonuniform_seq_keeps_all FOR TESTING.
 ENDCLASS.
 CLASS ltc_gen IMPLEMENTATION.
   METHOD gen_mapping_field.
@@ -413,6 +414,13 @@ CLASS ltc_gen IMPLEMENTATION.
         cl_abap_unit_assert=>fail( `expected structural error to propagate` ).
       CATCH cx_sy_conversion_error.
     ENDTRY.
+  ENDMETHOD.
+  METHOD gen_nonuniform_seq_keeps_all.
+    " non-uniform sequence (int/bool/int/int): all 4 elements must survive (regression for #6 fix)
+    DATA(r) = z_ui2_yaml=>generate( |- 1\n- true\n- 2\n- 3| ).
+    FIELD-SYMBOLS <t> TYPE ANY TABLE.
+    ASSIGN r->* TO <t>.
+    cl_abap_unit_assert=>assert_equals( act = lines( <t> ) exp = 4 ).
   ENDMETHOD.
 ENDCLASS.
 
