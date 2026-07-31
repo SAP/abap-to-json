@@ -380,6 +380,8 @@ CLASS ltc_gen DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
     METHODS gen_structural_error_fatal  FOR TESTING.
     METHODS gen_nonuniform_seq_keeps_all FOR TESTING.
     METHODS gen_mixed_elem_keeps_values FOR TESTING.
+    METHODS gen_seq_of_mappings         FOR TESTING.
+    METHODS gen_seq_of_mappings_typed   FOR TESTING.
 ENDCLASS.
 CLASS ltc_gen IMPLEMENTATION.
   METHOD gen_mapping_field.
@@ -443,6 +445,20 @@ CLASS ltc_gen IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( act = lines( <t> ) exp = 3 ).
     FIELD-SYMBOLS <e> TYPE any. READ TABLE <t> INDEX 2 ASSIGNING <e>.
     cl_abap_unit_assert=>assert_char_cp( act = |{ <e> }| exp = `*2.5*` ).
+  ENDMETHOD.
+  METHOD gen_seq_of_mappings.
+    " list of uniform objects (dominant config shape) must generate a table of 3, no dump
+    DATA(r) = z_ui2_yaml=>generate( |- host: a\n  port: 1\n- host: b\n  port: 2\n- host: c\n  port: 3| ).
+    FIELD-SYMBOLS <t> TYPE ANY TABLE. ASSIGN r->* TO <t>.
+    cl_abap_unit_assert=>assert_equals( act = lines( <t> ) exp = 3 ).
+  ENDMETHOD.
+  METHOD gen_seq_of_mappings_typed.
+    " values inside the objects survive: read row 2's host + port
+    DATA(r) = z_ui2_yaml=>generate( |- host: a\n  port: 1\n- host: b\n  port: 2| ).
+    FIELD-SYMBOLS <t> TYPE STANDARD TABLE. ASSIGN r->* TO <t>.
+    FIELD-SYMBOLS <row> TYPE any. READ TABLE <t> INDEX 2 ASSIGNING <row>.
+    FIELD-SYMBOLS <h> TYPE any. ASSIGN COMPONENT `HOST` OF STRUCTURE <row> TO <h>.
+    cl_abap_unit_assert=>assert_equals( act = <h> exp = `b` ).
   ENDMETHOD.
 ENDCLASS.
 

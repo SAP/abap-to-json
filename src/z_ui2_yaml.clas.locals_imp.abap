@@ -1222,10 +1222,23 @@ CLASS lcl_gen_mapper IMPLEMENTATION.
           DATA(chk_ref) = generate( node->children[ li ]-node ).
           APPEND chk_ref TO lt_child_refs.
           DATA(chk_td)  = cl_abap_typedescr=>describe_by_data_ref( chk_ref ).
-          IF chk_td->kind <> first_td->kind
-             OR chk_td->absolute_name <> first_td->absolute_name.
+          IF chk_td->kind <> first_td->kind.
             lv_uniform = abap_false.
+          ELSEIF chk_td->kind = cl_abap_typedescr=>kind_elem.
+            " For elementary: absolute_name must match (preserves Phase B fix: int vs decfloat → non-uniform)
+            IF chk_td->absolute_name <> first_td->absolute_name.
+              lv_uniform = abap_false.
+            ENDIF.
+          ELSEIF chk_td->kind = cl_abap_typedescr=>kind_struct.
+            " For structures: compare component layout — dynamic structs always differ by absolute_name
+            " ponytail: component comparison works for flat elementary fields (RTTI singletons);
+            "           nested dynamic struct fields differ by ref identity → falls through to REF TO data fallback
+            IF CAST cl_abap_structdescr( chk_td )->components <>
+               CAST cl_abap_structdescr( first_td )->components.
+              lv_uniform = abap_false.
+            ENDIF.
           ENDIF.
+          " For kind_table: kind match is sufficient (uniform by kind)
           li = li + 1.
         ENDWHILE.
         IF lv_uniform = abap_false.
@@ -1244,12 +1257,15 @@ CLASS lcl_gen_mapper IMPLEMENTATION.
             INSERT <row> INTO TABLE <table>.
           ENDLOOP.
         ELSE.
-          " non-uniform fallback is string table — convert each value via string
+          " non-uniform fallback: string table for elementary values; skip deep (struct/table) elements
           DATA lv_sval TYPE string.
           LOOP AT lt_child_refs INTO DATA(row_ref2).
             ASSIGN row_ref2->* TO FIELD-SYMBOL(<rval>).
-            lv_sval = <rval>.
-            INSERT lv_sval INTO TABLE <table>.
+            DATA(rval_td) = cl_abap_typedescr=>describe_by_data( <rval> ).
+            IF rval_td->kind = cl_abap_typedescr=>kind_elem.
+              lv_sval = <rval>.
+              INSERT lv_sval INTO TABLE <table>.
+            ENDIF.
           ENDLOOP.
         ENDIF.
 
