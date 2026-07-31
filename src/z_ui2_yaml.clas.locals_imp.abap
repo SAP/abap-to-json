@@ -81,6 +81,12 @@ CLASS lcl_scanner IMPLEMENTATION.
     DATA ki        TYPE i.
     DATA bv_len    TYPE i.
 
+    " Anchor detection on block-scalar header
+    DATA blk_colon_pos   TYPE i.
+    DATA blk_after_colon TYPE string.
+    DATA blk_an_end      TYPE i.
+    DATA blk_anchor_cand TYPE string.
+
     total = lines( raw ).
     n     = 1.
     WHILE n <= total.
@@ -139,6 +145,27 @@ CLASS lcl_scanner IMPLEMENTATION.
                                 THEN substring( val = body off = blen - ind_len - 1 len = 1 )
                                 ELSE `` ).
         blk_key0 = trim_right( substring( val = body len = blen - ind_len ) ).
+        " Strip anchor token if present: key: &name |  → key: (store name in blk_anchor)
+        CLEAR: blk_colon_pos, blk_after_colon, blk_an_end, blk_anchor_cand, line-blk_anchor.
+        FIND FIRST OCCURRENCE OF `: ` IN blk_key0 MATCH OFFSET blk_colon_pos.
+        IF sy-subrc = 0.
+          blk_after_colon = lcl_scanner=>trim( substring( val = blk_key0 off = blk_colon_pos + 2 ) ).
+          IF strlen( blk_after_colon ) > 1
+             AND substring( val = blk_after_colon off = 0 len = 1 ) = `&`.
+            blk_an_end = 1.
+            WHILE blk_an_end < strlen( blk_after_colon )
+              AND substring( val = blk_after_colon off = blk_an_end len = 1 ) <> ` `.
+              blk_an_end = blk_an_end + 1.
+            ENDWHILE.
+            blk_anchor_cand = substring( val = blk_after_colon off = 1 len = blk_an_end - 1 ).
+            IF blk_anchor_cand IS NOT INITIAL
+               AND blk_anchor_cand CO
+                 `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-`.
+              line-blk_anchor = blk_anchor_cand.
+              blk_key0 = substring( val = blk_key0 len = blk_colon_pos + 1 ).
+            ENDIF.
+          ENDIF.
+        ENDIF.
         bk_len   = strlen( blk_key0 ).
         " Only a mapping block header: blk_key0 must end with ':' (and indicator preceded by space)
         IF ( blen = ind_len OR pre_char = ` ` )
@@ -381,6 +408,9 @@ CLASS lcl_parser IMPLEMENTATION.
       idx = idx + 1.
       IF cur-blk_scalar_hd = abap_true.
         lv_child = lcl_tree=>new_scalar( value = cur-blk_value ).
+        IF cur-blk_anchor IS NOT INITIAL.
+          INSERT VALUE ty_anchor_entry( name = cur-blk_anchor node = lv_child ) INTO TABLE mt_anchors.
+        ENDIF.
       ELSEIF lv_has = abap_false
          AND idx <= lines( lines )
          AND lines[ idx ]-indent = own_indent

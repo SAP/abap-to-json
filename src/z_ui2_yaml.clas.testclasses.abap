@@ -216,6 +216,7 @@ CLASS ltc_anchor DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
     METHODS mapping_alias         FOR TESTING RAISING cx_sy_conversion_error.
     METHODS undefined_alias_fails FOR TESTING.
     METHODS glob_is_not_alias     FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS block_header_anchor   FOR TESTING RAISING cx_sy_conversion_error.
 ENDCLASS.
 CLASS ltc_anchor IMPLEMENTATION.
   METHOD scalar_alias.
@@ -245,6 +246,12 @@ CLASS ltc_anchor IMPLEMENTATION.
     " unquoted bare-ish glob also must not raise as an undefined alias
     DATA(r2) = lcl_parser=>parse( lcl_scanner=>scan( |g: *.log| ) ).
     cl_abap_unit_assert=>assert_equals( act = r2->children[ 1 ]-node->node-value exp = `*.log` ).
+  ENDMETHOD.
+  METHOD block_header_anchor.
+    DATA(r) = lcl_parser=>parse( lcl_scanner=>scan( |a: &blk \|\n  line1\n  line2\nb: *blk| ) ).
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 1 ]-node->node-value exp = |line1\nline2\n| ).
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 2 ]-node->node-value exp = |line1\nline2\n| ).
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 1 ]-node exp = r->children[ 2 ]-node ).
   ENDMETHOD.
 ENDCLASS.
 CLASS ltc_block_scalar DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
