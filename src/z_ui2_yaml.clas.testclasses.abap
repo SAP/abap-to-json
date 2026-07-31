@@ -367,7 +367,8 @@ CLASS ltc_ser DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
     METHODS quotes_colon             FOR TESTING.
     METHODS quotes_numeric_string    FOR TESTING.
     METHODS table_seq                FOR TESTING.
-    METHODS bool_emits_true_false        FOR TESTING.
+    METHODS bool_emits_true_false    FOR TESTING.
+    METHODS bool_round_trip          FOR TESTING.
     METHODS round_trip               FOR TESTING.
 ENDCLASS.
 CLASS ltc_ser IMPLEMENTATION.
@@ -401,11 +402,44 @@ CLASS ltc_ser IMPLEMENTATION.
     DATA(in) = VALUE ty( enabled = abap_true disabled = abap_false ).
     cl_abap_unit_assert=>assert_equals( act = z_ui2_yaml=>serialize( in ) exp = |ENABLED: true\nDISABLED: false| ).
   ENDMETHOD.
+  METHOD bool_round_trip.
+    TYPES: BEGIN OF ty, enabled TYPE abap_bool, disabled TYPE abap_bool, END OF ty.
+    DATA(in) = VALUE ty( enabled = abap_true disabled = abap_false ).
+    DATA out TYPE ty.
+    z_ui2_yaml=>deserialize( EXPORTING yaml = z_ui2_yaml=>serialize( in ) CHANGING data = out ).
+    cl_abap_unit_assert=>assert_equals( act = out-enabled exp = abap_true ).
+    cl_abap_unit_assert=>assert_equals( act = out-disabled exp = abap_false ).
+  ENDMETHOD.
   METHOD round_trip.
     TYPES: BEGIN OF ty, name TYPE string, port TYPE i, END OF ty.
     DATA(in) = VALUE ty( name = `a: b` port = 7 ).
     DATA out TYPE ty.
     z_ui2_yaml=>deserialize( EXPORTING yaml = z_ui2_yaml=>serialize( in ) CHANGING data = out ).
     cl_abap_unit_assert=>assert_equals( act = out exp = in ).
+  ENDMETHOD.
+ENDCLASS.
+
+CLASS ltc_fixtures DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
+  PRIVATE SECTION.
+    METHODS servers_list FOR TESTING.
+    METHODS app_config   FOR TESTING.
+ENDCLASS.
+CLASS ltc_fixtures IMPLEMENTATION.
+  METHOD servers_list.
+    TYPES: BEGIN OF ty_s, host TYPE string, port TYPE i, END OF ty_s.
+    TYPES: BEGIN OF ty_w, servers TYPE STANDARD TABLE OF ty_s WITH DEFAULT KEY, END OF ty_w.
+    DATA w TYPE ty_w.
+    DATA(yaml) = |servers:\n  - host: a\n    port: 1\n  - host: b\n    port: 2|.
+    z_ui2_yaml=>deserialize( EXPORTING yaml = yaml CHANGING data = w ).
+    cl_abap_unit_assert=>assert_equals( act = lines( w-servers ) exp = 2 ).
+    cl_abap_unit_assert=>assert_equals( act = w-servers[ 2 ]-host exp = `b` ).
+  ENDMETHOD.
+  METHOD app_config.
+    TYPES: BEGIN OF ty, name TYPE string, enabled TYPE abap_bool, replicas TYPE i, END OF ty.
+    DATA cfg TYPE ty.
+    z_ui2_yaml=>deserialize( EXPORTING yaml = |name: web\nenabled: true\nreplicas: 3| CHANGING data = cfg ).
+    cl_abap_unit_assert=>assert_equals( act = cfg-name exp = `web` ).
+    cl_abap_unit_assert=>assert_equals( act = cfg-enabled exp = abap_true ).
+    cl_abap_unit_assert=>assert_equals( act = cfg-replicas exp = 3 ).
   ENDMETHOD.
 ENDCLASS.
