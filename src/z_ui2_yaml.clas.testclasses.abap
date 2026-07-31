@@ -367,6 +367,7 @@ CLASS ltc_gen DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
     METHODS gen_dup_sanitized_keys      FOR TESTING.
     METHODS gen_structural_error_fatal  FOR TESTING.
     METHODS gen_nonuniform_seq_keeps_all FOR TESTING.
+    METHODS gen_mixed_elem_keeps_values FOR TESTING.
 ENDCLASS.
 CLASS ltc_gen IMPLEMENTATION.
   METHOD gen_mapping_field.
@@ -421,6 +422,15 @@ CLASS ltc_gen IMPLEMENTATION.
     FIELD-SYMBOLS <t> TYPE ANY TABLE.
     ASSIGN r->* TO <t>.
     cl_abap_unit_assert=>assert_equals( act = lines( <t> ) exp = 4 ).
+  ENDMETHOD.
+  METHOD gen_mixed_elem_keeps_values.
+    " mixed elementary types (int + decimal + int) → string-table fallback preserves all values
+    " Under kind-only uniformity check this was TABLE OF I and truncated 2.5 → 2
+    DATA(r) = z_ui2_yaml=>generate( |- 1\n- 2.5\n- 3| ).
+    FIELD-SYMBOLS <t> TYPE STANDARD TABLE. ASSIGN r->* TO <t>.
+    cl_abap_unit_assert=>assert_equals( act = lines( <t> ) exp = 3 ).
+    FIELD-SYMBOLS <e> TYPE any. READ TABLE <t> INDEX 2 ASSIGNING <e>.
+    cl_abap_unit_assert=>assert_char_cp( act = |{ <e> }| exp = `*2.5*` ).
   ENDMETHOD.
 ENDCLASS.
 
