@@ -38,6 +38,20 @@ CLASS z_ui2_yaml DEFINITION
       CHANGING  data  TYPE data
       RAISING   cx_sy_move_cast_error.
 
+    CLASS-METHODS serialize
+      IMPORTING data           TYPE data
+                name           TYPE string        OPTIONAL
+                compress       TYPE abap_bool     DEFAULT abap_false
+                pretty_name    TYPE pretty_name_mode DEFAULT pretty_mode-none
+                name_mappings  TYPE name_mappings OPTIONAL
+                header_comment TYPE string        OPTIONAL
+      RETURNING VALUE(r_yaml)  TYPE yaml.
+
+    METHODS serialize_int
+      IMPORTING data           TYPE data
+                name           TYPE string OPTIONAL
+      RETURNING VALUE(r_yaml)  TYPE yaml.
+
     CLASS-METHODS deserialize
       IMPORTING yaml          TYPE string           OPTIONAL
                 yamlx         TYPE xstring          OPTIONAL
@@ -73,6 +87,31 @@ CLASS z_ui2_yaml IMPLEMENTATION.
     mv_emit_doc_markers = emit_doc_markers.
     mv_quote_style      = COND #( WHEN quote_style IS SUPPLIED THEN quote_style ELSE 'P' ).
     mv_flow_threshold   = COND #( WHEN flow_threshold IS SUPPLIED THEN flow_threshold ELSE 0 ).
+  ENDMETHOD.
+
+  METHOD serialize_int.
+    r_yaml = lcl_emitter=>emit( data           = data
+                                name           = name
+                                compress       = abap_false
+                                pretty_name    = mv_pretty_name
+                                name_mappings  = mt_name_mappings
+                                indent_step    = mv_indent
+                                quote_style    = mv_quote_style
+                                emit_doc_markers = mv_emit_doc_markers ).
+  ENDMETHOD.
+
+  METHOD serialize.
+    DATA(o) = NEW z_ui2_yaml( pretty_name   = pretty_name
+                              name_mappings = name_mappings ).
+    r_yaml = lcl_emitter=>emit( data           = data
+                                name           = name
+                                compress       = compress
+                                pretty_name    = pretty_name
+                                name_mappings  = name_mappings
+                                indent_step    = 2
+                                quote_style    = 'P'
+                                emit_doc_markers = abap_false
+                                header_comment = header_comment ).
   ENDMETHOD.
 
   METHOD deserialize_int.
