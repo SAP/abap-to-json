@@ -543,3 +543,122 @@ CLASS ltc_multidoc IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( act = out-a exp = 1 ).
   ENDMETHOD.
 ENDCLASS.
+
+CLASS ltc_phaseb DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
+  PRIVATE SECTION.
+    " C1 — static DESERIALIZE must not dump on structural errors
+    METHODS c1_tab_indent_lenient     FOR TESTING.
+    METHODS c1_bad_dedent_lenient     FOR TESTING.
+    METHODS c1_unterminated_lenient   FOR TESTING.
+    " C2 — CRLF input
+    METHODS c2_crlf_numeric           FOR TESTING.
+    METHODS c2_crlf_string            FOR TESTING.
+    " C3 — negative packed decimal trailing sign
+    METHODS c3_negative_packed        FOR TESTING.
+    " C4 — null/Null/NULL keyword
+    METHODS c4_null_lower             FOR TESTING.
+    METHODS c4_null_mixed             FOR TESTING.
+    METHODS c4_null_upper             FOR TESTING.
+    METHODS c4_quoted_null_is_string  FOR TESTING.
+    " C5 — indent_step respected for multi-line table rows
+    METHODS c5_indent_step_roundtrip  FOR TESTING.
+ENDCLASS.
+
+CLASS ltc_phaseb IMPLEMENTATION.
+
+  METHOD c1_tab_indent_lenient.
+    TYPES: BEGIN OF ty, a TYPE string, b TYPE string, END OF ty.
+    DATA out TYPE ty.
+    " tab in indentation → structural error; static API must absorb it, not dump
+    z_ui2_yaml=>deserialize( EXPORTING yaml = |a: hello\n\tb: world| CHANGING data = out ).
+    " out-a stays initial because structural error aborted before any mapping
+    cl_abap_unit_assert=>assert_not_initial( act = abap_true ).  " reaching here = no dump = pass
+  ENDMETHOD.
+
+  METHOD c1_bad_dedent_lenient.
+    TYPES: BEGIN OF ty, a TYPE string, END OF ty.
+    DATA out TYPE ty.
+    z_ui2_yaml=>deserialize( EXPORTING yaml = |a:\n    b: 1\n   c: 2| CHANGING data = out ).
+    cl_abap_unit_assert=>assert_not_initial( act = abap_true ).  " no dump = pass
+  ENDMETHOD.
+
+  METHOD c1_unterminated_lenient.
+    TYPES: BEGIN OF ty, k TYPE string, END OF ty.
+    DATA out TYPE ty.
+    z_ui2_yaml=>deserialize( EXPORTING yaml = |k: "oops| CHANGING data = out ).
+    cl_abap_unit_assert=>assert_not_initial( act = abap_true ).  " no dump = pass
+  ENDMETHOD.
+
+  METHOD c2_crlf_numeric.
+    TYPES: BEGIN OF ty, port TYPE i, name TYPE string, END OF ty.
+    DATA out TYPE ty.
+    DATA(crlf) = cl_abap_char_utilities=>cr_lf.
+    DATA(yaml) = |port: 8080| && crlf && |name: web|.
+    z_ui2_yaml=>deserialize( EXPORTING yaml = yaml CHANGING data = out ).
+    cl_abap_unit_assert=>assert_equals( act = out-port exp = 8080 ).
+  ENDMETHOD.
+
+  METHOD c2_crlf_string.
+    TYPES: BEGIN OF ty, port TYPE i, name TYPE string, END OF ty.
+    DATA out TYPE ty.
+    DATA(crlf) = cl_abap_char_utilities=>cr_lf.
+    DATA(yaml) = |port: 8080| && crlf && |name: web|.
+    z_ui2_yaml=>deserialize( EXPORTING yaml = yaml CHANGING data = out ).
+    " name must be exactly "web", no trailing CR
+    cl_abap_unit_assert=>assert_equals( act = out-name exp = `web` ).
+  ENDMETHOD.
+
+  METHOD c3_negative_packed.
+    TYPES: BEGIN OF ty, val TYPE p LENGTH 4 DECIMALS 2, END OF ty.
+    DATA(in) = VALUE ty( val = '-3.14' ).
+    DATA(yaml) = z_ui2_yaml=>serialize( in ).
+    " must contain "-3.14", not "3.14-"
+    cl_abap_unit_assert=>assert_char_cp( act = yaml exp = `*-3.14*` ).
+  ENDMETHOD.
+
+  METHOD c4_null_lower.
+    TYPES: BEGIN OF ty, a TYPE string, END OF ty.
+    DATA out TYPE ty.
+    out-a = `prior`.
+    z_ui2_yaml=>deserialize( EXPORTING yaml = |a: null| CHANGING data = out ).
+    cl_abap_unit_assert=>assert_initial( act = out-a ).
+  ENDMETHOD.
+
+  METHOD c4_null_mixed.
+    TYPES: BEGIN OF ty, a TYPE string, END OF ty.
+    DATA out TYPE ty.
+    out-a = `prior`.
+    z_ui2_yaml=>deserialize( EXPORTING yaml = |a: Null| CHANGING data = out ).
+    cl_abap_unit_assert=>assert_initial( act = out-a ).
+  ENDMETHOD.
+
+  METHOD c4_null_upper.
+    TYPES: BEGIN OF ty, a TYPE string, END OF ty.
+    DATA out TYPE ty.
+    out-a = `prior`.
+    z_ui2_yaml=>deserialize( EXPORTING yaml = |a: NULL| CHANGING data = out ).
+    cl_abap_unit_assert=>assert_initial( act = out-a ).
+  ENDMETHOD.
+
+  METHOD c4_quoted_null_is_string.
+    TYPES: BEGIN OF ty, a TYPE string, END OF ty.
+    DATA out TYPE ty.
+    z_ui2_yaml=>deserialize( EXPORTING yaml = |a: "null"| CHANGING data = out ).
+    cl_abap_unit_assert=>assert_equals( act = out-a exp = `null` ).
+  ENDMETHOD.
+
+  METHOD c5_indent_step_roundtrip.
+    TYPES: BEGIN OF ty, name TYPE string, port TYPE i, END OF ty.
+    DATA tab TYPE STANDARD TABLE OF ty WITH DEFAULT KEY.
+    tab = VALUE #( ( name = `a` port = 1 ) ( name = `b` port = 2 ) ).
+    DATA out TYPE STANDARD TABLE OF ty WITH DEFAULT KEY.
+    " indent=4: serialize then deserialize — round-trip must survive any indent width
+    DATA(o) = NEW z_ui2_yaml( indent = 4 ).
+    DATA(yaml) = o->serialize_int( tab ).
+    o->deserialize_int( EXPORTING yaml = yaml CHANGING data = out ).
+    cl_abap_unit_assert=>assert_equals( act = lines( out ) exp = 2 ).
+    cl_abap_unit_assert=>assert_equals( act = out[ 2 ]-name exp = `b` ).
+    cl_abap_unit_assert=>assert_equals( act = out[ 2 ]-port exp = 2 ).
+  ENDMETHOD.
+
+ENDCLASS.
