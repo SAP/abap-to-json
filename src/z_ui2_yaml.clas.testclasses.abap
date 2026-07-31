@@ -79,6 +79,7 @@ CLASS ltc_scalar DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
     METHODS unterminated_fails FOR TESTING.
     METHODS flow_map_varlen    FOR TESTING RAISING cx_sy_conversion_error.
     METHODS flow_nested        FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS hash_in_quotes     FOR TESTING RAISING cx_sy_conversion_error.
 ENDCLASS.
 CLASS ltc_scalar IMPLEMENTATION.
   METHOD single_quote.
@@ -130,17 +131,22 @@ CLASS ltc_scalar IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( act = lines( av->children ) exp = 2 ).
     cl_abap_unit_assert=>assert_equals( act = av->children[ 2 ]-node->node-value exp = `2` ).
   ENDMETHOD.
+  METHOD hash_in_quotes.
+    DATA(r) = lcl_parser=>parse( lcl_scanner=>scan( |msg: "hello # world"| ) ).
+    cl_abap_unit_assert=>assert_equals( act = r->children[ 1 ]-node->node-value exp = `hello # world` ).
+  ENDMETHOD.
 ENDCLASS.
 
 CLASS ltc_parser DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
   PRIVATE SECTION.
-    METHODS flat_mapping       FOR TESTING RAISING cx_sy_conversion_error.
-    METHODS nested_mapping     FOR TESTING RAISING cx_sy_conversion_error.
-    METHODS block_sequence     FOR TESTING RAISING cx_sy_conversion_error.
-    METHODS seq_of_mappings    FOR TESTING RAISING cx_sy_conversion_error.
-    METHODS key_null_value     FOR TESTING RAISING cx_sy_conversion_error.
-    METHODS bad_dedent_fails   FOR TESTING.
-    METHODS scalar_with_colon  FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS flat_mapping          FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS nested_mapping        FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS block_sequence        FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS seq_of_mappings       FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS key_null_value        FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS bad_dedent_fails      FOR TESTING.
+    METHODS scalar_with_colon     FOR TESTING RAISING cx_sy_conversion_error.
+    METHODS flush_seq_under_key   FOR TESTING RAISING cx_sy_conversion_error.
     METHODS p IMPORTING t TYPE string RETURNING VALUE(r) TYPE ty_node_ref RAISING cx_sy_conversion_error.
 ENDCLASS.
 CLASS ltc_parser IMPLEMENTATION.
@@ -193,6 +199,14 @@ CLASS ltc_parser IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( act = r->node-kind exp = c_node=>sequence ).
     cl_abap_unit_assert=>assert_equals( act = r->children[ 1 ]-node->node-kind exp = c_node=>scalar ).
     cl_abap_unit_assert=>assert_equals( act = r->children[ 1 ]-node->node-value exp = `http://example.com` ).
+  ENDMETHOD.
+  METHOD flush_seq_under_key.
+    " flush style: sequence items at SAME indent as the key
+    DATA(r) = p( |servers:\n- host: a\n  port: 1\n- host: b\n  port: 2| ).
+    DATA(servers) = r->children[ 1 ]-node.
+    cl_abap_unit_assert=>assert_equals( act = servers->node-kind exp = c_node=>sequence ).
+    cl_abap_unit_assert=>assert_equals( act = lines( servers->children ) exp = 2 ).
+    cl_abap_unit_assert=>assert_equals( act = servers->children[ 2 ]-node->children[ 1 ]-node->node-value exp = `b` ).
   ENDMETHOD.
 ENDCLASS.
 
@@ -313,11 +327,12 @@ ENDCLASS.
 
 CLASS ltc_gen DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
   PRIVATE SECTION.
-    METHODS gen_mapping_field       FOR TESTING.
-    METHODS gen_typed_int           FOR TESTING.
-    METHODS gen_string_field        FOR TESTING.
-    METHODS gen_sequence            FOR TESTING.
-    METHODS gen_dup_sanitized_keys  FOR TESTING.
+    METHODS gen_mapping_field           FOR TESTING.
+    METHODS gen_typed_int               FOR TESTING.
+    METHODS gen_string_field            FOR TESTING.
+    METHODS gen_sequence                FOR TESTING.
+    METHODS gen_dup_sanitized_keys      FOR TESTING.
+    METHODS gen_structural_error_fatal  FOR TESTING.
 ENDCLASS.
 CLASS ltc_gen IMPLEMENTATION.
   METHOD gen_mapping_field.
@@ -358,6 +373,13 @@ CLASS ltc_gen IMPLEMENTATION.
     FIELD-SYMBOLS <s> TYPE any. ASSIGN r->* TO <s>.
     DATA(td) = CAST cl_abap_structdescr( cl_abap_typedescr=>describe_by_data( <s> ) ).
     cl_abap_unit_assert=>assert_equals( act = lines( td->components ) exp = 2 ).
+  ENDMETHOD.
+  METHOD gen_structural_error_fatal.
+    TRY.
+        DATA(r) = z_ui2_yaml=>generate( |a:\n\tb: 1| ).  " tab in indentation = structural error
+        cl_abap_unit_assert=>fail( `expected structural error to propagate` ).
+      CATCH cx_sy_conversion_error.
+    ENDTRY.
   ENDMETHOD.
 ENDCLASS.
 
@@ -421,8 +443,9 @@ ENDCLASS.
 
 CLASS ltc_fixtures DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
   PRIVATE SECTION.
-    METHODS servers_list FOR TESTING.
-    METHODS app_config   FOR TESTING.
+    METHODS servers_list        FOR TESTING.
+    METHODS app_config          FOR TESTING.
+    METHODS flush_servers_typed FOR TESTING.
 ENDCLASS.
 CLASS ltc_fixtures IMPLEMENTATION.
   METHOD servers_list.
@@ -441,5 +464,13 @@ CLASS ltc_fixtures IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( act = cfg-name exp = `web` ).
     cl_abap_unit_assert=>assert_equals( act = cfg-enabled exp = abap_true ).
     cl_abap_unit_assert=>assert_equals( act = cfg-replicas exp = 3 ).
+  ENDMETHOD.
+  METHOD flush_servers_typed.
+    TYPES: BEGIN OF ty_s, host TYPE string, port TYPE i, END OF ty_s.
+    TYPES: BEGIN OF ty_w, servers TYPE STANDARD TABLE OF ty_s WITH DEFAULT KEY, END OF ty_w.
+    DATA w TYPE ty_w.
+    z_ui2_yaml=>deserialize( EXPORTING yaml = |servers:\n- host: a\n  port: 1\n- host: b\n  port: 2| CHANGING data = w ).
+    cl_abap_unit_assert=>assert_equals( act = lines( w-servers ) exp = 2 ).
+    cl_abap_unit_assert=>assert_equals( act = w-servers[ 2 ]-host exp = `b` ).
   ENDMETHOD.
 ENDCLASS.

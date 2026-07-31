@@ -114,10 +114,17 @@ TYPES: BEGIN OF ty_w,
        END OF ty_w.
 DATA w TYPE ty_w.
 
+" Indented-style sequences (items 2 spaces deeper than key):
 z_ui2_yaml=>deserialize(
   EXPORTING yaml = |servers:\n  - host: a\n    port: 1\n  - host: b\n    port: 2|
   CHANGING  data = w ).
-" lines( w-servers ) = 2,  w-servers[ 2 ]-host = 'b'
+
+" Flush-style sequences (items at same indent as key):
+z_ui2_yaml=>deserialize(
+  EXPORTING yaml = |servers:\n- host: a\n  port: 1\n- host: b\n    port: 2|
+  CHANGING  data = w ).
+
+" Both forms produce: lines( w-servers ) = 2,  w-servers[ 2 ]-host = 'b'
 ```
 
 ### Strict mode (instance API)
@@ -149,6 +156,8 @@ z_ui2_yaml=>deserialize(
 ## GENERATE (schema-free)
 
 Returns a `REF TO data` — type is inferred from YAML values (`true`/`false` → `abap_bool`, integers → `i`, decimals → `decfloat34`, dates `YYYY-MM-DD` → `d`, everything else → `string`).
+
+Like `DESERIALIZE`, `GENERATE` raises `CX_SY_CONVERSION_ERROR` on structurally invalid YAML (e.g. tabs in indentation, bad nesting). Callers should handle it if the input is untrusted.
 
 ```abap
 DATA(r) = z_ui2_yaml=>generate( |host: db1\nport: 5432| ).
