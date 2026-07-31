@@ -105,6 +105,27 @@ z_ui2_yaml=>deserialize(
 
 Key matching is **case-insensitive**: YAML key `host` matches ABAP component `HOST`.
 
+### Pretty-name mapping on DESERIALIZE
+
+As of v1.1, `pretty_name` inverse mapping (camelCase/PascalCase → ABAP field names) is now supported during deserialization:
+
+```abap
+TYPES: BEGIN OF ty,
+         first_name TYPE string,
+         last_name  TYPE string,
+       END OF ty.
+DATA person TYPE ty.
+
+" YAML with camelCase keys:
+z_ui2_yaml=>deserialize(
+  EXPORTING yaml          = |firstName: John\nlastName: Doe|
+            pretty_name   = z_ui2_yaml=>pretty_mode-camel_case
+  CHANGING  data          = person ).
+" person-first_name = 'John', person-last_name = 'Doe'
+```
+
+**Caveat:** ABAP names with consecutive interior capitals (e.g. `MY_URL`) do not round-trip: MY_URL → myURL → inverse MY_U_R_L (no match). This is an inherent limitation of inverting a lossy forward transform. For such fields, use explicit `name_mappings` instead.
+
 ### Nested structures and sequences
 
 ```abap
@@ -172,14 +193,80 @@ Component names are always **UPPERCASE** (sanitized: non-alphanumeric → `_`, m
 
 ---
 
-## Limitations (v1)
+## Multi-Document Streams (v1.1)
 
-The following features are **not supported** in v1:
+For YAML inputs with multiple `---` document separators, use `GENERATE_ALL` and `DESERIALIZE_ALL`:
 
-- **YAML key case on DESERIALIZE** — `pretty_name` inverse (camelCase→field) is not applied during deserialization; key matching is always case-insensitive uppercase comparison.
-- **Anchor emission** — writing `&anchor` / `*alias` references in serialized output is not supported. Anchors are fully supported on **read**.
-- **Multi-document streams** — `---` document separators are silently skipped; only the first document is processed.
-- **Tags** — `!!str`, `!!int`, `!<uri>` tags are ignored during parse.
+### GENERATE_ALL (schema-free, all documents)
+
+Returns a typed table of `REF TO data`, one entry per document:
+
+```abap
+DATA yaml_multi TYPE string.
+yaml_multi = |---\nhost: server1\nport: 8080\n---\nhost: server2\nport: 9090|.
+
+DATA(docs) = z_ui2_yaml=>generate_all( yaml_multi ).
+" docs is a table with 2 rows; each row->* is an inferred structure
+LOOP AT docs INTO DATA(ref_doc).
+  FIELD-SYMBOLS <s> TYPE any.
+  ASSIGN ref_doc->* TO <s>.
+  FIELD-SYMBOLS <host> TYPE any.
+  ASSIGN COMPONENT `HOST` OF STRUCTURE <s> TO <host>.
+  WRITE <host>.  " server1, then server2
+ENDLOOP.
+```
+
+### DESERIALIZE_ALL (typed table, all documents)
+
+Fills a caller-provided typed internal table, one row per document (all docs assumed same shape):
+
+```abap
+TYPES: BEGIN OF ty_srv, host TYPE string, port TYPE i, END OF ty_srv.
+DATA servers TYPE STANDARD TABLE OF ty_srv WITH DEFAULT KEY.
+
+z_ui2_yaml=>deserialize_all(
+  EXPORTING yaml = |---\nhost: db1\nport: 5432\n---\nhost: db2\nport: 5433|
+  CHANGING  data = servers ).
+" servers has 2 rows: (db1, 5432), (db2, 5433)
+```
+
+**Note:** Existing `DESERIALIZE` and `GENERATE` (without `_ALL` suffix) remain single-document-only for backward compatibility. Use the `_ALL` variants for multi-document processing.
+
+---
+
+## Limitations & Design Notes
+
+### Producing Lowercase Config Keys
+
+**By default**, `SERIALIZE` emits ABAP component names in UPPERCASE (via `pretty_mode-none`):
+```abap
+" Default output:
+DATA(yaml) = z_ui2_yaml=>serialize( servers ).
+" Result: HOST, PORT, ENABLED (all caps)
+```
+
+To produce conventional **lowercase** config keys, always pass `pretty_name`:
+```abap
+" Lowercase output:
+DATA(yaml) = z_ui2_yaml=>serialize(
+  data        = servers
+  pretty_name = z_ui2_yaml=>pretty_mode-low_case ).
+" Result: host, port, enabled (lowercase)
+```
+
+This default choice preserves consistency with `Z_UI2_JSON` and avoids breaking existing callers. The lowercase pattern is the recommended standard for new YAML configs.
+
+### Unsupported v1 Features
+
+The following features are **declined** and will not be implemented:
+
+- **Anchor emission on write** — `&anchor` / `*alias` in serialized output. Anchors are fully supported on **read** (including block-header anchors). Reopen on concrete demand.
+- **YAML tags** — `!!str`, `!!int`, `!<uri>` tags are silently ignored on parse. The ABAP target type (via RTTI on DESERIALIZE, type inference on GENERATE) determines interpretation.
 - **Explicit block-scalar indent indicator** — `|2`, `>4` etc. are not supported; the indent column is auto-detected from body content.
-- **Block-header anchors** — `key: &a |` (anchor on a block scalar header line) is deferred.
-- **Default key case** — `pretty_mode-none` (the default) emits ABAP's UPPERCASE component names. Use `pretty_mode-low_case` to produce standard lowercase YAML.
+- **Consecutive-caps name round-trip** — ABAP names with interior caps (e.g. `MY_URL`) do not round-trip under camelCase/PascalCase inverse: MY_URL → myURL → inverse MY_U_R_L (no match). Use explicit `name_mappings` for such fields.
+
+### Supported v1 Features
+
+- **Anchors & aliases on read** — `&anchor` and `*alias` are fully processed, including block-header anchors (`key: &a |`).
+- **Multi-document streams** — Use `GENERATE_ALL` and `DESERIALIZE_ALL` for documents with `---` separators.
+- **Pretty-name inverse on DESERIALIZE** — camelCase/PascalCase keys now map to ABAP field names (with the consecutive-caps caveat above).
