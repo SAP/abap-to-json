@@ -61,7 +61,8 @@ CLASS z_ui2_yaml DEFINITION
 
     CLASS-METHODS generate
       IMPORTING yaml           TYPE string
-      RETURNING VALUE(rr_data) TYPE REF TO data.
+      RETURNING VALUE(rr_data) TYPE REF TO data
+      RAISING   cx_sy_conversion_error.
 
   PROTECTED SECTION.
   PRIVATE SECTION.
@@ -141,12 +142,8 @@ CLASS z_ui2_yaml IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD generate.
-    TRY.
-        DATA(root) = lcl_parser=>parse( lcl_scanner=>scan( yaml ) ).
-        rr_data = lcl_gen_mapper=>generate( root ).
-      CATCH cx_sy_conversion_error.
-        " parse error — return initial (null ref)
-    ENDTRY.
+    DATA(root) = lcl_parser=>parse( lcl_scanner=>scan( yaml ) ).
+    rr_data = lcl_gen_mapper=>generate( root ).
   ENDMETHOD.
 
 ENDCLASS.

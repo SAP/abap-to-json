@@ -280,15 +280,37 @@ CLASS lcl_scanner IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD strip_comment.
-    " '#' at pos 0 or preceded by whitespace -- strip from there
-    " Quoted-# awareness deferred to Task 5
-    ##REGEX_POSIX
-    FIND FIRST OCCURRENCE OF REGEX `(^|\s)#` IN body MATCH OFFSET DATA(mo).
-    IF sy-subrc = 0.
-      result = body(mo).
-    ELSE.
-      result = body.
-    ENDIF.
+    " '#' preceded by whitespace (or at pos 0) -- strip from there
+    " Quote-aware: skip '#' inside single or double quotes
+    DATA in_sq TYPE abap_bool.
+    DATA in_dq TYPE abap_bool.
+    DATA(len) = strlen( body ).
+    DATA i    TYPE i.
+    WHILE i < len.
+      DATA(ch) = substring( val = body off = i len = 1 ).
+      IF in_sq = abap_true.
+        IF ch = `'` AND i + 1 < len AND substring( val = body off = i + 1 len = 1 ) = `'`.
+          i = i + 2. CONTINUE.
+        ENDIF.
+        IF ch = `'`. in_sq = abap_false. ENDIF.
+      ELSEIF in_dq = abap_true.
+        IF ch = `\` AND i + 1 < len. i = i + 2. CONTINUE. ENDIF.
+        IF ch = `"`. in_dq = abap_false. ENDIF.
+      ELSE.
+        CASE ch.
+          WHEN `'`. in_sq = abap_true.
+          WHEN `"`. in_dq = abap_true.
+          WHEN `#`.
+            " strip if at pos 0 or preceded by whitespace
+            IF i = 0 OR substring( val = body off = i - 1 len = 1 ) = ` `.
+              result = body(i).
+              RETURN.
+            ENDIF.
+        ENDCASE.
+      ENDIF.
+      i = i + 1.
+    ENDWHILE.
+    result = body.
   ENDMETHOD.
 
   METHOD trim_right.
@@ -359,6 +381,12 @@ CLASS lcl_parser IMPLEMENTATION.
       idx = idx + 1.
       IF cur-blk_scalar_hd = abap_true.
         lv_child = lcl_tree=>new_scalar( value = cur-blk_value ).
+      ELSEIF lv_has = abap_false
+         AND idx <= lines( lines )
+         AND lines[ idx ]-indent = own_indent
+         AND ( lines[ idx ]-content CP `- *` OR lines[ idx ]-content = `-` ).
+        " flush-style block sequence: items at SAME indent as the key belong to it
+        lv_child = parse_sequence( EXPORTING lines = lines own_indent = own_indent CHANGING idx = idx ).
       ELSE.
         lv_child = value_or_block( EXPORTING lines = lines own_indent = own_indent
                                              has_inline = lv_has inline_value = lv_inline
