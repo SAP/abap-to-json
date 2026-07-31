@@ -276,10 +276,12 @@ The following features are **declined** and will not be implemented:
 
 Captured via `Z_UI2_YAML_PERF=>run()` on ER1 (SAP_BASIS 7.57+), 1000 iterations each on a small nested config (a mapping with a 3-element list of `{host, port, enabled}` objects). Establish-baseline only — not a regression gate.
 
-| Scenario | µs / op |
-|----------|---------|
-| SERIALIZE small config | 174 |
-| DESERIALIZE small config | 624 |
-| GENERATE small config | 735 |
+| Scenario | µs / op | notes |
+|----------|---------|-------|
+| SERIALIZE small config | 172 | |
+| DESERIALIZE small config | 510 | optimized (-19% vs pre-opt 632) |
+| GENERATE small config | 648 | optimized (-13% vs pre-opt 749) |
+
+Pre-optimization numbers (2026-07-31): SERIALIZE 174 µs, DESERIALIZE 632 µs, GENERATE 749 µs.
 
 To refresh: run ABAP Unit on `Z_UI2_YAML_PERF` (the `baseline` method intentionally fails with the numbers in its message) or call `Z_UI2_YAML_PERF=>run()` directly.

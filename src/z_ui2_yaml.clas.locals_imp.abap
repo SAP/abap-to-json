@@ -89,22 +89,15 @@ CLASS lcl_scanner IMPLEMENTATION.
     WHILE n <= total.
       lv_raw_line   = raw[ n ].
       rlen = strlen( lv_raw_line ).
-      off  = 0.
-      " count leading spaces; reject tab in leading whitespace
-      WHILE off < rlen.
-        CASE substring( val = lv_raw_line off = off len = 1 ).
-          WHEN ` `.
-            off = off + 1.
-          WHEN cl_abap_char_utilities=>horizontal_tab.
-            " ponytail: cx_sy_conversion_no_number nearest concrete subclass
-            RAISE EXCEPTION TYPE cx_sy_conversion_no_number
-              EXPORTING value = |Tab in indentation at line { n }|.
-          WHEN OTHERS.
-            EXIT.
-        ENDCASE.
-      ENDWHILE.
-      indent = off.
-      body   = substring( val = lv_raw_line off = off ).
+      body = lv_raw_line.
+      SHIFT body LEFT DELETING LEADING ` `.
+      indent = rlen - strlen( body ).
+      IF strlen( body ) > 0
+         AND substring( val = body off = 0 len = 1 ) = cl_abap_char_utilities=>horizontal_tab.
+        " ponytail: cx_sy_conversion_no_number nearest concrete subclass
+        RAISE EXCEPTION TYPE cx_sy_conversion_no_number
+          EXPORTING value = |Tab in indentation at line { n }|.
+      ENDIF.
       body   = strip_comment( body ).
       body   = trim_right( body ).
       IF body IS INITIAL OR body = `---`.
@@ -319,6 +312,11 @@ CLASS lcl_scanner IMPLEMENTATION.
   METHOD strip_comment.
     " '#' preceded by whitespace (or at pos 0) -- strip from there
     " Quote-aware: skip '#' inside single or double quotes
+    " fast-path: no '#' in line → no comment possible
+    IF NOT ( body CS `#` ).
+      result = body.
+      RETURN.
+    ENDIF.
     DATA in_sq TYPE abap_bool.
     DATA in_dq TYPE abap_bool.
     DATA(len) = strlen( body ).
