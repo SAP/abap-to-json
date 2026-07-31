@@ -91,6 +91,11 @@ CLASS lcl_scanner IMPLEMENTATION.
     n     = 1.
     WHILE n <= total.
       rr   = raw[ n ].
+      " strip trailing CR so CRLF input is handled identically to LF
+      DATA(rr_len) = strlen( rr ).
+      IF rr_len > 0 AND substring( val = rr off = rr_len - 1 len = 1 ) = cl_abap_char_utilities=>cr_lf(1).
+        rr = substring( val = rr len = rr_len - 1 ).
+      ENDIF.
       rlen = strlen( rr ).
       off  = 0.
       " count leading spaces; reject tab in leading whitespace
@@ -506,7 +511,14 @@ CLASS lcl_parser IMPLEMENTATION.
     "   following:   continuation lines with indent > own_indent, copied as-is
     DATA sub TYPE ty_lines.
     IF rest IS NOT INITIAL.
-      APPEND VALUE ty_line( lineno = 0 indent = own_indent + 2 content = rest ) TO sub.
+      " Determine actual continuation indent: first real continuation line, or own_indent+2 fallback
+      DATA lv_first_cont_indent TYPE i.
+      IF idx <= lines( lines ) AND lines[ idx ]-indent > own_indent.
+        lv_first_cont_indent = lines[ idx ]-indent.
+      ELSE.
+        lv_first_cont_indent = own_indent + 2.
+      ENDIF.
+      APPEND VALUE ty_line( lineno = 0 indent = lv_first_cont_indent content = rest ) TO sub.
     ENDIF.
     WHILE idx <= lines( lines ) AND lines[ idx ]-indent > own_indent.
       APPEND lines[ idx ] TO sub.
@@ -673,8 +685,12 @@ CLASS lcl_parser IMPLEMENTATION.
       ENDWHILE.
       value = res.
     ELSE.
-      " plain scalar — as-is
-      value = raw.
+      " plain scalar — check for YAML 1.2 null keywords before treating as-is
+      IF raw = `null` OR raw = `Null` OR raw = `NULL`.
+        is_null = abap_true.
+      ELSE.
+        value = raw.
+      ENDIF.
     ENDIF.
   ENDMETHOD.
 
@@ -944,7 +960,8 @@ CLASS lcl_typed_mapper IMPLEMENTATION.
       WHEN cl_abap_typedescr=>kind_elem.
         " scalar → elementary
         IF node->node-is_null = abap_true.
-          RETURN.  " leave initial
+          CLEAR data.  " null node → reset to initial
+          RETURN.
         ENDIF.
         " bool target: map true/false/x → abap_true/abap_false
         DATA(eld2) = CAST cl_abap_elemdescr( td ).
@@ -1326,7 +1343,7 @@ CLASS lcl_emitter IMPLEMENTATION.
             DATA(first_line) = substring( val = row_s len = nl_pos ).
             DATA(rest_lines) = substring( val = row_s off = nl_pos + 1 ).
             result = result && `- ` && first_line && cl_abap_char_utilities=>newline
-                            && indent_block( text = rest_lines n = 2 ).
+                            && indent_block( text = rest_lines n = indent_step ).
           ELSE.
             result = result && `- ` && row_s.
           ENDIF.
@@ -1373,6 +1390,11 @@ CLASS lcl_emitter IMPLEMENTATION.
               AND substring( val = lv_raw off = strlen( lv_raw ) - 1 len = 1 ) = ` `.
               lv_raw = substring( val = lv_raw len = strlen( lv_raw ) - 1 ).
             ENDWHILE.
+            " TYPE p puts the minus sign on the right (e.g. "3.14-"); move it to the front
+            IF strlen( lv_raw ) > 0
+              AND substring( val = lv_raw off = strlen( lv_raw ) - 1 len = 1 ) = `-`.
+              lv_raw = `-` && substring( val = lv_raw len = strlen( lv_raw ) - 1 ).
+            ENDIF.
             result = lv_raw.
         ENDCASE.
 

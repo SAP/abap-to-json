@@ -38,12 +38,14 @@ CLASS z_ui2_yaml DEFINITION
       IMPORTING yaml  TYPE string  OPTIONAL
                 yamlx TYPE xstring OPTIONAL
       CHANGING  data  TYPE data
-      RAISING   cx_sy_move_cast_error.
+      RAISING   cx_sy_move_cast_error
+                cx_sy_conversion_error.
 
     METHODS deserialize_all_int
       IMPORTING yaml TYPE string
       CHANGING  results TYPE STANDARD TABLE
-      RAISING   cx_sy_move_cast_error.
+      RAISING   cx_sy_move_cast_error
+                cx_sy_conversion_error.
 
     CLASS-METHODS serialize
       IMPORTING data           TYPE data
@@ -154,8 +156,8 @@ CLASS z_ui2_yaml IMPLEMENTATION.
         o->deserialize_int( EXPORTING yaml  = yaml
                                       yamlx = yamlx
                             CHANGING  data  = data ).
-      CATCH cx_sy_move_cast_error.
-        " static API is lenient — strict_mode defaults false, so unreachable by design
+      CATCH cx_sy_move_cast_error cx_sy_conversion_error.
+        " static API is lenient — absorb structural parse errors (tab-in-indent, bad dedent, etc.)
     ENDTRY.
   ENDMETHOD.
 
@@ -210,7 +212,7 @@ CLASS z_ui2_yaml IMPLEMENTATION.
     TRY.
         o->deserialize_all_int( EXPORTING yaml    = yaml
                                 CHANGING  results = results ).
-      CATCH cx_sy_move_cast_error.
+      CATCH cx_sy_move_cast_error cx_sy_conversion_error.
         " lenient — mirrors static deserialize
     ENDTRY.
   ENDMETHOD.
