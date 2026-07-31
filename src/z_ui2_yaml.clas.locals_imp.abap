@@ -367,24 +367,29 @@ CLASS lcl_parser IMPLEMENTATION.
 
   METHOD parse.
     CLEAR mt_anchors.
-    " Build first-doc view: a leading doc_start (---) with no prior content is skipped
-    " (preamble marker); a doc_start encountered AFTER content ends the first doc.
-    " doc_marker (...) also ends the first doc.
-    " This preserves backward-compat: single-doc parse sees exactly the first document.
+    DATA(idx) = 1.
+    " Fast path: no document boundaries → parse lines directly, no copy.
+    LOOP AT lines TRANSPORTING NO FIELDS WHERE doc_start = abap_true OR doc_marker = abap_true.
+      EXIT.
+    ENDLOOP.
+    IF sy-subrc <> 0.
+      IF lines IS INITIAL.
+        root = lcl_tree=>new_scalar( value = `` is_null = abap_true ).
+        RETURN.
+      ENDIF.
+      root = parse_block( EXPORTING lines = lines CHANGING idx = idx ).
+      RETURN.
+    ENDIF.
+    " Boundary present: build first-doc view (preamble --- skipped; --- or ... after content ends doc 1).
     DATA first_doc TYPE ty_lines.
     LOOP AT lines INTO DATA(scan_ln).
       IF scan_ln-doc_start = abap_true.
-        IF first_doc IS NOT INITIAL.
-          EXIT.  " content already collected — this --- starts doc 2
-        ENDIF.
-        CONTINUE.  " leading --- with no prior content: preamble, skip
+        IF first_doc IS NOT INITIAL. EXIT. ENDIF.
+        CONTINUE.
       ENDIF.
-      IF scan_ln-doc_marker = abap_true.
-        EXIT.  " ... ends first doc
-      ENDIF.
+      IF scan_ln-doc_marker = abap_true. EXIT. ENDIF.
       APPEND scan_ln TO first_doc.
     ENDLOOP.
-    DATA(idx) = 1.
     IF first_doc IS INITIAL.
       root = lcl_tree=>new_scalar( value = `` is_null = abap_true ).
       RETURN.
