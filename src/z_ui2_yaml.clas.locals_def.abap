@@ -29,6 +29,7 @@ TYPES:
     doc_marker    TYPE abap_bool,
     blk_scalar_hd TYPE abap_bool,
     blk_value     TYPE string,
+    blk_anchor    TYPE string,
   END OF ty_line.
 TYPES ty_lines TYPE STANDARD TABLE OF ty_line WITH DEFAULT KEY.
 
