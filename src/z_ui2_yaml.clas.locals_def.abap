@@ -104,6 +104,17 @@ CLASS lcl_scanner DEFINITION.
     CLASS-METHODS trim_right
       IMPORTING body          TYPE string
       RETURNING VALUE(result) TYPE string.
+    CLASS-METHODS collect_block_body
+      IMPORTING raw       TYPE string_table
+                start_n   TYPE i
+                indent    TYPE i
+                total     TYPE i
+      EXPORTING rt_body   TYPE string_table
+                rv_next_n TYPE i.
+    CLASS-METHODS assemble_block_value
+      IMPORTING blk_body       TYPE string_table
+                blk_scalar_ind TYPE string
+      RETURNING VALUE(rv_val)  TYPE string.
 ENDCLASS.
 
 CLASS lcl_parser DEFINITION.
@@ -125,7 +136,7 @@ CLASS lcl_parser DEFINITION.
       RETURNING VALUE(node)  TYPE ty_node_ref
       RAISING   cx_sy_conversion_error.
   PRIVATE SECTION.
-    " ponytail: class-data anchor table — single-threaded/one-run state, cleared at parse() entry
+    " NOT thread-safe: class-data is cleared at parse() entry; concurrent calls will corrupt anchor state
     CLASS-DATA mt_anchors TYPE HASHED TABLE OF ty_anchor_entry WITH UNIQUE KEY name.
     CLASS-METHODS strip_anchor
       CHANGING  raw          TYPE string
@@ -202,6 +213,7 @@ CLASS lcl_gen_mapper DEFINITION.
       RETURNING VALUE(rr_data) TYPE REF TO data
       RAISING   cx_sy_conversion_error.
   PRIVATE SECTION.
+    CONSTANTS c_max_comp_name_len TYPE i VALUE 30.
     "! Detect scalar type by char checks and return a typed data ref.
     "! Integer:   1-9 digit string (optional leading '-') → TYPE i.
     "!            ponytail: 10+ digit integers fall back to TYPE string.
