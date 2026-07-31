@@ -264,9 +264,22 @@ The following features are **declined** and will not be implemented:
 - **YAML tags** — `!!str`, `!!int`, `!<uri>` tags are silently ignored on parse. The ABAP target type (via RTTI on DESERIALIZE, type inference on GENERATE) determines interpretation.
 - **Explicit block-scalar indent indicator** — `|2`, `>4` etc. are not supported; the indent column is auto-detected from body content.
 - **Consecutive-caps name round-trip** — ABAP names with interior caps (e.g. `MY_URL`) do not round-trip under camelCase/PascalCase inverse: MY_URL → myURL → inverse MY_U_R_L (no match). Use explicit `name_mappings` for such fields.
+- **GENERATE of a heterogeneous sequence of structurally-different objects** — a uniform list of objects (all elements the same shape) generates a typed table correctly. A list mixing objects of *different* shapes falls back to a string table and silently drops the deep (struct/table) elements rather than dumping. Uniform lists (the common config case) and mixed *scalar* sequences are fully supported.
 
 ### Supported v1 Features
 
 - **Anchors & aliases on read** — `&anchor` and `*alias` are fully processed, including block-header anchors (`key: &a |`).
 - **Multi-document streams** — Use `GENERATE_ALL` and `DESERIALIZE_ALL` for documents with `---` separators.
 - **Pretty-name inverse on DESERIALIZE** — camelCase/PascalCase keys now map to ABAP field names (with the consecutive-caps caveat above).
+
+### Performance Baseline
+
+Captured via `Z_UI2_YAML_PERF=>run()` on ER1 (SAP_BASIS 7.57+), 1000 iterations each on a small nested config (a mapping with a 3-element list of `{host, port, enabled}` objects). Establish-baseline only — not a regression gate.
+
+| Scenario | µs / op |
+|----------|---------|
+| SERIALIZE small config | 174 |
+| DESERIALIZE small config | 624 |
+| GENERATE small config | 735 |
+
+To refresh: run ABAP Unit on `Z_UI2_YAML_PERF` (the `baseline` method intentionally fails with the numbers in its message) or call `Z_UI2_YAML_PERF=>run()` directly.
