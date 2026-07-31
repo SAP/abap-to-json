@@ -310,3 +310,39 @@ CLASS ltc_deser IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( act = out-port exp = 0 ).
   ENDMETHOD.
 ENDCLASS.
+
+CLASS ltc_gen DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
+  PRIVATE SECTION.
+    METHODS gen_mapping_field FOR TESTING.
+    METHODS gen_typed_int     FOR TESTING.
+    METHODS gen_string_field  FOR TESTING.
+    METHODS gen_sequence      FOR TESTING.
+ENDCLASS.
+CLASS ltc_gen IMPLEMENTATION.
+  METHOD gen_mapping_field.
+    DATA(r) = z_ui2_yaml=>generate( |host: localhost\nport: 5432| ).
+    FIELD-SYMBOLS <s> TYPE any. ASSIGN r->* TO <s>.
+    FIELD-SYMBOLS <f> TYPE any. ASSIGN COMPONENT `HOST` OF STRUCTURE <s> TO <f>.
+    cl_abap_unit_assert=>assert_subrc( ).
+    cl_abap_unit_assert=>assert_equals( act = <f> exp = `localhost` ).
+  ENDMETHOD.
+  METHOD gen_typed_int.
+    DATA(r) = z_ui2_yaml=>generate( |port: 5432| ).
+    FIELD-SYMBOLS <s> TYPE any. ASSIGN r->* TO <s>.
+    FIELD-SYMBOLS <f> TYPE any. ASSIGN COMPONENT `PORT` OF STRUCTURE <s> TO <f>.
+    DATA(td) = cl_abap_typedescr=>describe_by_data( <f> ).
+    cl_abap_unit_assert=>assert_differs( act = td->type_kind exp = cl_abap_typedescr=>typekind_string ).
+    cl_abap_unit_assert=>assert_equals( act = <f> exp = 5432 ).
+  ENDMETHOD.
+  METHOD gen_string_field.
+    DATA(r) = z_ui2_yaml=>generate( |name: web-01| ).
+    FIELD-SYMBOLS <s> TYPE any. ASSIGN r->* TO <s>.
+    FIELD-SYMBOLS <f> TYPE any. ASSIGN COMPONENT `NAME` OF STRUCTURE <s> TO <f>.
+    cl_abap_unit_assert=>assert_equals( act = <f> exp = `web-01` ).
+  ENDMETHOD.
+  METHOD gen_sequence.
+    DATA(r) = z_ui2_yaml=>generate( |- 1\n- 2\n- 3| ).
+    FIELD-SYMBOLS <t> TYPE ANY TABLE. ASSIGN r->* TO <t>.
+    cl_abap_unit_assert=>assert_equals( act = lines( <t> ) exp = 3 ).
+  ENDMETHOD.
+ENDCLASS.

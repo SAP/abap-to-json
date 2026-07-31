@@ -176,6 +176,28 @@ ENDCLASS.
 
 CLASS lcl_gen_mapper DEFINITION.
   PUBLIC SECTION.
+    "! Build a typed REF TO data tree from a parsed YAML node (always-optimized: no REF TO data
+    "! wrappers around leaf values).  Scalars are typed by character-check detection (no regex).
+    CLASS-METHODS generate
+      IMPORTING node          TYPE ty_node_ref
+      RETURNING VALUE(rr_data) TYPE REF TO data
+      RAISING   cx_sy_conversion_error.
+  PRIVATE SECTION.
+    "! Detect scalar type by char checks and return a typed data ref.
+    "! Integer:   1-9 digit string (optional leading '-') → TYPE i.
+    "!            ponytail: 10+ digit integers fall back to TYPE string.
+    "! Decimal:   digits + single '.' → TYPE decfloat34.
+    "! Boolean:   exact tokens 'true'/'false' → TYPE abap_bool ('X'/'').
+    "! Date:      YYYY-MM-DD (10 chars, '-' at pos 4+7, digits elsewhere) → TYPE d.
+    "! Else:      TYPE string.
+    CLASS-METHODS detect_scalar_type
+      IMPORTING value          TYPE string
+      RETURNING VALUE(rr_data) TYPE REF TO data.
+    "! Uppercase raw key, replace invalid ABAP component chars with '_',
+    "! prefix with 'F' if first char is a digit.  Max 30 chars.
+    CLASS-METHODS sanitize_name
+      IMPORTING raw            TYPE string
+      RETURNING VALUE(result)  TYPE abap_compname.
 ENDCLASS.
 
 CLASS lcl_emitter DEFINITION.
