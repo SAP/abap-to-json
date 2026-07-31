@@ -1233,11 +1233,12 @@ CLASS lcl_gen_mapper IMPLEMENTATION.
         APPEND first_ref TO lt_child_refs.
         DATA lv_uniform TYPE abap_bool VALUE abap_true.
         DATA li TYPE i VALUE 2.
-        WHILE li <= child_count AND lv_uniform = abap_true.
+        WHILE li <= child_count.
           DATA(chk_ref) = generate( node->children[ li ]-node ).
           APPEND chk_ref TO lt_child_refs.
           DATA(chk_td)  = cl_abap_typedescr=>describe_by_data_ref( chk_ref ).
-          IF chk_td->kind <> first_td->kind.
+          IF chk_td->kind <> first_td->kind
+             OR chk_td->absolute_name <> first_td->absolute_name.
             lv_uniform = abap_false.
           ENDIF.
           li = li + 1.
@@ -1252,10 +1253,20 @@ CLASS lcl_gen_mapper IMPLEMENTATION.
         CREATE DATA rr_data TYPE HANDLE tab_td.
         ASSIGN rr_data->* TO FIELD-SYMBOL(<table>).
         " fill from collected refs — no regeneration needed
-        LOOP AT lt_child_refs INTO DATA(row_ref).
-          ASSIGN row_ref->* TO FIELD-SYMBOL(<row>).
-          INSERT <row> INTO TABLE <table>.
-        ENDLOOP.
+        IF lv_uniform = abap_true.
+          LOOP AT lt_child_refs INTO DATA(row_ref).
+            ASSIGN row_ref->* TO FIELD-SYMBOL(<row>).
+            INSERT <row> INTO TABLE <table>.
+          ENDLOOP.
+        ELSE.
+          " non-uniform fallback is string table — convert each value via string
+          DATA lv_sval TYPE string.
+          LOOP AT lt_child_refs INTO DATA(row_ref2).
+            ASSIGN row_ref2->* TO FIELD-SYMBOL(<rval>).
+            lv_sval = <rval>.
+            INSERT lv_sval INTO TABLE <table>.
+          ENDLOOP.
+        ENDIF.
 
     ENDCASE.
   ENDMETHOD.
