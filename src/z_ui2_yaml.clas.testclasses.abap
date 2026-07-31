@@ -313,10 +313,11 @@ ENDCLASS.
 
 CLASS ltc_gen DEFINITION FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
   PRIVATE SECTION.
-    METHODS gen_mapping_field FOR TESTING.
-    METHODS gen_typed_int     FOR TESTING.
-    METHODS gen_string_field  FOR TESTING.
-    METHODS gen_sequence      FOR TESTING.
+    METHODS gen_mapping_field       FOR TESTING.
+    METHODS gen_typed_int           FOR TESTING.
+    METHODS gen_string_field        FOR TESTING.
+    METHODS gen_sequence            FOR TESTING.
+    METHODS gen_dup_sanitized_keys  FOR TESTING.
 ENDCLASS.
 CLASS ltc_gen IMPLEMENTATION.
   METHOD gen_mapping_field.
@@ -344,5 +345,18 @@ CLASS ltc_gen IMPLEMENTATION.
     DATA(r) = z_ui2_yaml=>generate( |- 1\n- 2\n- 3| ).
     FIELD-SYMBOLS <t> TYPE ANY TABLE. ASSIGN r->* TO <t>.
     cl_abap_unit_assert=>assert_equals( act = lines( <t> ) exp = 3 ).
+    " element type must be typed (not string) — integers 1/2/3 → TYPE i
+    FIELD-SYMBOLS <st> TYPE STANDARD TABLE. ASSIGN r->* TO <st>.
+    FIELD-SYMBOLS <e> TYPE any. READ TABLE <st> INDEX 1 ASSIGNING <e>.
+    DATA(etd) = cl_abap_typedescr=>describe_by_data( <e> ).
+    cl_abap_unit_assert=>assert_differs( act = etd->type_kind exp = cl_abap_typedescr=>typekind_string ).
+  ENDMETHOD.
+  METHOD gen_dup_sanitized_keys.
+    " my-key and my_key both sanitize to MY_KEY — must not dump, must produce 2 distinct components
+    DATA(r) = z_ui2_yaml=>generate( |my-key: 1\nmy_key: 2| ).
+    cl_abap_unit_assert=>assert_bound( r ).
+    FIELD-SYMBOLS <s> TYPE any. ASSIGN r->* TO <s>.
+    DATA(td) = CAST cl_abap_structdescr( cl_abap_typedescr=>describe_by_data( <s> ) ).
+    cl_abap_unit_assert=>assert_equals( act = lines( td->components ) exp = 2 ).
   ENDMETHOD.
 ENDCLASS.
