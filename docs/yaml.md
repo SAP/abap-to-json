@@ -274,14 +274,42 @@ The following features are **declined** and will not be implemented:
 
 ### Performance Baseline
 
-Captured via `Z_UI2_YAML_PERF=>run()` on ER1 (SAP_BASIS 7.57+), 1000 iterations each on a small nested config (a mapping with a 3-element list of `{host, port, enabled}` objects). Establish-baseline only — not a regression gate.
+Captured via `Z_UI2_YAML_PERF=>run()` on ER1 (SAP_BASIS 7.57+). Small scenarios: 1000 iterations on a 3-element config. Large scenarios: wall-clock single op (or 2-3 iterations) on synthetic flat sequences of `{host, port, enabled}` rows.
+
+#### Small config (1000 rows, 1000× iterations)
 
 | Scenario | µs / op | notes |
 |----------|---------|-------|
 | SERIALIZE small config | 172 | |
-| DESERIALIZE small config | 510 | optimized (-19% vs pre-opt 632) |
-| GENERATE small config | 648 | optimized (-13% vs pre-opt 749) |
+| DESERIALIZE small config | 511 | |
+| GENERATE small config | 542 | optimized (-17% vs pre-opt 652 via struct-type cache, Opt D) |
 
-Pre-optimization numbers (2026-07-31): SERIALIZE 174 µs, DESERIALIZE 632 µs, GENERATE 749 µs.
+Pre-optimization numbers (2026-07-31): SERIALIZE 181 µs, DESERIALIZE 510 µs, GENERATE 652 µs.
+
+#### Large scenarios — Deserialize (flat 3-field rows, typed target table)
+
+| Scenario | Before Opt D | After Opt D | delta |
+|----------|-------------|-------------|-------|
+| Deserialize 10k rows | 1,197k µs | 1,195k µs | ~0% (unaffected — opt D is gen_mapper only) |
+| Deserialize 100k rows | 11,984k µs | 11,974k µs | ~0% |
+
+DESERIALIZE is dominated by: scanner (SPLIT + line processing ~300k lines) + parser (~400k `lcl_node_ref` heap allocations + tree building) + typed mapper (trivial component assignment). Mapper-side caches (A: component-name hash) show no gain at any scale because the per-row component scan over 3 fields is O(3) — identical cost to a hash lookup. The floor is parser/scanner, not mapper.
+
+#### Large scenarios — Generate (flat 3-field rows, schema-free)
+
+| Scenario | Before Opt D | After Opt D | delta |
+|----------|-------------|-------------|-------|
+| Generate 10k rows | 1,852k µs | 1,440k µs | **-22%** |
+| Generate 100k rows | 18,539k µs | 14,271k µs | **-23%** |
+
+GENERATE per-row cost dropped from ~185 µs to ~143 µs by caching the struct type descriptor (`cl_abap_structdescr=>create` was called 100k times for identical 3-field shapes; now called once, result cached by component-name+type fingerprint). Remaining cost per row: ~40 µs `cl_abap_tabledescr=>create` (called once at sequence level, outside the row loop) + ~100 µs per-row work (300k `detect_scalar_type` calls, 300k `describe_by_data_ref` calls, 100k `CREATE DATA` for row instances, 100k `INSERT INTO TABLE`).
+
+**Optimizations tested but not kept:**
+- **A (struct component-match cache in mapper):** No gain at any scale. 3-field row means O(3) linear scan = O(1) hash overhead — a wash.
+- **B (workarea reuse, CREATE DATA hoisted out of loop):** -1.7% on deserialize-100k — noise. ABAP's `INSERT <wa> INTO TABLE` copies by value regardless; the CREATE DATA itself is not the bottleneck.
+- **C (inline `detect_scalar_type` to avoid method calls):** -0.8% on generate-100k — the work inside the method (string scans) dominates; call overhead (~1-3 µs × 300k ≈ 0.3-0.9s) was measured and confirmed immaterial.
+- **E (hoist `describe_by_data` out of loops):** Not applicable — already called once per recursive invocation, not per-child.
+- **F (buffer `&&` string concatenation):** No hot-path `&&` loop identified beyond the 3-field fingerprint build in Opt D (already included).
+- **G (node-tree allocation):** 400k `NEW lcl_node_ref()` per 100k-row deserialize confirmed as a structural floor (~30% of deserialize cost). Not addressable without a non-tree-based parser design. Reported as a ceiling finding.
 
 To refresh: run ABAP Unit on `Z_UI2_YAML_PERF` (the `baseline` method intentionally fails with the numbers in its message) or call `Z_UI2_YAML_PERF=>run()` directly.

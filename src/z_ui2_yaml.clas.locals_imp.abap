@@ -1152,6 +1152,8 @@ CLASS lcl_gen_mapper IMPLEMENTATION.
         DATA lv_sfxl   TYPE i.
         DATA lv_basl   TYPE i.
         DATA lv_triml  TYPE i.
+        " fingerprint = sorted component names + their RTTI absolute names for cache key
+        DATA lv_fingerprint TYPE string.
         LOOP AT node->children INTO DATA(child).
           DATA(base_name) = sanitize_name( child-key ).
           lv_final = base_name.
@@ -1173,13 +1175,26 @@ CLASS lcl_gen_mapper IMPLEMENTATION.
                                             type = CAST cl_abap_datadescr( child_td ) )
                  TO lt_comps.
           APPEND child_ref TO lt_refs.
+          " accumulate fingerprint: compname:absolute_name|
+          lv_fingerprint = lv_fingerprint && lv_final && `:` && child_td->absolute_name && `|`.
         ENDLOOP.
         IF lt_comps IS INITIAL.
           " empty mapping → string fallback (empty struct not creatable)
           CREATE DATA rr_data TYPE string.
           RETURN.
         ENDIF.
-        DATA(struct_td) = cl_abap_structdescr=>create( lt_comps ).
+        " Look up or create the struct type descriptor (expensive cl_abap_structdescr=>create avoided
+        " on cache hit — pays off at 100k+ rows of same struct shape)
+        DATA struct_td TYPE REF TO cl_abap_structdescr.
+        READ TABLE mt_struct_td_cache WITH TABLE KEY fingerprint = lv_fingerprint
+          INTO DATA(lv_cache_hit).
+        IF sy-subrc = 0.
+          struct_td = lv_cache_hit-struct_td.
+        ELSE.
+          struct_td = cl_abap_structdescr=>create( lt_comps ).
+          INSERT VALUE ty_struct_td_entry( fingerprint = lv_fingerprint struct_td = struct_td )
+            INTO TABLE mt_struct_td_cache.
+        ENDIF.
         CREATE DATA rr_data TYPE HANDLE struct_td.
         " fill each component using deduped names (index-parallel to lt_refs)
         ASSIGN rr_data->* TO FIELD-SYMBOL(<struct>).

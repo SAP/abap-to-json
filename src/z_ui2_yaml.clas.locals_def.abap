@@ -216,6 +216,15 @@ CLASS lcl_gen_mapper DEFINITION.
       RAISING   cx_sy_conversion_error.
   PRIVATE SECTION.
     CONSTANTS c_max_comp_name_len TYPE i VALUE 30.
+    " ponytail: session-scoped, single-threaded. Caches struct type descriptors by
+    " component-name fingerprint so 100k identical rows reuse the same RTTI struct
+    " instead of calling cl_abap_structdescr=>create() 100k times.
+    TYPES: BEGIN OF ty_struct_td_entry,
+             fingerprint TYPE string,
+             struct_td   TYPE REF TO cl_abap_structdescr,
+           END OF ty_struct_td_entry.
+    CLASS-DATA mt_struct_td_cache TYPE HASHED TABLE OF ty_struct_td_entry
+                                   WITH UNIQUE KEY fingerprint.
     "! Detect scalar type by char checks and return a typed data ref.
     "! Integer:   1-9 digit string (optional leading '-') → TYPE i.
     "!            ponytail: 10+ digit integers fall back to TYPE string.
