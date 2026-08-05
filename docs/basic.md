@@ -272,6 +272,7 @@ A simplified variant of SERIALIZE with fewer parameters. Useful for quick serial
 * \> **CONVERSION_EXITS** (bool, default = false) - use DDIC conversion exits on deserialize of values (performance loss!)
 * \> **HEX_AS_BASE64** (bool, default = true) - deserialize hex values as base64
 * \> **[GEN_OPTIMIZE](advanced.md#deserialization-of-an-untyped-unknown-json-object)** (bool, default = false) - optimize generated types, structures, and table types for REF TO DATA
+* \> **[PATH](#path-extracting-a-subnode)** (string, optional) - deserialize a JSON subnode directly, skipping the wrapper structure
 * \<\> **DATA** (any) - ABAP object/structure/table/element to be filled from JSON string. If the ABAP structure contains more fields than in the JSON object, the content of unmatched fields is preserved.
 
 ## GENERATE: Generates ABAP object from JSON
@@ -281,7 +282,33 @@ A simplified variant of SERIALIZE with fewer parameters. Useful for quick serial
 * \> **PRETTY_NAME** (enum, optional) - mode, controlling how JSON field names are mapped to ABAP component names. More can be found in the description below.
 * \> **[OPTIMIZE](advanced.md#deserialization-of-an-untyped-unknown-json-object)** (bool, default = false) - optimize generated types, structures, and table types for REF TO DATA
 * \> **NAME_MAPPINGS** (table) - ABAP<->JSON Name Mapping Table
+* \> **[PATH](#path-extracting-a-subnode)** (string, optional) - generate from a JSON subnode directly, skipping the wrapper structure
 * \< **RR_DATA** (REF TO DATA) - a reference to ABAP structure/table dynamically generated from JSON string.
+
+## PATH: extracting a subnode
+
+`PATH` positions the parser at a nested JSON node before deserialization/generation begins, so you can target an inner value without declaring the outer wrapper. The canonical case is the OData v2 `{"d":{"results":[...]}}` envelope:
+
+```abap
+DATA lt_results TYPE STANDARD TABLE OF ts_result WITH DEFAULT KEY.
+
+z_ui2_json=>deserialize( EXPORTING json = lv_json path = `d-results`
+                         CHANGING  data = lt_results ).
+```
+
+Path segments are separated by `-` and are **raw JSON attribute names** — pretty-name mapping and `name_mappings` do not apply to path resolution (the value deserialization after positioning still honours those settings).
+
+A segment may carry a trailing 0-based array index; a bare `[n]` indexes a top-level array:
+
+```abap
+" 6th element of the inner results array
+z_ui2_json=>deserialize( EXPORTING json = lv_json path = `d-results[5]` CHANGING data = ls_row ).
+
+" 2nd element of a top-level array
+z_ui2_json=>deserialize( EXPORTING json = `[{...},{...}]` path = `[1]` CHANGING data = ls_row ).
+```
+
+A missing path segment or an out-of-bounds index raises `CX_SY_MOVE_CAST_ERROR` (silently swallowed by the static `DESERIALIZE`/`GENERATE`; use `DESERIALIZE_INT` to catch it). `PATH` works identically on `Z_UI2_JSON` and `Z_UI2_JSON2`.
 
 In addition to the explained methods, two options need a wider explanation:
 

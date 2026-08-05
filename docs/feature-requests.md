@@ -13,16 +13,18 @@ migration are tracked separately.
 
 | # | Item | Type | Priority |
 |---|------|------|----------|
-| 1 | ENUM deserialization throws on BASIS < 7.51 instead of silently ignoring | Bug | High |
-| 2 | `it_no_compress_fields` / `it_always_compress_fields` constructor params | Feature | High |
-| 3 | `path` parameter for `DESERIALIZE` / `GENERATE` — deserialize a JSON subnode | Feature | Medium |
-| 4 | Strict-on-unknown-fields (raise on JSON keys not mapped to a structure component) | Feature | Medium |
-| 5 | `IS_VALID( json )` method | Usability | Low |
-| 6 | `BOOL_TYPES` on static API | Feature | Low |
-| 7 | No distinction between JSON `null` and absent field | Feature | Low |
-| 8 | Field ordering in GENERATE output | Feature | Low |
-| 9 | `MAX_DEPTH` constructor parameter — bound recursion depth | Feature | Low |
-| 10 | Catch-all field for unknown JSON keys (lossless round-trip) | Feature | Low |
+| 1 | ~~ENUM deserialization throws on BASIS < 7.51 instead of silently ignoring~~ (DONE — Z_UI2_JSON) | Bug | High |
+| 2 | DECFLOAT16/34 zero serializes as `null` (fixed both editions, /UI2/CL_JSON rollout pending) | Bug | High |
+| 3 | ~~`disable_string_type_detect` flag — opt out of date/time autodetect~~ (DONE — both editions) | Feature | High |
+| 4 | `it_no_compress_fields` / `it_always_compress_fields` constructor params | Feature | High |
+| 5 | ~~`path` parameter for `DESERIALIZE` / `GENERATE` — deserialize a JSON subnode~~ (DONE — both editions, object + array-index) | Feature | Medium |
+| 6 | ~~Strict-on-unknown-fields (raise on JSON keys not mapped to a structure component)~~ (DONE — both editions) | Feature | Medium |
+| 7 | `IS_VALID( json )` method | Usability | Low |
+| 8 | `BOOL_TYPES` on static API | Feature | Low |
+| 9 | No distinction between JSON `null` and absent field | Feature | Low |
+| 10 | Field ordering in GENERATE output | Feature | Low |
+| 11 | `MAX_DEPTH` constructor parameter — bound recursion depth | Feature | Low |
+| 12 | Catch-all field for unknown JSON keys (lossless round-trip) | Feature | Low |
 
 ---
 
@@ -51,7 +53,7 @@ declared in the structure).
 
 ### 1.2 `path` parameter for `DESERIALIZE` / `GENERATE` — deserialize a JSON subnode directly
 
-**Status**: Not implemented.
+**Status**: Implemented in `Z_UI2_JSON` and `Z_UI2_JSON2` — `DESERIALIZE`, `DESERIALIZE_INT`, and `GENERATE`. Supports object-member traversal (`d-results`) and array indexing (`d-results[5]`, bare `[1]` on a top-level array). Documented in [`basic.md`](basic.md#path-extracting-a-subnode). Rollout to `/UI2/CL_JSON` pending.
 
 **Frequency**: Medium — the OData response wrapper pattern is the canonical example. OData v2 wraps all results in a `{"d":{"results":[...]}}` envelope. To deserialize the inner `results` array into a typed ABAP table, callers today must declare the full outer wrapper structure just to give the deserializer a navigation target:
 
@@ -125,15 +127,9 @@ Same addition on `GENERATE`. No change to `CONSTRUCTOR` or the `*_INT` instance 
 
 ---
 
-### 1.3 Strict-on-unknown-fields
+### 1.3 Strict-on-unknown-fields — **IMPLEMENTED**
 
-**Status**: Not implemented. Today, `STRICT_MODE = abap_true` raises `CX_SY_MOVE_CAST_ERROR` only on type mismatches; JSON keys with no matching ABAP component are silently ignored regardless of strict mode.
-
-**Frequency**: Medium — common defensive feature in modern parsers (Go `DisallowUnknownFields`, .NET `UnmappedMemberHandling.Disallow`, Pydantic `extra='forbid'`). Catches contract drift and typos when consuming external APIs with stable schemas.
-
-**Suggestion**: Extend strict mode behavior, or add a sibling constructor parameter (e.g. `disallow_unknown TYPE abap_bool`) so unknown JSON keys raise the same exception with the offending key name in the cast error's `source_typename`.
-
-**Design note**: Constructor-only — the static API stays untouched. Pairs naturally with `STRICT_MODE`; could be folded into it (strict implies disallow-unknown) or kept separate (strict = type-only, disallow-unknown = membership-only) depending on whether existing strict-mode consumers would break under the stricter contract.
+**Status**: Implemented in both editions as constructor parameter `DISALLOW_UNKNOWN` (default `abap_false`), a **sub-option of `STRICT_MODE`**: it has effect only when `STRICT_MODE = abap_true` as well. In that combination, a JSON key with no matching ABAP component raises `CX_SY_MOVE_CAST_ERROR` (offending key in `source_typename`) instead of being silently skipped. `strict_mode` alone keeps its existing behavior (type mismatches raise, unknown keys tolerated). Constructor-only; performance-neutral when off. Rollout to `/UI2/CL_JSON` pending.
 
 ---
 
@@ -215,17 +211,41 @@ Protects against deeply-nested JSON used to exhaust stack / cause DoS in shared 
 
 ---
 
+### 1.10 `disable_string_type_detect` — opt out of date/time autodetection in GENERATE / `REF TO DATA` — **IMPLEMENTED**
+
+**Status**: Implemented in `Z_UI2_JSON` and `Z_UI2_JSON2` (constructor-only, default `abap_false` → fully backwards-compatible). When `abap_true`, all JSON quoted strings stay `STRING` in GENERATE / `REF TO DATA` mode — no date/time/timestamp inference. Guarded by a single test in the string branch of `generate_int` (perf-neutral when unused). Rollout to `/UI2/CL_JSON` pending.
+
+**Problem**: When deserializing JSON into `REF TO DATA` (GENERATE mode), the class auto-detects ABAP types from JSON values. A quoted string matching `YYYY-MM-DD` is inferred as type `D` (ABAP date) and the hyphens are stripped (ABAP date is `YYYYMMDD`). False-positives for IDs, version strings, and codes.
+
+**Requested**: An optional constructor parameter (e.g. `disable_string_type_detect`, default `abap_false`) that, when `abap_true`, keeps all JSON quoted strings as `STRING` — disabling date/time/timestamp inference entirely.
+
+**Reported twice**: Tiwari (Jul 7, `"0133-01-01"` treated as date after PL21), Chizhenko (Jul 21, `"2026-07-21"`). Same root cause as the PL19 date-detection change (Note 3414589). KB: `kb/incoming/2026-07-21-chizhenko-deserialize-hyphen-date-autodetect.md`, `kb/incoming/2026-07-07-tiwari-date-detection-regression.md`.
+
+**Follow-up doc task**: add a FAQ entry with the `YYYY-MM-DD` → date false-positive example and the new flag as the fix.
+
+---
+
 ## Part 2: Open Bugs
 
-### 2.1 ENUM deserialization throws on BASIS < 7.51 instead of silently ignoring — **agreed to fix**
+### 2.1 ENUM deserialization throws on BASIS < 7.51 instead of silently ignoring — **FIXED**
 
-**Status**: Open, fix agreed.
+**Status**: Fixed in `Z_UI2_JSON` (`Z_UI2_JSON2` requires SAP_BASIS 7.57 where `CL_ABAP_XSD` always exists, so the gap cannot occur there). Rollout to `/UI2/CL_JSON` pending.
 
-**Source**: `src/z_ui2_json.clas.abap:2350`
+**Source**: `src/z_ui2_json.clas.abap` (enum branch of `restore_type`)
 
-Serialization works on all BASIS levels. For deserialization, the class tries `CL_ABAP_XSD=>TO_VALUE` dynamically; when this call fails (BASIS < 7.51 where `CL_ABAP_XSD` doesn't exist), it currently calls `throw_error`. Note 2650040 states: "From SAP_BASIS 7.51, below, the enums are **ignored**." The current code throws rather than ignoring — the behavior diverges from the documented contract.
+Serialization works on all BASIS levels. For deserialization, the class tries `CL_ABAP_XSD=>TO_VALUE` dynamically; when this call fails (BASIS < 7.51 where `CL_ABAP_XSD` doesn't exist), it previously called `throw_error`. Note 2650040 states: "From SAP_BASIS 7.51, below, the enums are **ignored**." The `CATCH cx_sy_dyn_call_error` block now `RETURN`s (the JSON value is already consumed by `eat_name` above), matching the documented "silently ignore" contract. Cannot be unit-tested on ER1 (7.57) — the ignore path only triggers below 7.51.
 
-**Fix**: One-line — replace `throw_error` in the `CATCH cx_sy_dyn_call_error` block with `eat_name sdummy. RETURN.` (consume the JSON value and continue, matching the documented "silently ignore" contract).
+---
+
+### 2.2 DECFLOAT16 / DECFLOAT34 zero serializes as `null` — **fixed in both editions, /UI2/CL_JSON rollout pending**
+
+**Status**: Fix implemented + committed in `Z_UI2_JSON` (commits `f51a219`, `cf240e5`) and ported to `Z_UI2_JSON2` (decfloat typekind aliases + numeric serialization branch; 61/61 tests pass). PENDING rollout: copy to `/UI2/CL_JSON` on U1Y (client 010), then correction note. Target SAP_BASIS 921/816/824 (confirmed by Yakovlev 2026-07-10).
+
+**Source**: `src/z_ui2_json.clas.macros.abap` (dump type CASE branches).
+
+A `DECFLOAT16`/`DECFLOAT34` field with value `0` serialized as JSON `null` instead of `0`, because decfloat kinds were not in the explicit numeric CASE branches. Fix adds `WHEN e_typekind-decfloat16 OR e_typekind-decfloat34` to the numeric path and uses local `e_typekind` constants so it compiles on older releases without the kernel type constants.
+
+Reported by Yakovlev, Mikhail (2026-07-10). KB: `kb/incoming/2026-07-10-yakovlev-decfloat-null-serialization.md`, `kb/incoming/2026-07-10-decfloat-null-bug.md`.
 
 ---
 

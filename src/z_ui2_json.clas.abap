@@ -137,6 +137,7 @@ public section.
       !OPTIMIZE type BOOL default C_BOOL-FALSE
       !NAME_MAPPINGS type NAME_MAPPINGS optional
       !JSONX type XSTRING optional
+      !PATH type STRING optional
     preferred parameter JSON
     returning
       value(RR_DATA) type ref to DATA .
@@ -166,12 +167,14 @@ public section.
       !EXPAND_INCLUDES type BOOL default C_BOOL-TRUE
       !ASSOC_ARRAYS_OPT type BOOL default C_BOOL-FALSE
       !STRICT_MODE type BOOL default C_BOOL-FALSE
+      !DISALLOW_UNKNOWN type BOOL default C_BOOL-FALSE
       !NUMC_AS_STRING type BOOL default C_BOOL-FALSE
       !NAME_MAPPINGS type NAME_MAPPINGS optional
       !CONVERSION_EXITS type BOOL default C_BOOL-FALSE
       !FORMAT_OUTPUT type BOOL default C_BOOL-FALSE
       !HEX_AS_BASE64 type BOOL default C_BOOL-TRUE
       !GEN_OPTIMIZE type BOOL default C_BOOL-FALSE
+      !DISABLE_STRING_TYPE_DETECT type BOOL default C_BOOL-FALSE
       !BOOL_TYPES type STRING default MC_BOOL_TYPES
       !BOOL_3STATE type STRING default MC_BOOL_3STATE
       !INITIAL_TS type STRING default `""`
@@ -271,6 +274,8 @@ protected section.
   data MV_CONVERSION_EXITS type BOOL .
   data MV_HEX_AS_BASE64 type BOOL .
   data MV_GEN_OPTIMIZE type BOOL .
+  data MV_DISABLE_STRING_TYPE_DETECT type BOOL .
+  data MV_DISALLOW_UNKNOWN type BOOL .            " sub-option of STRICT_MODE: also raise on unknown JSON keys
   data MT_NAME_MAPPINGS type NAME_MAPPINGS .
   data MT_NAME_MAPPINGS_EX type NAME_MAPPINGS_EX .
   data MT_STRUCT_TYPE type T_T_STRUCT_TYPE .
@@ -602,11 +607,13 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
     mv_expand_includes  = expand_includes.
     mv_assoc_arrays_opt = assoc_arrays_opt.
     mv_strict_mode      = strict_mode.
+    mv_disallow_unknown = disallow_unknown.
     mv_numc_as_string   = numc_as_string.
     mv_conversion_exits = conversion_exits.
     mv_format_output    = format_output.
     mv_hex_as_base64    = hex_as_base64.
     mv_gen_optimize     = gen_optimize.
+    mv_disable_string_type_detect = disable_string_type_detect.
     mv_bool_types       = bool_types.
     mv_bool_3state      = bool_3state.
     mv_initial_ts       = initial_ts.
@@ -1263,7 +1270,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
   METHOD generate.
 
-    deserialize( EXPORTING json = json jsonx = jsonx  gen_optimize = optimize pretty_name = pretty_name name_mappings = name_mappings CHANGING data = rr_data ).
+    deserialize( EXPORTING json = json jsonx = jsonx  gen_optimize = optimize pretty_name = pretty_name name_mappings = name_mappings path = path CHANGING data = rr_data ).
 
   ENDMETHOD.
 
@@ -1343,23 +1350,27 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           data = data_opt.
         ENDIF.
       WHEN '"'."string
-        FIND FIRST OCCURRENCE OF REGEX so_regex_generate_type_detect IN SECTION OFFSET offset
-        OF json MATCH LENGTH match.
-        IF sy-subrc IS INITIAL.
-          CASE match.
-            WHEN 10. " time
-              type = so_type_t.
-            WHEN 12. " date
-              type = so_type_d.
-            WHEN OTHERS. " timestamp(L)
-              IF json+offset(match) CA '.'. " TIMESTAMPL
-                type = so_type_tsl.
-              ELSE.
-                type = so_type_ts.
-              ENDIF.
-          ENDCASE.
+        IF mv_disable_string_type_detect EQ abap_true.
+          type = so_type_s. " keep quoted strings as STRING, no date/time/timestamp inference
         ELSE.
-          type = so_type_s.
+          FIND FIRST OCCURRENCE OF REGEX so_regex_generate_type_detect IN SECTION OFFSET offset
+          OF json MATCH LENGTH match.
+          IF sy-subrc IS INITIAL.
+            CASE match.
+              WHEN 10. " time
+                type = so_type_t.
+              WHEN 12. " date
+                type = so_type_d.
+              WHEN OTHERS. " timestamp(L)
+                IF json+offset(match) CA '.'. " TIMESTAMPL
+                  type = so_type_tsl.
+                ELSE.
+                  type = so_type_ts.
+                ENDIF.
+            ENDCASE.
+          ELSE.
+            type = so_type_s.
+          ENDIF.
         ENDIF.
         restore_reference type.
       WHEN '-' OR '0' OR '1' OR '2' OR '3' OR '4' OR '5' OR '6' OR '7' OR '8' OR '9'. " number
@@ -1947,6 +1958,12 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
             ASSIGN <field_cache>-value->* TO <value>.
             restore_type( EXPORTING json = json length = length type_descr = <field_cache>-type typekind = <field_cache>-typekind convexit = <field_cache>-convexit_in CHANGING data = <value> offset = offset ).
           ELSE.
+            IF mv_strict_mode EQ abap_true AND mv_disallow_unknown EQ abap_true.
+              " JSON key has no matching ABAP component. DISALLOW_UNKNOWN is a sub-option of
+              " STRICT_MODE: only when both are set is an unknown key an error. The raise is
+              " caught + propagated by restore_type's existing strict-mode handler.
+              RAISE EXCEPTION TYPE cx_sy_move_cast_error.
+            ENDIF.
             restore_type( EXPORTING json = json length = length CHANGING offset = offset ).
           ENDIF.
 
@@ -2371,7 +2388,9 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                                   val = data.
                               RETURN.
                             CATCH cx_sy_dyn_call_error.
-                              throw_error. " Deserialization of enums is not supported
+                              " enums require SAP_BASIS >= 7.51 (CL_ABAP_XSD); below that,
+                              " the value is silently ignored per Note 2650040 (value already eaten above)
+                              RETURN.
                           ENDTRY.
                       ENDCASE.
                     ELSE.
@@ -2495,53 +2514,103 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
 
   METHOD seek_path.
 
-    DATA: mark     LIKE offset,
-          match    LIKE offset,
-          pos      LIKE offset,                             "#EC NEEDED
-          segments TYPE STANDARD TABLE OF string,
-          segment  TYPE string,
-          name     TYPE string,
-          found    TYPE abap_bool.
+    DATA: mark      LIKE offset,
+          match     LIKE offset,
+          pos       LIKE offset,                            "#EC NEEDED
+          segments  TYPE STANDARD TABLE OF string,
+          segment   TYPE string,
+          seg_name  TYPE string,
+          idx_str   TYPE string,
+          index     TYPE i,
+          elem      TYPE i,
+          has_index TYPE abap_bool,
+          name      TYPE string,
+          found     TYPE abap_bool.
 
     " PATH navigation: position OFFSET at the start of the requested subnode.
     " Segments are raw JSON attribute names separated by MC_KEY_SEPARATOR ('-').
-    " Only object-member traversal is supported (no array indexing).
+    " A segment may carry a trailing array index, e.g. 'results[5]' or a bare '[5]',
+    " which selects the N-th (0-based) element of the array at that position.
     SPLIT path AT mc_key_separator INTO TABLE segments.
 
     LOOP AT segments INTO segment.
 
-      eat_white.
-      eat_char '{'.
-      eat_white.
+      seg_name  = segment.
+      has_index = abap_false.
+      IF segment CA '['.
+        SPLIT segment AT '[' INTO seg_name idx_str.
+        REPLACE ALL OCCURRENCES OF ']' IN idx_str WITH ``.
+        CONDENSE idx_str.
+        index     = idx_str.
+        has_index = abap_true.
+      ENDIF.
 
-      found = abap_false.
-      WHILE offset < length AND json+offset(1) NE '}'.
+      IF seg_name IS NOT INITIAL.
 
-        eat_name name.
         eat_white.
-        eat_char ':'.
+        eat_char '{'.
         eat_white.
 
-        IF name EQ segment.
-          " matched this level; leave OFFSET on the value and descend
-          found = abap_true.
-          EXIT.
-        ENDIF.
+        found = abap_false.
+        WHILE offset < length AND json+offset(1) NE '}'.
 
-        " not our segment: consume and discard the value, then continue
-        restore_type( EXPORTING json = json length = length CHANGING offset = offset ).
-        eat_white.
-        IF offset < length AND json+offset(1) NE '}'.
-          eat_char ','.
+          eat_name name.
           eat_white.
-        ELSE.
-          EXIT.
+          eat_char ':'.
+          eat_white.
+
+          IF name EQ seg_name.
+            " matched this level; leave OFFSET on the value and descend
+            found = abap_true.
+            EXIT.
+          ENDIF.
+
+          " not our segment: consume and discard the value, then continue
+          restore_type( EXPORTING json = json length = length CHANGING offset = offset ).
+          eat_white.
+          IF offset < length AND json+offset(1) NE '}'.
+            eat_char ','.
+            eat_white.
+          ELSE.
+            EXIT.
+          ENDIF.
+
+        ENDWHILE.
+
+        IF found EQ abap_false.
+          throw_error.
         ENDIF.
 
-      ENDWHILE.
+      ENDIF.
 
-      IF found EQ abap_false.
-        throw_error.
+      IF has_index EQ abap_true.
+
+        eat_white.
+        eat_char '['.
+        eat_white.
+
+        elem = 0.
+        WHILE elem < index.
+          IF offset GE length OR json+offset(1) EQ ']'.
+            throw_error. " index out of bounds
+          ENDIF.
+          " skip the element value, then advance past its comma
+          restore_type( EXPORTING json = json length = length CHANGING offset = offset ).
+          eat_white.
+          IF offset < length AND json+offset(1) EQ ','.
+            eat_char ','.
+            eat_white.
+          ELSE.
+            throw_error. " fewer elements than requested index
+          ENDIF.
+          elem = elem + 1.
+        ENDWHILE.
+
+        " OFFSET now on the requested element value
+        IF offset GE length OR json+offset(1) EQ ']'.
+          throw_error. " index out of bounds
+        ENDIF.
+
       ENDIF.
 
     ENDLOOP.

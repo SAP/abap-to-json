@@ -3,6 +3,7 @@
 * [It is slow](#it-is-slow)
 * [GENERATE or DESERIALIZE into REF TO DATA vs. DESERIALIZE into a typed data structure](#generate-or-deserialize-into-ref-to-data-vs-deserialize-into-a-typed-data-structure)
 * [JSON to ABAP data type conversion when using GENERATE or DESERIALIZE into REF TO DATA](#json-to-abap-data-type-conversion-when-using-generate-or-deserialize-into-ref-to-data)
+* [My IDs / codes / version strings shaped like a date get converted to ABAP dates by GENERATE](#my-ids--codes--version-strings-shaped-like-a-date-get-converted-to-abap-dates-by-generate)
 * [Timestamp is not deserialized after PL22](https://github.com/SAP/abap-to-json/blob/main/docs/faq.md#timestamp-is-not-deserialized-after-pl22)
 * [Serialize huge data objects into JSON and short dumps](#serialize-huge-data-objects-into-json-and-short-dumps)
 * [Encoding of Unicode characters (for example, Chinese)](#encoding-of-unicode-characters-for-example-chinese)
@@ -52,6 +53,18 @@ Deserializing into REF TO data is the same as using the GENERATE method and resu
 
 ## JSON to ABAP data type conversion when using GENERATE or DESERIALIZE into REF TO DATA
 The data type selection logic of the GENERATE method (DESERIALIZE into REF TO data) is not guaranteed or defined. The class makes the best guess for the resulting ABAP data type based on the JSON value and the best-fitting data type on the ABAP side. For example, JSON booleans convert to ABAP_BOOL, JSON numbers can convert to I, P, or F types depending on the value, and JSON strings convert to date, time, or timestampl if the value matches a pattern; otherwise, they convert to a string. A new type of conversion may be introduced in the future. If you do not provide a fixed ABAP structure, you must be prepared to work with any of the generated types. Additionally, if you use the GEN_OPTIMIZE flag, you may receive direct types instead of references. For getting explicit data types, deserialize into a fixed structure.
+
+## My IDs / codes / version strings shaped like a date get converted to ABAP dates by GENERATE
+When `GENERATE` (or `DESERIALIZE` into a `REF TO DATA` target) meets a JSON string that matches a date, time, or ISO-8601 timestamp pattern — for example `"0133-01-01"`, `"12:30:00"`, or `"2015-10-02T13:44:50Z"` — it infers the corresponding ABAP type (`D`, `T`, `TIMESTAMP`/`TIMESTAMPL`). For genuine dates this is convenient, but it is a false positive for identifiers, version numbers, or codes that merely *look* like a date: a value such as `"0133-01-01"` becomes an ABAP date and loses its exact text (the hyphens are stripped, `0133-01-01` reads back as `01330101`).
+
+To keep every quoted JSON string as `STRING` and disable date/time/timestamp inference entirely, pass `DISABLE_STRING_TYPE_DETECT = abap_true` to the constructor and use the instance API:
+
+```abap
+DATA(lo_json) = NEW /ui2/cl_json( disable_string_type_detect = abap_true ).
+DATA(lr_data) = lo_json->generate_int( json = lv_json ).
+```
+
+The flag is constructor-only (it is not on the static `GENERATE` / `DESERIALIZE` methods), defaults to `abap_false`, and is fully backwards-compatible — when unset, type detection behaves exactly as before. It affects only the untyped `GENERATE` / `REF TO DATA` path; deserializing into a fixed structure already uses your declared field types and is unaffected.
 
 ## Timestamp is not deserialized after PL22
 The difference that causes the changed deserialization behaviour is in the method RESTORE_TYPE. This code block:

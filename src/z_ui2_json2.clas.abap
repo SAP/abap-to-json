@@ -69,6 +69,8 @@ CLASS z_ui2_json2 DEFINITION
 
         " just aliasing
         float       TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_float,
+        decfloat16  TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_decfloat16,
+        decfloat34  TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_decfloat34,
         int         TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_int,
         int1        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_int1,
         int2        TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_int2,
@@ -131,6 +133,7 @@ CLASS z_ui2_json2 DEFINITION
         !pretty_name   TYPE pretty_name_mode DEFAULT pretty_mode-none
         !name_mappings TYPE name_mappings OPTIONAL
         !jsonx         TYPE xstring OPTIONAL
+        !path          TYPE string OPTIONAL
           PREFERRED PARAMETER json
       RETURNING
         VALUE(rr_data) TYPE REF TO data .
@@ -150,7 +153,9 @@ CLASS z_ui2_json2 DEFINITION
         !expand_includes  TYPE bool DEFAULT c_bool-true
         !assoc_arrays_opt TYPE bool DEFAULT c_bool-false
         !strict_mode      TYPE bool DEFAULT c_bool-false
+        !disallow_unknown TYPE bool DEFAULT c_bool-false
         !numc_as_string   TYPE bool DEFAULT c_bool-false
+        !disable_string_type_detect TYPE bool DEFAULT c_bool-false
         !name_mappings    TYPE name_mappings OPTIONAL
         !conversion_exits TYPE bool DEFAULT c_bool-false
         !format_output    TYPE bool DEFAULT c_bool-false
@@ -239,6 +244,8 @@ CLASS z_ui2_json2 DEFINITION
     DATA mv_assoc_arrays_opt TYPE bool .
     DATA mv_strict_mode TYPE bool .
     DATA mv_numc_as_string TYPE bool .
+    DATA mv_disable_string_type_detect TYPE bool .
+    DATA mv_disallow_unknown TYPE bool .            " sub-option of STRICT_MODE: also raise on unknown JSON keys
     DATA mv_format_output TYPE bool .
     DATA mv_conversion_exits TYPE bool .
     DATA mv_hex_as_base64 TYPE bool .
@@ -427,7 +434,10 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
     mv_expand_includes  = expand_includes.
     mv_assoc_arrays_opt = assoc_arrays_opt.
     mv_strict_mode      = strict_mode.
+    mv_disallow_unknown = disallow_unknown.
+    mv_disallow_unknown = disallow_unknown.
     mv_numc_as_string   = numc_as_string.
+    mv_disable_string_type_detect = disable_string_type_detect.
     mv_conversion_exits = conversion_exits.
     mv_format_output    = format_output.
     mv_hex_as_base64    = hex_as_base64.
@@ -471,37 +481,81 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
 
     " PATH navigation: position READER at the requested subnode before restore.
     " Segments are raw JSON attribute names separated by MC_KEY_SEPARATOR ('-').
-    " Only object-member traversal is supported (no array indexing).
-    DATA: segments TYPE STANDARD TABLE OF string,
-          segment  TYPE string,
-          found    TYPE abap_bool.
+    " A segment may carry a trailing array index, e.g. 'results[5]' or a bare '[5]',
+    " which selects the N-th (0-based) element of the array at that position.
+    DATA: segments  TYPE STANDARD TABLE OF string,
+          segment   TYPE string,
+          seg_name  TYPE string,
+          idx_str   TYPE string,
+          index     TYPE i,
+          elem      TYPE i,
+          has_index TYPE abap_bool,
+          found     TYPE abap_bool.
 
     SPLIT path AT mc_key_separator INTO TABLE segments.
 
     LOOP AT segments INTO segment.
 
-      IF reader->node-type <> if_json_node=>open_object.
-        RAISE EXCEPTION TYPE cx_sy_move_cast_error.
+      seg_name  = segment.
+      has_index = abap_false.
+      IF segment CA '['.
+        SPLIT segment AT '[' INTO seg_name idx_str.
+        REPLACE ALL OCCURRENCES OF ']' IN idx_str WITH ``.
+        CONDENSE idx_str.
+        index     = idx_str.
+        has_index = abap_true.
       ENDIF.
-      reader->next_node( ).
 
-      found = abap_false.
-      WHILE reader->node-type <> if_json_node=>close_object AND reader->node-type <> if_json_node=>final.
+      IF seg_name IS NOT INITIAL.
 
-        IF reader->node-name = segment.
-          " matched this level; leave READER on the value node and descend
-          found = abap_true.
-          EXIT.
+        IF reader->node-type <> if_json_node=>open_object.
+          RAISE EXCEPTION TYPE cx_sy_move_cast_error.
         ENDIF.
-
-        " not our segment: skip the whole value, advance to next member
-        reader->skip_node( ).
         reader->next_node( ).
 
-      ENDWHILE.
+        found = abap_false.
+        WHILE reader->node-type <> if_json_node=>close_object AND reader->node-type <> if_json_node=>final.
 
-      IF found = abap_false.
-        RAISE EXCEPTION TYPE cx_sy_move_cast_error.
+          IF reader->node-name = seg_name.
+            " matched this level; leave READER on the value node and descend
+            found = abap_true.
+            EXIT.
+          ENDIF.
+
+          " not our segment: skip the whole value, advance to next member
+          reader->skip_node( ).
+          reader->next_node( ).
+
+        ENDWHILE.
+
+        IF found = abap_false.
+          RAISE EXCEPTION TYPE cx_sy_move_cast_error.
+        ENDIF.
+
+      ENDIF.
+
+      IF has_index = abap_true.
+
+        IF reader->node-type <> if_json_node=>open_array.
+          RAISE EXCEPTION TYPE cx_sy_move_cast_error.
+        ENDIF.
+        reader->next_node( ).
+
+        elem = 0.
+        WHILE elem < index.
+          IF reader->node-type = if_json_node=>close_array OR reader->node-type = if_json_node=>final.
+            RAISE EXCEPTION TYPE cx_sy_move_cast_error. " index out of bounds
+          ENDIF.
+          reader->skip_node( ).
+          reader->next_node( ).
+          elem = elem + 1.
+        ENDWHILE.
+
+        " READER now on the requested element value
+        IF reader->node-type = if_json_node=>close_array OR reader->node-type = if_json_node=>final.
+          RAISE EXCEPTION TYPE cx_sy_move_cast_error. " index out of bounds
+        ENDIF.
+
       ENDIF.
 
     ENDLOOP.
@@ -647,7 +701,7 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
       WHEN cl_abap_typedescr=>kind_elem.
         lo_elem_descr ?= type_descr.
         lv_typekind = lcl_util=>detect_typekind( type_descr = lo_elem_descr convexit = convexit numc_as_string = mv_numc_as_string bool_types = mv_bool_types bool_3state = mv_bool_3state ).
-        dump_type data lo_elem_descr lv_typekind writer convexit name.
+        dump_type( data = data type_descr = lo_elem_descr typekind = lv_typekind writer = writer convexit = convexit name = name ).
 
       WHEN cl_abap_typedescr=>kind_struct.
 
@@ -763,7 +817,7 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
       ENDIF.
 
       IF <symbol>-elem_type IS NOT INITIAL.
-        dump_type <value> <symbol>-elem_type <symbol>-typekind writer <symbol>-convexit_out lv_name.
+        dump_type( data = <value> type_descr = <symbol>-elem_type typekind = <symbol>-typekind writer = writer convexit = <symbol>-convexit_out name = lv_name ).
       ELSE.
         dump_int( data = <value> type_descr = <symbol>-type convexit = <symbol>-convexit_out writer = writer name = lv_name level = lv_level ).
       ENDIF.
@@ -778,14 +832,176 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
 
   METHOD dump_type.
 
-    dump_type_int data typekind writer convexit name.
+    " Serializes one elementary value to the writer. Redefine in a subclass to customize
+    " value serialization. (Was previously inlined via the dump_type/dump_type_int macros —
+    " the inline optimization measured neutral on 7.57, so collapsed into this method for clarity.)
+
+    DATA: lv_str  TYPE string,
+          lv_utcl TYPE c LENGTH 27,
+          lv_ts   TYPE c LENGTH 14,
+          lv_tsl  TYPE c LENGTH 22.
+
+    CASE typekind.
+      WHEN e_typekind-convexit.
+        IF data IS INITIAL.
+          writer->write_string( name = name value = `` ).
+        ELSE.
+          TRY.
+              CALL FUNCTION convexit
+                EXPORTING
+                  input  = data
+                IMPORTING
+                  output = lv_str
+                EXCEPTIONS
+                  OTHERS = 1.
+              IF sy-subrc IS INITIAL.
+                writer->write_string( name = name value = lv_str ).
+              ELSE.
+                writer->write_null( name ).
+              ENDIF.
+            CATCH cx_root ##CATCH_ALL ##NO_HANDLER.
+              writer->write_null( name ).
+          ENDTRY.
+        ENDIF.
+      WHEN e_typekind-utclong.
+        IF data IS INITIAL.
+          writer->write_string( name = name value = mv_initial_ts ).
+        ELSE.
+          lv_utcl = data.
+          writer->write_string( name = name value = |{ lv_utcl(10) }T{ lv_utcl+11(16) }Z| ).
+        ENDIF.
+      WHEN e_typekind-ts_iso8601.
+        IF mv_ts_as_iso8601 = c_bool-true.
+          IF data IS INITIAL.
+            writer->write_string( name = name value = mv_initial_ts ).
+          ELSE.
+            lv_ts = data.
+            writer->write_string( name = name value = |{ lv_ts(4) }-{ lv_ts+4(2) }-{ lv_ts+6(2) }T{ lv_ts+8(2) }:{ lv_ts+10(2) }:{ lv_ts+12(2) }Z| ).
+          ENDIF.
+        ELSE.
+          lv_str = CONV string( data ).
+          CONDENSE lv_str.
+          writer->write_number( name = name value = lv_str ).
+        ENDIF.
+      WHEN e_typekind-tsl_iso8601.
+        IF mv_ts_as_iso8601 = c_bool-true.
+          IF data IS INITIAL.
+            writer->write_string( name = name value = mv_initial_ts ).
+          ELSE.
+            lv_tsl = data.
+            writer->write_string( name = name value = |{ lv_tsl(4) }-{ lv_tsl+4(2) }-{ lv_tsl+6(2) }T{ lv_tsl+8(2) }:{ lv_tsl+10(2) }:{ lv_tsl+12(2) }.{ lv_tsl+15(7) }Z| ).
+          ENDIF.
+        ELSE.
+          lv_str = CONV string( data ).
+          CONDENSE lv_str.
+          writer->write_number( name = name value = lv_str ).
+        ENDIF.
+      WHEN e_typekind-float.
+        IF data IS INITIAL.
+          writer->write_number( name = name value = `0` ).
+        ELSE.
+          writer->write_number( name = name value = CONV string( data ) ).
+        ENDIF.
+      WHEN e_typekind-decfloat16 OR e_typekind-decfloat34.
+        IF data IS INITIAL.
+          writer->write_number( name = name value = `0` ).
+        ELSE.
+          lv_str = CONV string( data ).
+          CONDENSE lv_str.
+          writer->write_number( name = name value = lv_str ).
+        ENDIF.
+      WHEN e_typekind-int OR e_typekind-int1 OR e_typekind-int2 OR e_typekind-packed OR e_typekind-int8.
+        IF data IS INITIAL.
+          writer->write_number( name = name value = `0` ).
+        ELSE.
+          lv_str = CONV string( data ).
+          IF data LT 0.
+            SHIFT lv_str RIGHT CIRCULAR.
+          ELSE.
+            CONDENSE lv_str.
+          ENDIF.
+          writer->write_number( name = name value = lv_str ).
+        ENDIF.
+      WHEN e_typekind-numc_string.
+        IF data IS INITIAL.
+          writer->write_string( name = name value = `` ).
+        ELSE.
+          writer->write_string( name = name value = CONV string( data ) ).
+        ENDIF.
+      WHEN e_typekind-num.
+        IF data IS INITIAL.
+          writer->write_number( name = name value = `0` ).
+        ELSE.
+          lv_str = CONV string( data ).
+          SHIFT lv_str LEFT DELETING LEADING '0'.
+          writer->write_number( name = name value = lv_str ).
+        ENDIF.
+      WHEN e_typekind-json.
+        IF data IS NOT INITIAL.
+          IF name IS NOT INITIAL.
+            writer->open_member( name ).
+          ENDIF.
+          DATA(lo_rdr) = cl_json_string_reader=>create( CONV string( data ) ).
+          lo_rdr->next_node( ).
+          lo_rdr->skip_node( writer ).
+          IF name IS NOT INITIAL.
+            writer->close_member( ).
+          ENDIF.
+        ELSE.
+          writer->write_null( name ).
+        ENDIF.
+      WHEN e_typekind-string OR e_typekind-csequence OR e_typekind-clike OR e_typekind-char.
+        IF data IS INITIAL.
+          writer->write_string( name = name value = `` ).
+        ELSE.
+          writer->write_string( name = name value = CONV string( data ) ).
+        ENDIF.
+      WHEN cl_abap_typedescr=>typekind_xstring OR cl_abap_typedescr=>typekind_hex.
+        IF data IS INITIAL.
+          writer->write_string( name = name value = `` ).
+        ELSE.
+          IF mv_hex_as_base64 IS INITIAL.
+            writer->write_string( name = name value = CONV string( data ) ).
+          ELSE.
+            writer->write_string( name = name value = cl_http_utility=>encode_x_base64( CONV xstring( data ) ) ).
+          ENDIF.
+        ENDIF.
+      WHEN e_typekind-bool OR e_typekind-tribool.
+        IF data = c_bool-true.
+          writer->write_boolean( name = name value = `true` ) ##NO_TEXT.
+        ELSEIF data IS INITIAL AND typekind = e_typekind-tribool.
+          writer->write_null( name ).
+        ELSE.
+          writer->write_boolean( name = name value = `false` ) ##NO_TEXT.
+        ENDIF.
+      WHEN e_typekind-date.
+        IF data IS INITIAL.
+          writer->write_string( name = name value = mv_initial_date ).
+        ELSE.
+          writer->write_string( name = name value = |{ data(4) }-{ data+4(2) }-{ data+6(2) }| ).
+        ENDIF.
+      WHEN e_typekind-time.
+        IF data IS INITIAL.
+          writer->write_string( name = name value = mv_initial_time ).
+        ELSE.
+          writer->write_string( name = name value = |{ data(2) }:{ data+2(2) }:{ data+4(2) }| ).
+        ENDIF.
+      WHEN e_typekind-enum.
+        writer->write_string( name = name value = CONV string( data ) ).
+      WHEN OTHERS.
+        IF data IS INITIAL.
+          writer->write_null( name ).
+        ELSE.
+          writer->write_string( name = name value = CONV string( data ) ).
+        ENDIF.
+    ENDCASE.
 
   ENDMETHOD.
 
 
   METHOD generate.
 
-    deserialize( EXPORTING json = json jsonx = jsonx pretty_name = pretty_name name_mappings = name_mappings CHANGING data = rr_data ).
+    deserialize( EXPORTING json = json jsonx = jsonx pretty_name = pretty_name name_mappings = name_mappings path = path CHANGING data = rr_data ).
 
   ENDMETHOD.
 
@@ -874,7 +1090,10 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
         DATA(lv_val) = reader->node-value.
         DATA(lv_vlen) = strlen( lv_val ).
         DATA lv_det_typekind TYPE abap_typekind.
-        IF lv_vlen = 8 AND lv_val+2(1) = ':' AND lv_val+5(1) = ':' AND lv_val(2) CO '0123456789' AND lv_val+3(2) CO '0123456789'.
+        IF mv_disable_string_type_detect = abap_true.
+          type = lcl_util=>so_type_s. " keep quoted strings as STRING, no date/time/timestamp inference
+          lv_det_typekind = cl_abap_typedescr=>typekind_string.
+        ELSEIF lv_vlen = 8 AND lv_val+2(1) = ':' AND lv_val+5(1) = ':' AND lv_val(2) CO '0123456789' AND lv_val+3(2) CO '0123456789'.
           type = lcl_util=>so_type_t.
           lv_det_typekind = e_typekind-time.
         ELSEIF lv_vlen >= 10 AND lv_val+4(1) = '-' AND lv_val+7(1) = '-' AND lv_val(4) CO '0123456789' AND lv_val+5(2) CO '0123456789' AND lv_val+8(2) CO '0123456789'.
@@ -1391,6 +1610,14 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
           restore_type( EXPORTING reader = reader type_descr = <field_cache>-type typekind = <field_cache>-typekind convexit = <field_cache>-convexit_in CHANGING data = <value> ).
         ENDIF.
       ELSE.
+        IF mv_strict_mode = abap_true AND mv_disallow_unknown = abap_true.
+          " JSON key has no matching ABAP component. DISALLOW_UNKNOWN is a sub-option of
+          " STRICT_MODE: only when both are set is an unknown key an error. The raise is
+          " caught + propagated by restore_type's existing strict-mode handler.
+          RAISE EXCEPTION TYPE cx_sy_move_cast_error
+            EXPORTING
+              source_typename = name_json.
+        ENDIF.
         reader->skip_node( ).
       ENDIF.
 
