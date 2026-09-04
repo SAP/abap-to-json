@@ -613,6 +613,11 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
           lo_reader = cl_json_string_reader=>create( json ).
         ENDIF.
 
+        IF mv_strict_mode = abap_false.
+          lo_reader->set_option( if_json_reader=>option_nbsp ).
+          lo_reader->set_option( if_json_reader=>option_trailing_comma ).
+        ENDIF.
+
         lo_reader->next_node( ).
         IF path IS NOT INITIAL.
           seek_path( reader = lo_reader path = path ).
@@ -630,6 +635,14 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
         ENDTRY.
       CATCH cx_sy_move_cast_error INTO DATA(lx_strict).
         RAISE EXCEPTION lx_strict.
+      CATCH cx_json_reader_error INTO DATA(lx_reader_err).
+        IF mv_strict_mode = abap_true.
+          RAISE EXCEPTION TYPE cx_sy_move_cast_error
+            EXPORTING
+              previous        = lx_reader_err
+              source_typename = COND #( WHEN lx_reader_err->offset > 0
+                                        THEN |[{ lx_reader_err->offset }]| ).
+        ENDIF.
       CATCH cx_root INTO DATA(lx_parse) ##CATCH_ALL.
         IF mv_strict_mode = abap_true.
           RAISE EXCEPTION TYPE cx_sy_move_cast_error

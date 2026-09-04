@@ -88,6 +88,10 @@ INHERITING FROM z_ui2_json2.
     METHODS generate_disable_type_detect FOR TESTING.
     "! DISALLOW_UNKNOWN raises on JSON keys with no matching ABAP component
     METHODS deserialize_disallow_unknown FOR TESTING.
+    "! NBSP is accepted as whitespace in non-strict (lenient) mode
+    METHODS deserialize_lenient_nbsp FOR TESTING.
+    "! Trailing comma is accepted in non-strict (lenient) mode
+    METHODS deserialize_lenient_trailing FOR TESTING.
 
 ENDCLASS.       "abap_unit_testclass
 * ----------------------------------------------------------------------
@@ -3322,6 +3326,29 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( exp = abap_true act = lv_ok
       msg = 'strict_mode alone must tolerate unknown keys' ).
 
+  ENDMETHOD.
+
+  METHOD deserialize_lenient_nbsp.
+    DATA lv_val TYPE string.
+    " JSON xstring with NBSP (U+00A0, UTF-8: C2A0) surrounding "hello"
+    " Tolerated as whitespace in default non-strict mode
+    DATA(lv_jsonx) = CONV xstring( 'C2A02268656C6C6F22C2A0' ).
+    z_ui2_json2=>deserialize( EXPORTING jsonx = lv_jsonx CHANGING data = lv_val ).
+    cl_abap_unit_assert=>assert_equals( exp = 'hello' act = lv_val
+      msg = 'NBSP must be accepted as whitespace in lenient mode' ).
+  ENDMETHOD.
+
+  METHOD deserialize_lenient_trailing.
+    DATA: BEGIN OF ls_data,
+            a TYPE i,
+            b TYPE string,
+          END OF ls_data.
+    " trailing comma after last member — tolerated in default non-strict mode
+    z_ui2_json2=>deserialize( EXPORTING json = `{"a":1,"b":"x",}` CHANGING data = ls_data ).
+    cl_abap_unit_assert=>assert_equals( exp = 1   act = ls_data-a
+      msg = 'trailing comma: field a must deserialize' ).
+    cl_abap_unit_assert=>assert_equals( exp = 'x' act = ls_data-b
+      msg = 'trailing comma: field b must deserialize' ).
   ENDMETHOD.
 
 ENDCLASS.       "abap_unit_testclass
