@@ -88,6 +88,8 @@ INHERITING FROM z_ui2_json2.
     METHODS generate_disable_type_detect FOR TESTING.
     "! DISALLOW_UNKNOWN raises on JSON keys with no matching ABAP component
     METHODS deserialize_disallow_unknown FOR TESTING.
+    "! Raw json field extracted via GET_OFFSET round-trips correctly
+    METHODS deser_json_field_offset FOR TESTING.
     "! NBSP is accepted as whitespace in non-strict (lenient) mode
     METHODS deserialize_lenient_nbsp FOR TESTING.
     "! Trailing comma is accepted in non-strict (lenient) mode
@@ -3326,6 +3328,23 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( exp = abap_true act = lv_ok
       msg = 'strict_mode alone must tolerate unknown keys' ).
 
+  ENDMETHOD.
+
+  METHOD deser_json_field_offset.
+    " Verify GET_OFFSET fast path: raw json field survives a serialize→deserialize round-trip
+    TYPES: BEGIN OF ty,
+             id   TYPE i,
+             meta TYPE z_ui2_json2=>json,
+           END OF ty.
+    DATA: ls     TYPE ty,
+          ls_out TYPE ty.
+    ls-id   = 42.
+    ls-meta = `{"name":"test","active":true,"tags":["a","b","c"],"count":99}`.
+    DATA(lv_json) = z_ui2_json2=>serialize( data = ls ).
+    z_ui2_json2=>deserialize( EXPORTING json = lv_json CHANGING data = ls_out ).
+    cl_abap_unit_assert=>assert_equals( exp = ls-id   act = ls_out-id   msg = 'id must match' ).
+    cl_abap_unit_assert=>assert_equals( exp = ls-meta act = ls_out-meta
+      msg = 'raw json field must be extracted verbatim via GET_OFFSET' ).
   ENDMETHOD.
 
   METHOD deserialize_lenient_nbsp.
