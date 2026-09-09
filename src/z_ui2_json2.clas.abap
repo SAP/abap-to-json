@@ -1774,19 +1774,17 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
       IF reader->node-type = if_json_node=>string OR reader->node-type = if_json_node=>number OR reader->node-type = if_json_node=>boolean OR reader->node-type = if_json_node=>null.
         data = reader->node-value.
       ELSEIF mv_json_src IS NOT INITIAL.
-        " GET_OFFSET fast path: extract raw subtree as substring of source string —
-        " no writer object, no per-node kernel write calls.
+        " GET_OFFSET fast path (string source only): extract raw subtree as substring of
+        " source string — no writer object, no per-node kernel write calls.
         " get_offset() returns position of next char to read (cursor after last consumed token).
-        TRY.
-            DATA(lo_str_rdr) = CAST cl_json_string_reader( reader ).
-            DATA(lv_off1)    = lo_str_rdr->get_offset( ) - 1.  " position OF opening { or [
-            reader->skip_node( ).
-            data = substring( val = mv_json_src off = lv_off1
-                              len = lo_str_rdr->get_offset( ) - lv_off1 ).
-          CATCH cx_sy_move_cast_error.
-            data = lcl_util=>read_json_to_string( reader ).
-        ENDTRY.
+        " mv_json_src is set ONLY when reader is a cl_json_string_reader, so the CAST is safe.
+        DATA(lo_str_rdr) = CAST cl_json_string_reader( reader ).
+        DATA(lv_off1)    = lo_str_rdr->get_offset( ) - 1.  " position OF opening { or [
+        reader->skip_node( ).
+        data = substring( val = mv_json_src off = lv_off1
+                          len = lo_str_rdr->get_offset( ) - lv_off1 ).
       ELSE.
+        " xstring source: writer-envelope path (encoding-correct; kernel knows the codepage, we don't).
         data = lcl_util=>read_json_to_string( reader ).
       ENDIF.
       RETURN.
