@@ -1,0 +1,283 @@
+*"* use this source file for your LOCAL class DEFINITION
+*"* which is only visible within this one class include
+
+"=== Shared node-tree types =============================================
+
+TYPES:
+  BEGIN OF ty_node,
+    kind     TYPE c LENGTH 1,  "S"=scalar "M"=mapping "Q"=sequence
+    value    TYPE string,
+    is_null  TYPE abap_bool,
+  END OF ty_node.
+
+CLASS lcl_node_ref DEFINITION DEFERRED.
+TYPES ty_node_ref TYPE REF TO lcl_node_ref.
+TYPES:
+  BEGIN OF ty_child,
+    key  TYPE string,
+    node TYPE ty_node_ref,
+  END OF ty_child.
+TYPES ty_children TYPE STANDARD TABLE OF ty_child WITH DEFAULT KEY.
+
+"=== Shared scanner line types =========================================
+
+TYPES:
+  BEGIN OF ty_line,
+    lineno        TYPE i,
+    indent        TYPE i,
+    content       TYPE string,
+    doc_marker    TYPE abap_bool,
+    doc_start     TYPE abap_bool,
+    blk_scalar_hd TYPE abap_bool,
+    blk_value     TYPE string,
+    blk_anchor    TYPE string,
+  END OF ty_line.
+TYPES ty_lines TYPE STANDARD TABLE OF ty_line WITH DEFAULT KEY.
+TYPES tt_line_blocks TYPE STANDARD TABLE OF ty_lines WITH DEFAULT KEY.
+
+"=== Anchor table entry ================================================
+
+TYPES:
+  BEGIN OF ty_anchor_entry,
+    name TYPE string,
+    node TYPE ty_node_ref,
+  END OF ty_anchor_entry.
+
+"=== Node kind constants ===============================================
+
+CLASS c_node DEFINITION FINAL.
+  PUBLIC SECTION.
+    CONSTANTS:
+      scalar   TYPE c LENGTH 1 VALUE 'S',
+      mapping  TYPE c LENGTH 1 VALUE 'M',
+      sequence TYPE c LENGTH 1 VALUE 'Q'.
+ENDCLASS.
+
+"=== Node ref carrier ==================================================
+
+CLASS lcl_node_ref DEFINITION FINAL.
+  PUBLIC SECTION.
+    DATA node      TYPE ty_node.
+    DATA children  TYPE ty_children.
+ENDCLASS.
+
+"=== Node-tree factory =================================================
+
+CLASS lcl_tree DEFINITION.
+  PUBLIC SECTION.
+    CONSTANTS c_yaml_name_chars TYPE string
+      VALUE 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-'.
+    CLASS-METHODS is_bool_type
+      IMPORTING eld           TYPE REF TO cl_abap_elemdescr
+      RETURNING VALUE(result) TYPE abap_bool.
+    CLASS-METHODS is_date_like
+      IMPORTING value         TYPE string
+      RETURNING VALUE(result) TYPE abap_bool.
+    CLASS-METHODS new_scalar
+      IMPORTING value   TYPE string
+                is_null TYPE abap_bool DEFAULT abap_false
+      RETURNING VALUE(node) TYPE ty_node_ref.
+    CLASS-METHODS new_collection
+      IMPORTING kind        TYPE c
+      RETURNING VALUE(node) TYPE ty_node_ref.
+    CLASS-METHODS add_child
+      IMPORTING node  TYPE ty_node_ref
+                key   TYPE string OPTIONAL
+                child TYPE ty_node_ref.
+ENDCLASS.
+
+"=== Scanner ===========================================================
+
+CLASS lcl_scanner DEFINITION.
+  PUBLIC SECTION.
+    CLASS-METHODS scan
+      IMPORTING text         TYPE string
+      RETURNING VALUE(lines) TYPE ty_lines
+      RAISING   cx_sy_conversion_error.
+    CLASS-METHODS trim
+      IMPORTING val           TYPE string
+      RETURNING VALUE(result) TYPE string.
+  PRIVATE SECTION.
+    CLASS-METHODS strip_comment
+      IMPORTING body          TYPE string
+      RETURNING VALUE(result) TYPE string.
+    CLASS-METHODS trim_right
+      IMPORTING body          TYPE string
+      RETURNING VALUE(result) TYPE string.
+    CLASS-METHODS collect_block_body
+      IMPORTING raw       TYPE string_table
+                start_n   TYPE i
+                indent    TYPE i
+                total     TYPE i
+      EXPORTING rt_body   TYPE string_table
+                rv_next_n TYPE i.
+    CLASS-METHODS assemble_block_value
+      IMPORTING blk_body       TYPE string_table
+                blk_scalar_ind TYPE string
+      RETURNING VALUE(rv_val)  TYPE string.
+ENDCLASS.
+
+CLASS lcl_parser DEFINITION.
+  PUBLIC SECTION.
+    CLASS-METHODS parse
+      IMPORTING lines       TYPE ty_lines
+      RETURNING VALUE(root) TYPE ty_node_ref
+      RAISING   cx_sy_conversion_error.
+    CLASS-METHODS split_documents
+      IMPORTING lines          TYPE ty_lines
+      RETURNING VALUE(rt_blocks) TYPE tt_line_blocks.
+    CLASS-METHODS resolve_scalar
+      IMPORTING raw     TYPE string
+      EXPORTING value   TYPE string
+                is_null TYPE abap_bool
+      RAISING   cx_sy_conversion_error.
+    CLASS-METHODS parse_flow
+      IMPORTING raw          TYPE string
+      RETURNING VALUE(node)  TYPE ty_node_ref
+      RAISING   cx_sy_conversion_error.
+  PRIVATE SECTION.
+    " mt_anchors: per-parse state, CLEARed at parse() entry. ABAP class-data is session-scoped
+    " and single-threaded — no cross-call concern. Reset-at-entry means parse() is not reentrant
+    " (never call it recursively), but the current call tree never does.
+    CLASS-DATA mt_anchors TYPE HASHED TABLE OF ty_anchor_entry WITH UNIQUE KEY name.
+    CLASS-METHODS strip_anchor
+      CHANGING  raw          TYPE string
+      RETURNING VALUE(aname) TYPE string.
+    CLASS-METHODS resolve_alias
+      IMPORTING raw          TYPE string
+                lineno        TYPE i DEFAULT 0
+      RETURNING VALUE(node)  TYPE ty_node_ref
+      RAISING   cx_sy_conversion_error.
+    CLASS-METHODS parse_block
+      IMPORTING lines        TYPE ty_lines
+      CHANGING  idx          TYPE i
+      RETURNING VALUE(node)  TYPE ty_node_ref
+      RAISING   cx_sy_conversion_error.
+    CLASS-METHODS parse_mapping
+      IMPORTING lines        TYPE ty_lines
+                own_indent   TYPE i
+      CHANGING  idx          TYPE i
+      RETURNING VALUE(node)  TYPE ty_node_ref
+      RAISING   cx_sy_conversion_error.
+    CLASS-METHODS parse_sequence
+      IMPORTING lines        TYPE ty_lines
+                own_indent   TYPE i
+      CHANGING  idx          TYPE i
+      RETURNING VALUE(node)  TYPE ty_node_ref
+      RAISING   cx_sy_conversion_error.
+    CLASS-METHODS parse_seq_item
+      IMPORTING lines        TYPE ty_lines
+                own_indent   TYPE i
+                rest         TYPE string
+      CHANGING  idx          TYPE i
+      RETURNING VALUE(node)  TYPE ty_node_ref
+      RAISING   cx_sy_conversion_error.
+    CLASS-METHODS split_key_value
+      IMPORTING content      TYPE string
+                lineno       TYPE i
+      EXPORTING key          TYPE string
+                inline_value TYPE string
+                has_inline   TYPE abap_bool
+                is_mapping   TYPE abap_bool
+      RAISING   cx_sy_conversion_error.
+    CLASS-METHODS value_or_block
+      IMPORTING lines        TYPE ty_lines
+                own_indent   TYPE i
+                has_inline   TYPE abap_bool
+                inline_value TYPE string
+      CHANGING  idx          TYPE i
+      RETURNING VALUE(node)  TYPE ty_node_ref
+      RAISING   cx_sy_conversion_error.
+ENDCLASS.
+
+CLASS lcl_typed_mapper DEFINITION.
+  PUBLIC SECTION.
+    CLASS-METHODS map
+      IMPORTING node          TYPE ty_node_ref
+                pretty_name   TYPE z_ui2_yaml=>pretty_name_mode
+                name_mappings TYPE z_ui2_yaml=>name_mappings
+                strict        TYPE abap_bool
+      CHANGING  data          TYPE data
+      RAISING   cx_sy_move_cast_error.
+  PRIVATE SECTION.
+    CLASS-METHODS pretty_inverse
+      IMPORTING yaml_key        TYPE string
+                pretty_name     TYPE z_ui2_yaml=>pretty_name_mode
+      RETURNING VALUE(abap_name) TYPE string.
+ENDCLASS.
+
+CLASS lcl_gen_mapper DEFINITION.
+  PUBLIC SECTION.
+    "! Build a typed REF TO data tree from a parsed YAML node (always-optimized: no REF TO data
+    "! wrappers around leaf values).  Scalars are typed by character-check detection (no regex).
+    CLASS-METHODS generate
+      IMPORTING node          TYPE ty_node_ref
+      RETURNING VALUE(rr_data) TYPE REF TO data
+      RAISING   cx_sy_conversion_error.
+  PRIVATE SECTION.
+    CONSTANTS c_max_comp_name_len TYPE i VALUE 30.
+    " ponytail: session-scoped, single-threaded. Caches struct type descriptors by
+    " component-name fingerprint so 100k identical rows reuse the same RTTI struct
+    " instead of calling cl_abap_structdescr=>create() 100k times.
+    TYPES: BEGIN OF ty_struct_td_entry,
+             fingerprint TYPE string,
+             struct_td   TYPE REF TO cl_abap_structdescr,
+           END OF ty_struct_td_entry.
+    CLASS-DATA mt_struct_td_cache TYPE HASHED TABLE OF ty_struct_td_entry
+                                   WITH UNIQUE KEY fingerprint.
+    "! Detect scalar type by char checks and return a typed data ref.
+    "! Integer:   1-9 digit string (optional leading '-') → TYPE i.
+    "!            ponytail: 10+ digit integers fall back to TYPE string.
+    "! Decimal:   digits + single '.' → TYPE decfloat34.
+    "! Boolean:   exact tokens 'true'/'false' → TYPE abap_bool ('X'/'').
+    "! Date:      YYYY-MM-DD (10 chars, '-' at pos 4+7, digits elsewhere) → TYPE d.
+    "! Else:      TYPE string.
+    CLASS-METHODS detect_scalar_type
+      IMPORTING value          TYPE string
+      RETURNING VALUE(rr_data) TYPE REF TO data.
+    "! Uppercase raw key, replace invalid ABAP component chars with '_',
+    "! prefix with 'F' if first char is a digit.  Max 30 chars.
+    CLASS-METHODS sanitize_name
+      IMPORTING raw            TYPE string
+      RETURNING VALUE(result)  TYPE abap_compname.
+ENDCLASS.
+
+CLASS lcl_emitter DEFINITION.
+  PUBLIC SECTION.
+    CLASS-METHODS emit
+      IMPORTING data             TYPE data
+                name             TYPE string        OPTIONAL
+                compress         TYPE abap_bool
+                pretty_name      TYPE z_ui2_yaml=>pretty_name_mode
+                name_mappings    TYPE z_ui2_yaml=>name_mappings
+                indent_step      TYPE i
+                quote_style      TYPE c
+                emit_doc_markers TYPE abap_bool
+                header_comment   TYPE string        OPTIONAL
+      RETURNING VALUE(r_yaml)    TYPE string.
+  PRIVATE SECTION.
+    CLASS-METHODS emit_node
+      IMPORTING data          TYPE data
+                compress      TYPE abap_bool
+                pretty_name   TYPE z_ui2_yaml=>pretty_name_mode
+                name_mappings TYPE z_ui2_yaml=>name_mappings
+                indent_step   TYPE i
+                quote_style   TYPE c
+      RETURNING VALUE(result) TYPE string.
+    CLASS-METHODS format_key
+      IMPORTING comp_name     TYPE abap_compname
+                pretty_name   TYPE z_ui2_yaml=>pretty_name_mode
+                name_mappings TYPE z_ui2_yaml=>name_mappings
+      RETURNING VALUE(result) TYPE string.
+    CLASS-METHODS quote_scalar
+      IMPORTING value         TYPE string
+                quote_style   TYPE c
+      RETURNING VALUE(result) TYPE string.
+    CLASS-METHODS escape_dq
+      IMPORTING value         TYPE string
+      RETURNING VALUE(result) TYPE string.
+    CLASS-METHODS indent_block
+      IMPORTING text          TYPE string
+                n             TYPE i
+      RETURNING VALUE(result) TYPE string.
+ENDCLASS.
