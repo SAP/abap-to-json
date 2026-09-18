@@ -3110,7 +3110,8 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     DATA: lv_json    TYPE json,
           lt_results TYPE STANDARD TABLE OF ts_result WITH DEFAULT KEY,
-          ls_single  TYPE ts_result.
+          ls_single  TYPE ts_result,
+          lr_gen     TYPE REF TO data.
 
     " OData v2 envelope: target is the inner d-results array
     lv_json = `{"d":{"results":[{"id":"1","name":"foo"},{"id":"2","name":"bar"}]}}`.
@@ -3156,7 +3157,7 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( exp = `second` act = ls_single-name msg = 'PATH bare-index name mismatch' ).
 
     " GENERATE honours PATH too — extract the 5th element and serialize it back
-    DATA(lr_gen) = generate( json = `{"d":{"results":[` &&
+    lr_gen = generate( json = `{"d":{"results":[` &&
       `{"id":"0"},{"id":"1"},{"id":"2"},{"id":"3"},{"id":"4"},{"id":"5"},{"id":"6"},{"id":"7"},{"id":"8"},{"id":"9"}]}}`
       path = `d-results[5]` ).
     cl_abap_unit_assert=>assert_equals( exp = `{"ID":"5"}` act = serialize( data = lr_gen compress = abap_true )
@@ -3210,9 +3211,10 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     DATA: lo_json TYPE REF TO z_ui2_json,
           ls_data TYPE ts_target,
-          lv_ok   TYPE abap_bool.
+          lv_ok   TYPE abap_bool,
+          lv_json TYPE string.
 
-    DATA(lv_json) = `{"id":1,"name":"foo","surprise":"extra"}`.
+    lv_json = `{"id":1,"name":"foo","surprise":"extra"}`.
 
     " default (both off): unknown key silently ignored, known fields filled
     deserialize( EXPORTING json = lv_json CHANGING data = ls_data ).
