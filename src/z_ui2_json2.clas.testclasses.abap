@@ -79,6 +79,8 @@ INHERITING FROM z_ui2_json2.
     METHODS deser_field_invalid_value FOR TESTING.
     "! serialized timestamps with domain XSDDATETIME_Z
     METHODS serialize_time_stamp FOR TESTING.
+    "! WA2 for Bug 1: skip_node on named member via envelope object
+    METHODS skip_node_named_member FOR TESTING.
 
 ENDCLASS.       "abap_unit_testclass
 * ----------------------------------------------------------------------
@@ -3064,6 +3066,51 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     deserialize( EXPORTING json = '"1937-01-01T12:00:27"' CHANGING data = lv_xsd_tms2 ).
     cl_abap_unit_assert=>assert_equals( exp = '19370101120027' act = lv_xsd_tms2 ).
+
+  ENDMETHOD.
+
+  METHOD skip_node_named_member.
+    " Bug 1 / WA2: skip_node( writer ) fails on named member positions.
+    " Stefan Bresch's workaround: envelope the call in a temporary object,
+    " then strip the prefix/suffix using string arithmetic.
+    DATA: lv_json   TYPE string,
+          lv_result TYPE string,
+          lo_writer TYPE REF TO if_json_writer,
+          lo_reader TYPE REF TO if_json_reader.
+
+    lv_json = '{"outer":{"inner":{"key":"value"}}}'.
+
+    " --- Case 1: named member node — WA2 envelope technique ---
+    lo_reader = cl_json_string_reader=>create( lv_json ).
+    lo_reader->next_node( ).  " open_object (outer)
+    lo_reader->next_node( ).  " open_object (inner), node-name = "outer"
+    lo_reader->next_node( ).  " open_object (key/value), node-name = "inner"
+
+    lo_writer = cl_json_string_writer=>create( ).
+    IF lo_reader->node-name IS NOT INITIAL.
+      lo_writer->open_object( ).
+      lo_reader->skip_node( lo_writer ).
+      lo_writer->close_object( ).
+      DATA(lv_raw)  = CAST cl_json_string_writer( lo_writer )->get_json( ).
+      DATA(lv_off)  = strlen( lo_reader->node-name ) + 4.
+      DATA(lv_len)  = strlen( lv_raw ) - lv_off - 1.
+      lv_result = substring( val = lv_raw off = lv_off len = lv_len ).
+    ENDIF.
+    cl_abap_unit_assert=>assert_equals(
+      exp = '{"key":"value"}'
+      act = lv_result
+      msg = 'WA2: named member subtree not captured correctly' ).
+
+    " --- Case 2: unnamed root node — plain skip_node still works ---
+    lv_json = '{"key":"value"}'.
+    lo_reader = cl_json_string_reader=>create( lv_json ).
+    lo_reader->next_node( ).  " open_object, node-name IS INITIAL
+    lo_writer = cl_json_string_writer=>create( ).
+    lo_reader->skip_node( lo_writer ).
+    cl_abap_unit_assert=>assert_equals(
+      exp = '{"key":"value"}'
+      act = CAST cl_json_string_writer( lo_writer )->get_json( )
+      msg = 'Direct skip_node on unnamed root should work unchanged' ).
 
   ENDMETHOD.
 

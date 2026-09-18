@@ -317,6 +317,8 @@ protected section.
       utclong     TYPE abap_typekind VALUE 'p' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_UTCLONG -> 'p' only from 7.54
       int8        TYPE abap_typekind VALUE '8' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_INT8 -> '8' only from 7.40
       enum        TYPE abap_typekind VALUE 'k' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_ENUM -> 'k'
+      decfloat16  TYPE abap_typekind VALUE 'a' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_DECFLOAT16 -> 'a' only from 7.40
+      decfloat34  TYPE abap_typekind VALUE 'e' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_DECFLOAT34 -> 'e' only from 7.40
 
       " just aliasing
       float       TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_float,
@@ -1097,6 +1099,13 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           r_json = `0`.
         ELSE.
           r_json = data.
+        ENDIF.
+      WHEN e_typekind-decfloat16 OR e_typekind-decfloat34.
+        IF data IS INITIAL.
+          r_json = `0`.
+        ELSE.
+          r_json = data.
+          CONDENSE r_json.
         ENDIF.
       WHEN e_typekind-int OR e_typekind-int1 OR e_typekind-int2 OR e_typekind-packed OR e_typekind-int8.
         IF data IS INITIAL.

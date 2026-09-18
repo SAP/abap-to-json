@@ -91,6 +91,40 @@ DATA lt_results TYPE STANDARD TABLE OF ts_result WITH DEFAULT KEY.
 
 ---
 
+#### Implementation evaluation (2026-07-23) — target: next patch level, all classes
+
+**Scope decision**: implement in all three parsing entry points so the API stays uniform across editions: `Z_UI2_JSON`, `/UI2/CL_JSON` (string-offset parser), and `Z_UI2_JSON2` (kernel `IF_JSON_READER`). The API surface (a new optional `PATH` importing parameter) is identical; only the internal navigation differs.
+
+**API shape** (per the narrow-static-API rule this *can* go on the static methods — it is a common one-off need, not an advanced switch, and it does not depend on constructor state):
+```abap
+class-methods DESERIALIZE
+  importing ... !PATH type STRING optional ...
+```
+Same addition on `GENERATE`. No change to `CONSTRUCTOR` or the `*_INT` instance methods' core loop — path resolution is a pre-positioning step that runs once before the existing `restore_type` / `generate_int` recursion begins.
+
+**Where it hooks in — `Z_UI2_JSON` / `/UI2/CL_JSON` (offset parser):**
+- `deserialize_int` (`src/z_ui2_json.clas.abap:674`) positions `offset` at the first structural char via `while_offset_not_cs`, then calls `restore_type`.
+- A path pre-step would, before that call, walk the object levels named in `PATH`: at each segment `eat_char '{'` → loop `eat_name` / `eat_white` / `eat_char ':'`, comparing the key to the segment; on match, descend; on miss, skip the value. Skipping an unwanted value already exists — `restore_type` called **without** `data` supplied consumes and discards a value (`src/z_ui2_json.clas.abap:2040`, `:2196`), so the skip logic is reusable, not new code.
+- After the final segment is matched and `offset` sits on the subnode's opening char, hand off to the existing `restore_type( ... data = data ... )` unchanged.
+
+**Where it hooks in — `Z_UI2_JSON2` (kernel reader):**
+- `deserialize_int` (`src/z_ui2_json2.clas.abap:494`) does `lo_reader->next_node( )` then `restore_type`.
+- Path navigation is cleaner here: walk `reader->node-name` at each `open_object` level (mirrors the existing loop at `src/z_ui2_json2.clas.abap:1301`), calling `reader->skip_node( )` for non-matching members (same primitive the WA2 skip_node fix relies on) until the target segment is reached, then hand off to `restore_type`.
+
+**Performance — when `PATH` is NOT supplied (the hot path, must stay neutral):**
+- Guard with a single `IF path IS NOT INITIAL.` around the entire pre-step. When empty, the added cost is one `IS INITIAL` test per top-level `deserialize`/`generate` call — not per node, not per field. This is immeasurable against the existing per-call setup (RTTI describe, `while_offset_not_cs` BOM scan).
+- **Requirement**: the path-splitting regex/`SPLIT` must run **only inside** the `path IS NOT INITIAL` branch. Do not compile or split at construction time. Confirm the `Z_UI2_JSON_PERF` baseline scenarios are unchanged (target: 0% delta; anything >5% on a previously-neutral scenario blocks the change per CLAUDE.md).
+
+**Performance — when `PATH` IS supplied:**
+- Net cost is *sub-linear in the skipped volume vs. the current workaround*: today the wrapper-structure approach parses AND type-converts the outer envelope; path-skip parses the envelope tokens but does **no** RTTI lookup or MOVE for skipped members. So the feature is faster than the workaround it replaces, not just more convenient.
+- One-time cost: split `PATH` into segments (bounded, tiny — typically 1–3 segments). Reuse the `Z_UI2_DATA_ACCESS` `so_regex_hier` pattern (`src/z_ui2_data_access.clas.abap:307`) only if array indexing is in scope; for the object-member-only v1, a plain `SPLIT path AT '-'` is cheaper and sufficient.
+
+**Scope for v1 (recommended)**: object-member traversal only (no `[n]` indexing). Covers the OData `d-results` canonical case. Array indexing deferred to a follow-up — it complicates the offset parser's skip logic (must count array elements) with little added demand.
+
+**Open question**: behavior when a path segment is not found. Options: (a) return initial/unchanged `data` silently, (b) raise `CX_SY_MOVE_CAST_ERROR` with the missing segment in `source_typename`, gated on `STRICT_MODE`. Recommend (b)-under-strict / (a)-otherwise, matching the existing strict-mode contract.
+
+---
+
 ### 1.3 Strict-on-unknown-fields
 
 **Status**: Not implemented. Today, `STRICT_MODE = abap_true` raises `CX_SY_MOVE_CAST_ERROR` only on type mismatches; JSON keys with no matching ABAP component are silently ignored regardless of strict mode.

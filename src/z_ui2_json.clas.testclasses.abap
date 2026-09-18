@@ -79,6 +79,8 @@ INHERITING FROM z_ui2_json.
     METHODS deser_field_invalid_value FOR TESTING.
     "! serialized timestamps with domain XSDDATETIME_Z
     METHODS serialize_time_stamp FOR TESTING.
+    "! DECFLOAT16/DECFLOAT34 zero must serialize as 0, not null
+    METHODS serialize_decfloat FOR TESTING.
 
 ENDCLASS.       "abap_unit_testclass
 * ----------------------------------------------------------------------
@@ -3059,6 +3061,35 @@ CLASS abap_unit_testclass IMPLEMENTATION.
 
     deserialize( EXPORTING  json = '"1937-01-01T12:00:27"' CHANGING data = lv_xsd_tms2 ).
     cl_abap_unit_assert=>assert_equals( exp = '19370101120027' act = lv_xsd_tms2 ).
+
+  ENDMETHOD.
+
+  METHOD serialize_decfloat.
+    " DECFLOAT16/DECFLOAT34 zero value must serialize as 0, not null (bug fix)
+
+    DATA: lv_d16     TYPE decfloat16,
+          lv_d34     TYPE decfloat34,
+          lv_d16_nz  TYPE decfloat16,
+          lv_d34_nz  TYPE decfloat34,
+          lv_json    TYPE string.
+
+    " zero (initial) values
+    lv_json = serialize( data = lv_d16 ).
+    cl_abap_unit_assert=>assert_equals( exp = `0` act = lv_json msg = 'DECFLOAT16 zero must serialize as 0' ).
+
+    lv_json = serialize( data = lv_d34 ).
+    cl_abap_unit_assert=>assert_equals( exp = `0` act = lv_json msg = 'DECFLOAT34 zero must serialize as 0' ).
+
+    " non-zero values
+    lv_d16_nz = '3.14' ##LITERAL.
+    lv_json = serialize( data = lv_d16_nz ).
+    cl_abap_unit_assert=>assert_not_initial( act = lv_json msg = 'DECFLOAT16 non-zero must serialize to non-empty' ).
+    cl_abap_unit_assert=>assert_differs( act = lv_json exp = `null` msg = 'DECFLOAT16 non-zero must not serialize as null' ).
+
+    lv_d34_nz = '2.718' ##LITERAL.
+    lv_json = serialize( data = lv_d34_nz ).
+    cl_abap_unit_assert=>assert_not_initial( act = lv_json msg = 'DECFLOAT34 non-zero must serialize to non-empty' ).
+    cl_abap_unit_assert=>assert_differs( act = lv_json exp = `null` msg = 'DECFLOAT34 non-zero must not serialize as null' ).
 
   ENDMETHOD.
 

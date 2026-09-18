@@ -12,6 +12,7 @@
 * [Is it possible to display the currency amount (CURR fields) formatted in the JSON output based on the related currency (CUKY field)?](#is-it-possible-to-display-the-currency-amount-curr-fields-formatted-in-the-json-output-based-on-the-related-currency-cuky-field)
 * [My fields are NOT serialized as true/false, instead, serialized like 'X' or ''! E.g., how to control ABAP/JSON Boolean conversion?](#my-fields-are-not-serialized-as-truefalse-instead-serialized-like-x-or--eg-how-to-control-abapjson-boolean-conversion)
 * [I can not use /UI2/CL_JSON for ABAP Cloud BADi development](#i-can-not-use-ui2cl_json-for-abap-cloud-badi-development)
+* [Why does GENERATE silently drop some JSON keys — umlauts, spaces, control characters?](#why-does-generate-silently-drop-some-json-keys--umlauts-spaces-control-characters)
 * [You get a short dump OBJECTS_NOT_CHAR when serializing data with enabled conversion exits](#you-get-a-short-dump-objects_not_char-when-serializing-data-with-enabled-conversion-exits)
 * [Why are special characters in JSON attribute names not escaped or unescaped?](#why-are-special-characters-in-json-attribute-names-not-escaped-or-unescaped)
 * [How to define receiving structures for my JSON?](#how-to-define-receiving-structures-for-my-json)
@@ -263,6 +264,27 @@ Two common causes:
 **2. Private/protected attributes without FRIENDS**: If the attributes you expect to be filled are not public, the deserializer cannot access them. Declare the serializer class as a `FRIEND` of your class. See [Serializing protected and private attributes](advanced.md#serializing-of-protected-and-private-attributes).
 
 If neither applies, enable `STRICT_MODE` and use `DESERIALIZE_INT` to surface the actual error. See [Exception Handling](advanced.md#exception-handling-in-ui2cl_json).
+
+## Why does GENERATE silently drop some JSON keys — umlauts, spaces, control characters?
+
+The `GENERATE` method creates ABAP data types dynamically from arbitrary JSON. To produce valid ABAP component names it applies two steps:
+
+**Step 1 — Normalization:** The regex `[^0-9a-zA-Z_]+` replaces any sequence of non-alphanumeric characters with a single `_`. Examples:
+- `/COMP/A` → `_COMP_A`
+- `TEST 2` → `TEST_2`
+- `äöü` → `_`
+- ` ` (space only) → `_`
+- ` ` (null char) → `_`
+
+**Step 2 — Collision dedup:** Each normalized name is inserted into a unique hashed table. If a name already exists (collision), **the duplicate entry is silently dropped**.
+
+This means that multiple keys which all normalize to `_` (e.g. a space-only key, umlauts, control characters) will all compete for the same slot — only the first one wins, the rest are dropped.
+
+**Why this is the right behavior:** `GENERATE` cannot invent readable names for non-ABAP-compatible keys. Generating synthetic unique names (e.g. `__1`, `__2`) would make the resulting structure unreadable and non-round-trippable. The method does the **optimal minimum**: preserve what can be preserved, silently discard what cannot be represented.
+
+**If you need to preserve such keys:** Do not use `GENERATE`. Instead, deserialize into a typed ABAP structure where you control the field names, or pre-process the JSON to normalize keys before calling `GENERATE`.
+
+*Added 2026-07-01 based on question from Daniel Reger (daniel.reger@sap.com).*
 
 # Continue reading
 * [Basic usage of the class](basic.md)
