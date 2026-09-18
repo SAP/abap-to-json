@@ -30,6 +30,8 @@ For simplicity, the class provides static SERIALIZE/DESERIALIZE methods that can
 
 ### Advanced settings available only with explicit constructor initialization
  * \> **STRICT_MODE** (bool, default = false) - Stop further processing on error. [ => Exception Handling in /UI2/CL_JSON](#exception-handling-in-ui2cl_json)
+ * \> **DISALLOW_UNKNOWN** (bool, default = false) - Sub-option of `STRICT_MODE`. When both `STRICT_MODE` and `DISALLOW_UNKNOWN` are `abap_true`, a JSON key with no matching ABAP structure component raises `CX_SY_MOVE_CAST_ERROR` (offending key in `source_typename`) instead of being silently skipped. Has no effect unless `STRICT_MODE` is also `abap_true`. Equivalent to Go `DisallowUnknownFields` / .NET `UnmappedMemberHandling.Disallow` / Pydantic `extra='forbid'`.
+ * \> **DISABLE_STRING_TYPE_DETECT** (bool, default = false) - When `abap_true`, `GENERATE` and `DESERIALIZE` into `REF TO DATA` keep every quoted JSON string as `STRING` — no date, time, or timestamp inference. Prevents IDs, codes, or version strings shaped like `YYYY-MM-DD` (e.g. `"0133-01-01"`) from being coerced to ABAP dates. Affects only the untyped `GENERATE` / `REF TO DATA` path; deserializing into a fixed structure is unaffected. See also the [FAQ entry](faq.md#my-ids--codes--version-strings-shaped-like-a-date-get-converted-to-abap-dates-by-generate).
  * \> **BOOL_TYPES** (string, default = MC_BOOL_TYPES) - List of known boolean types
  * \> **BOOL_3STATE** (string, default = MC_BOOL_3STATE) - List of known 3state boolean types
  * \> **INITIAL_TS** (string, default = "") - Initial timestamp as JSON
@@ -37,7 +39,7 @@ For simplicity, the class provides static SERIALIZE/DESERIALIZE methods that can
  * \> **INITIAL_TIME** (string, default = "") Initial time as JSON
  * \> **TIME_ZONE** (like SY-ZONLO, default = 'UTC') - Default time zone used when converting timestamps to date and time during deserialization
 
-> **Important**: Parameters in this section are not available on the static `SERIALIZE` / `DESERIALIZE` methods. If you need `STRICT_MODE`, `BOOL_TYPES`, or custom initial date/time rendering, you must use the instance API: create an instance via `CREATE OBJECT lo_json EXPORTING ...` and call `SERIALIZE_INT` / `DESERIALIZE_INT`.
+> **Important**: Parameters in this section are not available on the static `SERIALIZE` / `DESERIALIZE` methods. If you need `STRICT_MODE`, `DISALLOW_UNKNOWN`, `DISABLE_STRING_TYPE_DETECT`, `BOOL_TYPES`, or custom initial date/time rendering, you must use the instance API: create an instance via `CREATE OBJECT lo_json EXPORTING ...` and call `SERIALIZE_INT` / `DESERIALIZE_INT`.
 
 # Custom ABAP to JSON, JSON to ABAP name mapping
 By default, you control how JSON names are formatted/mapped to ABAP names by selecting the proper pretty_mode as a parameter for the SERIALIZE/DESERIALIZE/GENERATE method. But sometimes, the standard, hard-coded formatting is not enough. For example, you need special rules for name formatting (for using special characters) or because the JSON attribute name is too long and can't be mapped to the ABAP name (which has a 30-character length limit). 
@@ -429,6 +431,23 @@ By default, /UI2/CL_JSON tries to hide from consumer code thrown exceptions (tha
 If you want to get a report in case of error, use the instance method DESERIALIZE_INT, which may fire CX_SY_MOVE_CAST_ERROR. The reporting is rather limited - all errors are translated into CX_SY_MOVE_CAST_ERROR, and no additional information is available. But from PL19, you will also get extra details reported in the target (ABAP) and source (JSON) fields, as the type of ABAP field that is not filled and the JSON node leading to the error. More details can be found in [this issue](https://github.com/SAP/abap-to-json/pull/8).
 
 In addition, you may (and should) pass STRICT_MODE = ABAP_TRUE to the class constructor to get more exceptions and more details passed through.
+
+To also raise on JSON keys that have no matching ABAP component (i.e., unknown fields), additionally pass `DISALLOW_UNKNOWN = abap_true`. This combination is equivalent to Go `DisallowUnknownFields` or Pydantic `extra='forbid'`:
+
+```abap
+DATA(lo_json) = NEW /ui2/cl_json(
+  strict_mode      = abap_true
+  disallow_unknown = abap_true ).
+
+TRY.
+  lo_json->deserialize_int( EXPORTING json = lv_json CHANGING data = ls_data ).
+CATCH cx_sy_move_cast_error INTO DATA(lx).
+  " lx->source_typename contains the offending JSON key name
+  WRITE: lx->source_typename.
+ENDTRY.
+```
+
+`DISALLOW_UNKNOWN` alone (without `STRICT_MODE`) has no effect. `STRICT_MODE` alone raises on type mismatches but tolerates unknown keys. Both together raise on either.
 
 # JSON to ABAP transformation with the use of CALL TRANSFORMATION
 Below is a small example of CALL TRANSFORMATION usage to produce JSON from ABAP structures. Don't ask me for details - I do not know them. (smile) It was just a small test for me.

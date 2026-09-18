@@ -1,5 +1,5 @@
 # Version History
-   * [PL23 — in progress (unreleased)](#pl23--in-progress-unreleased)
+   * [Note 3808550 - PL23](#note-3808550---pl23)
    * [Z_UI2_JSON2 — VERSION 1](#z_ui2_json2--version-1)
    * [Note 3615316 - PL22](#note-3615316---pl22)
    * [Note 3568088 - PL21](#note-3568088---pl21)
@@ -26,9 +26,9 @@
    * [Note 2429758](#note-2429758)
    * [Note 2480119](#note-2480119)
 
-## PL23 — in progress (unreleased)
+## Note [3808550](https://launchpad.support.sap.com/#/notes/3808550) - PL23
 
-*`Z_UI2_JSON` `VERSION = 23`. Running list of what is staged in this repo since PL22 but not yet released as a SAP Note. Changes are applied to both `Z_UI2_JSON` and the kernel edition `Z_UI2_JSON2` unless noted. Not yet copied to `/UI2/CL_JSON`.*
+*`Z_UI2_JSON` `VERSION = 23`. Changes are applied to both `Z_UI2_JSON` and the kernel edition `Z_UI2_JSON2` unless noted.*
 
 ### Features
 * New: `PATH` parameter on `DESERIALIZE` / `DESERIALIZE_INT` / `GENERATE` — deserialize or generate directly from a nested JSON subnode, skipping the wrapper structure (e.g. the OData v2 `{"d":{"results":[...]}}` envelope). Segments are raw JSON attribute names separated by `-`; a trailing `[n]` (or a bare `[n]` on a top-level array) selects the 0-based array element, e.g. `d-results[5]`. A missing segment or out-of-bounds index raises `CX_SY_MOVE_CAST_ERROR`. Both editions.

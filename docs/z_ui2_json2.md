@@ -134,7 +134,7 @@ DATA(lv_json) = z_ui2_json2=>serialize( data = ls_data ).
 z_ui2_json2=>deserialize( EXPORTING json = lv_json CHANGING data = ls_data ).
 ```
 
-All constructor parameters, pretty-print modes, `ASSOC_ARRAYS`, `TS_AS_ISO8601`, `HEX_AS_BASE64`, `BOOL_TYPES`, name mappings, and conversion exits work identically.
+All constructor parameters, pretty-print modes, `ASSOC_ARRAYS`, `TS_AS_ISO8601`, `HEX_AS_BASE64`, `BOOL_TYPES`, `STRICT_MODE`, `DISABLE_STRING_TYPE_DETECT`, `DISALLOW_UNKNOWN`, name mappings, and conversion exits work identically. The `PATH` parameter on `DESERIALIZE`, `DESERIALIZE_INT`, and `GENERATE` also works identically.
 
 For instance usage (repeated calls, better performance):
 
@@ -221,6 +221,6 @@ See [history.md](history.md#known-limitations-pending-if_json_readerwriter-enhan
 
 | Z_UI2_JSON2 | Based on Z_UI2_JSON | Notes |
 |-------------|---------------------|-------|
-| VERSION 1   | PL22 feature-set    | Initial release, kernel API migration |
+| VERSION 1   | PL23 feature-set    | Initial release, kernel API migration; PL23 features (PATH, DISABLE_STRING_TYPE_DETECT, DISALLOW_UNKNOWN, DECFLOAT fix) included |
 
 Both classes have independent version tracks from this point forward.
