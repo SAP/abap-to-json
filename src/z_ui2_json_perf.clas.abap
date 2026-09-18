@@ -51,6 +51,12 @@ CLASS z_ui2_json_perf DEFINITION
     CLASS-METHODS perf_generate
       RETURNING VALUE(rt_result) TYPE tt_runtime.
 
+    CLASS-METHODS perf_json_field
+      RETURNING VALUE(rt_result) TYPE tt_runtime.
+
+    CLASS-METHODS perf_ct_id
+      RETURNING VALUE(rt_result) TYPE tt_runtime.
+
 ENDCLASS.
 
 
@@ -63,6 +69,8 @@ CLASS z_ui2_json_perf IMPLEMENTATION.
     APPEND LINES OF perf_strings( ) TO rt_result.
     APPEND LINES OF perf_deep_structure( ) TO rt_result.
     APPEND LINES OF perf_generate( ) TO rt_result.
+    APPEND LINES OF perf_json_field( ) TO rt_result.
+    APPEND LINES OF perf_ct_id( ) TO rt_result.
   ENDMETHOD.
 
   METHOD start_measurement.
@@ -475,6 +483,109 @@ CLASS z_ui2_json_perf IMPLEMENTATION.
     DATA(lv_json1) = z_ui2_json=>serialize( data = lo_data1 ).
     DATA(lv_json2) = z_ui2_json2=>serialize( data = lo_data2 ).
     ASSERT lv_json1 = lv_json2.
+
+  ENDMETHOD.
+
+  METHOD perf_json_field.
+    " Compare GET_OFFSET fast path (json=) vs writer path (jsonx=) for raw json field deserialization.
+    " Before the GET_OFFSET implementation: both paths use the writer — results roughly equal.
+    " After: json= path uses GET_OFFSET substring extraction — should be measurably faster.
+
+    TYPES: BEGIN OF ty_row,
+             id   TYPE i,
+             meta TYPE z_ui2_json2=>json,
+           END OF ty_row.
+
+    DATA: lt_rows   TYPE STANDARD TABLE OF ty_row WITH DEFAULT KEY,
+          lt_rows2  LIKE lt_rows.
+
+    DATA: lv_start TYPE i,
+          lv_old   TYPE i,
+          lv_new   TYPE i.
+
+    DO 5000 TIMES.
+      APPEND VALUE ty_row(
+        id   = sy-index
+        meta = `{"name":"user-` && sy-index && `","active":true,"count":` && sy-index && `,"tags":["a","b","c","d","e"]}`
+      ) TO lt_rows.
+    ENDDO.
+
+    DATA(lv_json)  = z_ui2_json2=>serialize( data = lt_rows ).
+    DATA(lv_jsonx) = cl_abap_codepage=>convert_to( lv_json ).
+
+    DATA(lv_times) = 5.
+    CLEAR: lv_new, lv_old.
+    DO lv_times TIMES.
+      " writer path — jsonx= so mv_json_src stays empty
+      CLEAR lt_rows2.
+      lv_start = start_measurement( ).
+      z_ui2_json2=>deserialize( EXPORTING jsonx = lv_jsonx CHANGING data = lt_rows2 ).
+      lv_old += end_measurement( lv_start ).
+
+      " GET_OFFSET path — json= sets mv_json_src
+      CLEAR lt_rows2.
+      lv_start = start_measurement( ).
+      z_ui2_json2=>deserialize( EXPORTING json = lv_json CHANGING data = lt_rows2 ).
+      lv_new += end_measurement( lv_start ).
+    ENDDO.
+    APPEND make_runtime( iv_name = |Deserialize json-field 5k writer vs offset ({ lv_times }x)|
+      iv_old = lv_old / lv_times iv_new = lv_new / lv_times ) TO rt_result.
+
+  ENDMETHOD.
+
+  METHOD perf_ct_id.
+    " Competitive baseline: CALL TRANSFORMATION id (asJSON, all-kernel) vs Z_UI2_JSON2.
+    " old = CT id (the floor customers benchmark against); new = Z_UI2_JSON2.
+    " Negative percent = the premium Z_UI2_JSON2 pays for its flexible format + features
+    " (camelCase, name mapping, compress, custom types) that asJSON cannot produce.
+    " Output formats differ (asJSON != /UI2/CL_JSON) — wall-clock on the SAME input,
+    " each producing its natural output, each deserializing its own format.
+
+    DATA: lv_start TYPE i,
+          lv_old   TYPE i,
+          lv_new   TYPE i.
+
+    SELECT * FROM sbook UP TO 20000 ROWS INTO TABLE @DATA(lt_sbook) ORDER BY PRIMARY KEY.
+    DATA lt_sbook2 LIKE lt_sbook.
+
+    DATA(lv_times) = 5.
+
+    " --- Serialize: CT id vs Z_UI2_JSON2 ---
+    CLEAR: lv_old, lv_new.
+    DATA lv_xid TYPE xstring.
+    DATA lv_j2  TYPE string.
+    DO lv_times TIMES.
+      lv_start = start_measurement( ).
+      DATA(lo_w) = cl_sxml_string_writer=>create( type = if_sxml=>co_xt_json ).
+      CALL TRANSFORMATION id SOURCE data = lt_sbook RESULT XML lo_w.
+      lv_xid = lo_w->get_output( ).
+      lv_old += end_measurement( lv_start ).
+
+      lv_start = start_measurement( ).
+      lv_j2 = z_ui2_json2=>serialize( data = lt_sbook ).
+      lv_new += end_measurement( lv_start ).
+    ENDDO.
+    APPEND make_runtime( iv_name = |Serialize SBOOK 20k: CT-id vs Z_UI2_JSON2 ({ lv_times }x)|
+      iv_old = lv_old / lv_times iv_new = lv_new / lv_times ) TO rt_result.
+
+    " --- Deserialize: CT id vs Z_UI2_JSON2 (each from its own format) ---
+    CLEAR: lv_old, lv_new.
+    DO lv_times TIMES.
+      CLEAR lt_sbook2.
+      lv_start = start_measurement( ).
+      DATA(lo_r) = cl_sxml_string_reader=>create( lv_xid ).
+      CALL TRANSFORMATION id SOURCE XML lo_r RESULT data = lt_sbook2.
+      lv_old += end_measurement( lv_start ).
+      ASSERT lt_sbook = lt_sbook2.
+
+      CLEAR lt_sbook2.
+      lv_start = start_measurement( ).
+      z_ui2_json2=>deserialize( EXPORTING json = lv_j2 CHANGING data = lt_sbook2 ).
+      lv_new += end_measurement( lv_start ).
+      ASSERT lt_sbook = lt_sbook2.
+    ENDDO.
+    APPEND make_runtime( iv_name = |Deserialize SBOOK 20k: CT-id vs Z_UI2_JSON2 ({ lv_times }x)|
+      iv_old = lv_old / lv_times iv_new = lv_new / lv_times ) TO rt_result.
 
   ENDMETHOD.
 

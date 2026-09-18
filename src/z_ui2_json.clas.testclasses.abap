@@ -81,6 +81,12 @@ INHERITING FROM z_ui2_json.
     METHODS serialize_time_stamp FOR TESTING.
     "! DECFLOAT16/DECFLOAT34 zero must serialize as 0, not null
     METHODS serialize_decfloat FOR TESTING.
+    "! deserialize a JSON subnode directly via PATH, skipping the wrapper structure
+    METHODS deserialize_path FOR TESTING.
+    "! DISABLE_STRING_TYPE_DETECT keeps YYYY-MM-DD-shaped strings as STRING in GENERATE
+    METHODS generate_disable_type_detect FOR TESTING.
+    "! DISALLOW_UNKNOWN raises on JSON keys with no matching ABAP component
+    METHODS deserialize_disallow_unknown FOR TESTING.
 
 ENDCLASS.       "abap_unit_testclass
 * ----------------------------------------------------------------------
@@ -3090,6 +3096,177 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     lv_json = serialize( data = lv_d34_nz ).
     cl_abap_unit_assert=>assert_not_initial( act = lv_json msg = 'DECFLOAT34 non-zero must serialize to non-empty' ).
     cl_abap_unit_assert=>assert_differs( act = lv_json exp = `null` msg = 'DECFLOAT34 non-zero must not serialize as null' ).
+
+  ENDMETHOD.
+
+  METHOD deserialize_path.
+    " deserialize a JSON subnode directly via PATH, without declaring the wrapper structure
+
+    TYPES:
+      BEGIN OF ts_result,
+        id   TYPE string,
+        name TYPE string,
+      END OF ts_result.
+
+    DATA: lv_json    TYPE json,
+          lt_results TYPE STANDARD TABLE OF ts_result WITH DEFAULT KEY,
+          ls_single  TYPE ts_result.
+
+    " OData v2 envelope: target is the inner d-results array
+    lv_json = `{"d":{"results":[{"id":"1","name":"foo"},{"id":"2","name":"bar"}]}}`.
+
+    deserialize( EXPORTING json = lv_json path = `d-results` CHANGING data = lt_results ).
+
+    cl_abap_unit_assert=>assert_equals( exp = 2 act = lines( lt_results ) msg = 'PATH: wrong number of rows extracted' ).
+    READ TABLE lt_results INDEX 1 INTO ls_single.
+    cl_abap_unit_assert=>assert_equals( exp = `1`   act = ls_single-id   msg = 'PATH: row 1 id mismatch' ).
+    cl_abap_unit_assert=>assert_equals( exp = `foo` act = ls_single-name msg = 'PATH: row 1 name mismatch' ).
+    READ TABLE lt_results INDEX 2 INTO ls_single.
+    cl_abap_unit_assert=>assert_equals( exp = `bar` act = ls_single-name msg = 'PATH: row 2 name mismatch' ).
+
+    " single-segment path into an object node
+    CLEAR ls_single.
+    lv_json = `{"payload":{"id":"42","name":"answer"}}`.
+    deserialize( EXPORTING json = lv_json path = `payload` CHANGING data = ls_single ).
+    cl_abap_unit_assert=>assert_equals( exp = `42`     act = ls_single-id   msg = 'PATH: single-segment id mismatch' ).
+    cl_abap_unit_assert=>assert_equals( exp = `answer` act = ls_single-name msg = 'PATH: single-segment name mismatch' ).
+
+    " array index: extract the 5th (0-based) element out of 10 — must stop at its own boundary
+    CLEAR ls_single.
+    lv_json = `{"d":{"results":[` &&
+              `{"id":"0","name":"n0"},{"id":"1","name":"n1"},{"id":"2","name":"n2"},{"id":"3","name":"n3"},{"id":"4","name":"n4"},` &&
+              `{"id":"5","name":"n5"},{"id":"6","name":"n6"},{"id":"7","name":"n7"},{"id":"8","name":"n8"},{"id":"9","name":"n9"}]}}`.
+    deserialize( EXPORTING json = lv_json path = `d-results[5]` CHANGING data = ls_single ).
+    cl_abap_unit_assert=>assert_equals( exp = `5`  act = ls_single-id   msg = 'PATH[5]: id mismatch — wrong element or boundary bleed' ).
+    cl_abap_unit_assert=>assert_equals( exp = `n5` act = ls_single-name msg = 'PATH[5]: name mismatch — wrong element or boundary bleed' ).
+
+    " array index at position 0 and at the last element
+    CLEAR ls_single.
+    deserialize( EXPORTING json = lv_json path = `d-results[0]` CHANGING data = ls_single ).
+    cl_abap_unit_assert=>assert_equals( exp = `0` act = ls_single-id msg = 'PATH[0]: first element mismatch' ).
+    CLEAR ls_single.
+    deserialize( EXPORTING json = lv_json path = `d-results[9]` CHANGING data = ls_single ).
+    cl_abap_unit_assert=>assert_equals( exp = `9` act = ls_single-id msg = 'PATH[9]: last element mismatch' ).
+
+    " bare index on a top-level array
+    CLEAR ls_single.
+    lv_json = `[{"id":"a","name":"first"},{"id":"b","name":"second"},{"id":"c","name":"third"}]`.
+    deserialize( EXPORTING json = lv_json path = `[1]` CHANGING data = ls_single ).
+    cl_abap_unit_assert=>assert_equals( exp = `b`      act = ls_single-id   msg = 'PATH bare-index id mismatch' ).
+    cl_abap_unit_assert=>assert_equals( exp = `second` act = ls_single-name msg = 'PATH bare-index name mismatch' ).
+
+    " GENERATE honours PATH too — extract the 5th element and serialize it back
+    DATA(lr_gen) = generate( json = `{"d":{"results":[` &&
+      `{"id":"0"},{"id":"1"},{"id":"2"},{"id":"3"},{"id":"4"},{"id":"5"},{"id":"6"},{"id":"7"},{"id":"8"},{"id":"9"}]}}`
+      path = `d-results[5]` ).
+    cl_abap_unit_assert=>assert_equals( exp = `{"ID":"5"}` act = serialize( data = lr_gen compress = abap_true )
+      msg = 'GENERATE PATH[5]: wrong element generated' ).
+
+  ENDMETHOD.
+
+  METHOD generate_disable_type_detect.
+    " a bare JSON string shaped like an ISO timestamp is inferred as an ABAP timestamp by default;
+    " with the flag it stays a STRING. generate_int on a bare (non-object) value binds lr_data to
+    " the chosen elementary type directly, so RTTI on it shows the exact type the flag controls.
+
+    DATA: lo_json TYPE REF TO z_ui2_json,
+          lr_data TYPE REF TO data.
+    FIELD-SYMBOLS <v> TYPE any.
+
+    " default: ISO timestamp string -> ABAP packed timestamp (type P)
+    CREATE OBJECT lo_json.
+    lo_json->generate_int( EXPORTING json = `"2015-10-02T13:44:50Z"` CHANGING data = lr_data ).
+    ASSIGN lr_data->* TO <v>.
+    cl_abap_unit_assert=>assert_equals( exp = cl_abap_typedescr=>typekind_packed
+      act = cl_abap_typedescr=>describe_by_data( <v> )->type_kind
+      msg = 'default: ISO timestamp should be detected as ABAP timestamp' ).
+
+    " flag ON: stays STRING (type g)
+    CREATE OBJECT lo_json EXPORTING disable_string_type_detect = abap_true.
+    lo_json->generate_int( EXPORTING json = `"2015-10-02T13:44:50Z"` CHANGING data = lr_data ).
+    ASSIGN lr_data->* TO <v>.
+    cl_abap_unit_assert=>assert_equals( exp = cl_abap_typedescr=>typekind_string
+      act = cl_abap_typedescr=>describe_by_data( <v> )->type_kind
+      msg = 'flag: timestamp-shaped value must stay STRING' ).
+
+    " flag ON: a bare date-shaped value also stays STRING
+    CREATE OBJECT lo_json EXPORTING disable_string_type_detect = abap_true.
+    lo_json->generate_int( EXPORTING json = `"2024-10-03"` CHANGING data = lr_data ).
+    ASSIGN lr_data->* TO <v>.
+    cl_abap_unit_assert=>assert_equals( exp = cl_abap_typedescr=>typekind_string
+      act = cl_abap_typedescr=>describe_by_data( <v> )->type_kind
+      msg = 'flag: date-shaped value must stay STRING' ).
+
+  ENDMETHOD.
+
+  METHOD deserialize_disallow_unknown.
+    " DISALLOW_UNKNOWN is a sub-option of STRICT_MODE: only when BOTH are set does a JSON key
+    " with no matching ABAP component raise CX_SY_MOVE_CAST_ERROR. Constructor-only, default off.
+
+    TYPES: BEGIN OF ts_target,
+             id   TYPE i,
+             name TYPE string,
+           END OF ts_target.
+
+    DATA: lo_json TYPE REF TO z_ui2_json,
+          ls_data TYPE ts_target,
+          lv_ok   TYPE abap_bool.
+
+    DATA(lv_json) = `{"id":1,"name":"foo","surprise":"extra"}`.
+
+    " default (both off): unknown key silently ignored, known fields filled
+    deserialize( EXPORTING json = lv_json CHANGING data = ls_data ).
+    cl_abap_unit_assert=>assert_equals( exp = 1     act = ls_data-id   msg = 'default: known id must be filled' ).
+    cl_abap_unit_assert=>assert_equals( exp = `foo` act = ls_data-name msg = 'default: unknown key must be ignored' ).
+
+    " disallow_unknown WITHOUT strict_mode: no effect, unknown key still ignored
+    CLEAR ls_data.
+    CREATE OBJECT lo_json EXPORTING disallow_unknown = abap_true.
+    TRY.
+        lo_json->deserialize_int( EXPORTING json = lv_json CHANGING data = ls_data ).
+        lv_ok = abap_true.
+      CATCH cx_sy_move_cast_error.
+        lv_ok = abap_false.
+    ENDTRY.
+    cl_abap_unit_assert=>assert_equals( exp = abap_true act = lv_ok
+      msg = 'disallow_unknown alone (no strict_mode) must not raise' ).
+
+    " strict_mode + disallow_unknown: unknown key raises
+    CLEAR ls_data.
+    CREATE OBJECT lo_json EXPORTING strict_mode = abap_true disallow_unknown = abap_true.
+    TRY.
+        lo_json->deserialize_int( EXPORTING json = lv_json CHANGING data = ls_data ).
+        lv_ok = abap_true.
+      CATCH cx_sy_move_cast_error.
+        lv_ok = abap_false.
+    ENDTRY.
+    cl_abap_unit_assert=>assert_equals( exp = abap_false act = lv_ok
+      msg = 'strict_mode + disallow_unknown: unknown JSON key must raise' ).
+
+    " strict_mode + disallow_unknown, JSON matches exactly -> no exception
+    CLEAR ls_data.
+    CREATE OBJECT lo_json EXPORTING strict_mode = abap_true disallow_unknown = abap_true.
+    TRY.
+        lo_json->deserialize_int( EXPORTING json = `{"id":2,"name":"bar"}` CHANGING data = ls_data ).
+        lv_ok = abap_true.
+      CATCH cx_sy_move_cast_error.
+        lv_ok = abap_false.
+    ENDTRY.
+    cl_abap_unit_assert=>assert_equals( exp = abap_true act = lv_ok
+      msg = 'strict_mode + disallow_unknown: fully-matching JSON must not raise' ).
+    cl_abap_unit_assert=>assert_equals( exp = 2 act = ls_data-id msg = 'matching JSON must deserialize' ).
+
+    " strict_mode alone (no disallow_unknown): unknown key is tolerated (only type mismatches raise)
+    CLEAR ls_data.
+    CREATE OBJECT lo_json EXPORTING strict_mode = abap_true.
+    TRY.
+        lo_json->deserialize_int( EXPORTING json = lv_json CHANGING data = ls_data ).
+        lv_ok = abap_true.
+      CATCH cx_sy_move_cast_error.
+        lv_ok = abap_false.
+    ENDTRY.
+    cl_abap_unit_assert=>assert_equals( exp = abap_true act = lv_ok
+      msg = 'strict_mode alone must tolerate unknown keys' ).
 
   ENDMETHOD.
 

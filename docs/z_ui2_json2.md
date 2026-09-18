@@ -134,7 +134,7 @@ DATA(lv_json) = z_ui2_json2=>serialize( data = ls_data ).
 z_ui2_json2=>deserialize( EXPORTING json = lv_json CHANGING data = ls_data ).
 ```
 
-All constructor parameters, pretty-print modes, `ASSOC_ARRAYS`, `TS_AS_ISO8601`, `HEX_AS_BASE64`, `BOOL_TYPES`, name mappings, and conversion exits work identically.
+All constructor parameters, pretty-print modes, `ASSOC_ARRAYS`, `TS_AS_ISO8601`, `HEX_AS_BASE64`, `BOOL_TYPES`, `STRICT_MODE`, `DISABLE_STRING_TYPE_DETECT`, `DISALLOW_UNKNOWN`, name mappings, and conversion exits work identically. The `PATH` parameter on `DESERIALIZE`, `DESERIALIZE_INT`, and `GENERATE` also works identically.
 
 For instance usage (repeated calls, better performance):
 
@@ -180,25 +180,28 @@ For full extension examples see [class-extension.md](class-extension.md) — the
 
 ## Performance comparison (Z_UI2_JSON V23 vs Z_UI2_JSON2 V1)
 
-Measured on SAP_BASIS 7.57, same data sets, averaged over 5 runs (3 for generation).
+Measured on SAP_BASIS 7.57, same data sets, averaged over 5 runs (3 for generation). Last updated 2026-09-07.
 
 | Scenario | V23 (µs) | V1 (µs) | Difference |
 |----------|----------|---------|------------|
-| **Deserialize** SBOOK 20K lines | 3,573K | 2,485K | **+30% faster** |
-| **Deserialize** SBOOK camelCase | 2,659K | 1,778K | **+33% faster** |
-| **Deserialize** AllTypes 10K | 1,329K | 934K | **+30% faster** |
-| **Deserialize** Strings 10K | 465K | 325K | **+30% faster** |
-| **Deserialize** Deep struct 1K×10 | 351K | 271K | **+23% faster** |
-| **Deserialize** Timestamps 100K | 2,637K | 2,178K | **+17% faster** |
-| **Generate** SBOOK 5K lines | 3,367K | 901K | **+73% faster** |
-| Serialize Timestamps 100K | 595K | 804K | -35% slower |
-| Serialize SBOOK 20K lines | 858K | 954K | -11% slower |
-| Serialize SBOOK compressed+camelCase | 711K | 777K | -9% slower |
-| Serialize AllTypes 10K | 336K | 383K | -14% slower |
-| Serialize Strings 10K | 133K | 133K | ~0% |
-| Serialize Deep struct 1K×10 | 97K | 104K | -7% slower |
+| **Deserialize** SBOOK 20K lines | 3,462K | 2,507K | **+28% faster** |
+| **Deserialize** SBOOK camelCase | 2,583K | 1,811K | **+30% faster** |
+| **Deserialize** AllTypes 10K | 1,289K | 945K | **+27% faster** |
+| **Deserialize** Strings 10K | 456K | 326K | **+29% faster** |
+| **Deserialize** Deep struct 1K×10 | 344K | 276K | **+20% faster** |
+| **Deserialize** Timestamps 100K | 2,587K | 2,239K | **+13% faster** |
+| **Deserialize** raw JSON field 5K rows | 154K | 95K | **+39% faster** (GET_OFFSET vs writer path; `json=` only) |
+| **Generate** SBOOK 5K lines | 3,443K | 935K | **+73% faster** |
+| Serialize Timestamps 100K | 613K | 1,027K | -67% slower |
+| Serialize SBOOK 20K lines | 867K | 1,527K | -76% slower |
+| Serialize SBOOK compressed+camelCase | 721K | 1,201K | -67% slower |
+| Serialize AllTypes 10K | 345K | 586K | -70% slower |
+| Serialize Strings 10K | 141K | 182K | -29% slower |
+| Serialize Deep struct 1K×10 | 100K | 147K | -46% slower |
 
-**Summary**: Deserialization is 17-33% faster. Generation is 73% faster. Serialization is 7-35% slower — inherent `IF_JSON_WRITER` method call overhead per field vs. direct string concatenation. The timestamp case is worst because each timestamp value triggers multiple writer calls with little other work per row.
+**Summary**: Deserialization is 13-30% faster. Generation is 73% faster. Serialization is 29-76% slower — inherent `IF_JSON_WRITER` method call overhead per field vs. direct string concatenation in V23. The timestamp and SBOOK cases are worst because each field triggers a writer call with little other work per row.
+
+The raw-JSON-field row measures the GET_OFFSET optimization introduced in 2026-09: when deserializing a `z_ui2_json2=>json`-typed field from a string source (`json=`), `CL_JSON_STRING_READER=>GET_OFFSET` is used to extract the verbatim substring directly, avoiding the intermediate `IF_JSON_NODE_WRITER` roundtrip used for `jsonx=` sources. The 39% gain applies only when `json=` is passed; `jsonx=` callers continue to use the writer path.
 
 > Numbers are from a single SAP_BASIS 7.57 system and will vary by kernel patch level, hardware, and data characteristics.
 
@@ -210,9 +213,7 @@ The serialization gap is the inherent cost of `IF_JSON_WRITER` method calls vs. 
 
 See [history.md](history.md#known-limitations-pending-if_json_readerwriter-enhancements) for the full list. Key items:
 
-- NBSP (U+00A0) as whitespace causes parse errors — kernel reader defect
 - `skip_node( writer )` doesn't work correctly mid-document — workaround in `lcl_util=>read_json_to_string`
-- No tolerant mode for trailing commas — consumers must supply valid JSON
 
 ---
 
@@ -220,6 +221,6 @@ See [history.md](history.md#known-limitations-pending-if_json_readerwriter-enhan
 
 | Z_UI2_JSON2 | Based on Z_UI2_JSON | Notes |
 |-------------|---------------------|-------|
-| VERSION 1   | PL22 feature-set    | Initial release, kernel API migration |
+| VERSION 1   | PL23 feature-set    | Initial release, kernel API migration; PL23 features (PATH, DISABLE_STRING_TYPE_DETECT, DISALLOW_UNKNOWN, DECFLOAT fix) included |
 
 Both classes have independent version tracks from this point forward.

@@ -1,4 +1,5 @@
 # Version History
+   * [Note 3808550 - PL23](#note-3808550---pl23)
    * [Z_UI2_JSON2 — VERSION 1](#z_ui2_json2--version-1)
    * [Note 3615316 - PL22](#note-3615316---pl22)
    * [Note 3568088 - PL21](#note-3568088---pl21)
@@ -24,6 +25,19 @@
    * [Note 2382783](#note-2382783)
    * [Note 2429758](#note-2429758)
    * [Note 2480119](#note-2480119)
+
+## Note [3808550](https://launchpad.support.sap.com/#/notes/3808550) - PL23
+
+*`Z_UI2_JSON` `VERSION = 23`. Changes are applied to both `Z_UI2_JSON` and the kernel edition `Z_UI2_JSON2` unless noted.*
+
+### Features
+* New: `PATH` parameter on `DESERIALIZE` / `DESERIALIZE_INT` / `GENERATE` — deserialize or generate directly from a nested JSON subnode, skipping the wrapper structure (e.g. the OData v2 `{"d":{"results":[...]}}` envelope). Segments are raw JSON attribute names separated by `-`; a trailing `[n]` (or a bare `[n]` on a top-level array) selects the 0-based array element, e.g. `d-results[5]`. A missing segment or out-of-bounds index raises `CX_SY_MOVE_CAST_ERROR`. Both editions.
+* New: `DISABLE_STRING_TYPE_DETECT` constructor parameter (default `abap_false`). When `abap_true`, `GENERATE` / `DESERIALIZE` into `REF TO DATA` keeps every quoted JSON string as `STRING` — no date/time/timestamp inference. Prevents IDs/codes/version strings shaped like `YYYY-MM-DD` (e.g. `"0133-01-01"`) from being coerced to ABAP dates. Constructor-only (not on the static API); performance-neutral when unused. Both editions.
+* New: `DISALLOW_UNKNOWN` constructor parameter (default `abap_false`), a sub-option of `STRICT_MODE`. When both are `abap_true`, a JSON key with no matching ABAP structure component raises `CX_SY_MOVE_CAST_ERROR` (offending key in `source_typename`) instead of being silently ignored. `strict_mode` alone is unchanged (type mismatches raise, unknown keys tolerated). Equivalent to Go `DisallowUnknownFields` / .NET `UnmappedMemberHandling.Disallow` / Pydantic `extra='forbid'`. Constructor-only; performance-neutral when unused. Both editions.
+
+### Bug fixes
+* Fixed: `DECFLOAT16` / `DECFLOAT34` field with value `0` was serialized as JSON `null` instead of `0` (decfloat kinds were missing from the numeric serialization branches). Both editions (`/UI2/CL_JSON` rollout pending).
+* Fixed: ENUM deserialization on SAP_BASIS < 7.51 now silently ignores the value (per Note 2650040) instead of raising — the `CL_ABAP_XSD=>TO_VALUE` dynamic-call failure is caught and the value skipped. `Z_UI2_JSON` only (`Z_UI2_JSON2` requires 7.57 where the gap cannot occur).
 
 ## Z_UI2_JSON2 — VERSION 1
 

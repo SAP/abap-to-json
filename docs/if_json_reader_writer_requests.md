@@ -3,6 +3,21 @@
 Prepared for discussion with the SJSON package author.
 Context: migration of `/UI2/CL_JSON` (SAP's most-used JSON serializer, 10k+ consumers) to kernel JSON APIs.
 
+## Delivery status (2026-07-31)
+
+Stefan Bresch (kernel team) closed **PICABAPACA-767 (Fixed)** with 4/5 items delivered. Performance item (Enh 6) split to **PICABAPACA-781** (Open).
+
+| # | Item | Status | Kernel availability |
+|---|------|--------|---------------------|
+| Bug 2 | NBSP whitespace | ✅ Delivered | `IF_JSON_READER=>OPTION_NBSP`, ABAP Platform **2611** |
+| Enh 1 | Trailing comma | ✅ Delivered | `IF_JSON_READER=>OPTION_TRAILING_COMMA`, ABAP Platform **2611** |
+| Enh 2 | get_offset | ✅ Delivered | `CL_JSON_STRING_READER=>GET_OFFSET` (chars) / `CL_JSON_XSTRING_READER=>GET_OFFSET` (bytes), ABAP Platform **2702** |
+| Enh 3 | Parse error offset | ✅ Delivered | `CX_JSON_READER_ERROR=>OFFSET` attribute, ABAP Platform **2702** |
+| Bug 1 | skip_node on members | Closed — no kernel fix; WA2 (envelope) is the recommended pattern |
+| Enh 5/6 | Bulk tree handoff | Moved to **PICABAPACA-781** (Open) |
+
+**Not yet in ER1** (verified 2026-07-31): ER1's `IF_JSON_READER` exposes only `option_none`/`option_member`; `CL_JSON_STRING_READER` has no `GET_OFFSET`. ER1 runs a kernel older than 2611. Re-verify when ER1 upgrades before adopting the new options in `Z_UI2_JSON2`. See test class `TC_JSON_READER` for usage.
+
 ---
 
 ## Bug 1: `skip_node( writer )` does not work on member positions
