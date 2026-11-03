@@ -104,6 +104,8 @@ lv_json = /ui2/cl_json=>serialize( data = ls_data conversion_exits = abap_true )
 
 > **Note**: Conversion exits apply only to fields that have one defined in the DDIC. Using `CONVERSION_EXITS = abap_true` causes RTTI lookups on every field and can significantly reduce performance — enable only when needed.
 
+> **Note**: Output conversion exits that pad their result with trailing blanks (e.g. `CONVERSION_EXIT_ALPHA_OUTPUT`) have those trailing blanks stripped from the JSON value — an ALPHA field holding `'0001893348'` serializes as `"1893348"`, not `"1893348   "`.
+
 # Serialization/deserialization of hierarchical/recursive data
 
 Handling the recursive data structure in ABAP is not very trivial. And it is not very trivial to serialize and deserialize it either.

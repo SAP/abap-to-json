@@ -2702,6 +2702,16 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     FIND FIRST OCCURRENCE OF lv_date_x IN lv_json.
     cl_aunit_assert=>assert_subrc( act = sy-subrc msg = 'Conversion exit into external format in table fails!' ).
 
+    " issue #10: output conversion exits (ALPHA) must not leave trailing blanks
+    TYPES: BEGIN OF ts_alpha,
+             delivery TYPE vbeln_vl,
+           END OF ts_alpha.
+    DATA ls_alpha TYPE ts_alpha.
+    ls_alpha-delivery = '0001893348'.
+    lv_json = serialize( data = ls_alpha conversion_exits = abap_true ).
+    cl_aunit_assert=>assert_equals( act = lv_json exp = '{"DELIVERY":"1893348"}'
+                                    msg = 'Output conversion exit leaves trailing blanks (issue #10)!' ).
+
   ENDMETHOD.                    "conversion_exits
 
   METHOD generate_special_attr_names.

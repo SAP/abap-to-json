@@ -872,6 +872,9 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
                 EXCEPTIONS
                   OTHERS = 1.
               IF sy-subrc IS INITIAL.
+                " output conversion exits (e.g. ALPHA) pad the result with trailing
+                " blanks even for a string target; strip them (issue #10)
+                lv_str = substring( val = lv_str len = numofchar( lv_str ) ).
                 writer->write_string( name = name value = lv_str ).
               ELSE.
                 writer->write_null( name ).
