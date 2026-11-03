@@ -172,7 +172,7 @@ DEFINE dump_type_int.
         xstring_to_string_int &1 &3.
         CONCATENATE '"' &3 '"' INTO &3.
       ENDIF.
-    WHEN e_typekind-bool OR e_typekind-tribool.
+    WHEN e_typekind-abool OR e_typekind-tribool OR e_typekind-bool.
       IF &1 EQ c_bool-true.
         &3 = `true`.                                        "#EC NOTEXT
       ELSEIF &1 IS INITIAL AND &2 EQ e_typekind-tribool.

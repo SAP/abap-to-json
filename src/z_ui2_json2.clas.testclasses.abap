@@ -24,6 +24,7 @@ INHERITING FROM z_ui2_json2.
     METHODS: serialize_associative_array FOR TESTING.
     METHODS: serialize_types FOR TESTING.
     METHODS: serialize_booleans FOR TESTING.
+    METHODS: serialize_native_bool FOR TESTING.
     METHODS: serialize_ref FOR TESTING.
     METHODS: serialize_enums FOR TESTING.
     METHODS: serialize_upper_camel_case FOR TESTING.
@@ -233,6 +234,33 @@ CLASS abap_unit_testclass IMPLEMENTATION.
     cl_aunit_assert=>assert_equals( act = ls_act exp = ls_data msg = 'Deserialization of compressed boolean types fails' ).
 
   ENDMETHOD.                    "serialize_booleans
+
+  METHOD serialize_native_bool.
+
+    " native ABAP boolean built-in type 'b' (CL_ABAP_TYPEDESCR=>TYPEKIND_BOOL, 7.57+)
+    TYPES:
+      BEGIN OF t_data,
+        yes TYPE b,
+        no  TYPE b,
+      END OF t_data.
+
+    DATA: ls_data TYPE t_data,
+          ls_act  TYPE t_data,
+          lv_act  TYPE string.
+
+    ls_data-yes = abap_true.
+    ls_data-no  = abap_false.
+
+    lv_act = serialize( data = ls_data ).
+    cl_aunit_assert=>assert_equals( act = lv_act
+                                    exp = '{"YES":true,"NO":false}'
+                                    msg = 'Serialization of native boolean fails' ).
+
+    deserialize( EXPORTING json = lv_act CHANGING data = ls_act ).
+    cl_aunit_assert=>assert_equals( act = ls_act exp = ls_data
+                                    msg = 'Deserialization of native boolean fails' ).
+
+  ENDMETHOD.                    "serialize_native_bool
 
   METHOD abap_to_json_simple_transform.
 

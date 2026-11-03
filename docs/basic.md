@@ -10,6 +10,7 @@
 * **ABAP to JavaScript** adopted a way of data type serializations:
   * strings, character types to JavaScript string format (no length limitation),
   * ABAP_BOOL / BOOLEAN / XFELD / BOOLE_D to JavaScript Boolean,
+  * Native ABAP boolean built-in type (`TYPE b`, SAP_BASIS 7.57+) to JavaScript Boolean,
   * Built-in TRIBOOL (TRUE/FALSE/UNDEFINED = 'X'/'-'/'') support, for better control of initial values when serializing into JavaScript Boolean
   * int/floats/numeric/packed to JavaScript Integers/floats,
   * date/time to JavaScript date/time string representation as "2015-03-24" or "15:30:48",

@@ -1,4 +1,5 @@
 # Version History
+   * [PL24](#pl24)
    * [Note 3808550 - PL23](#note-3808550---pl23)
    * [Z_UI2_JSON2 — VERSION 1](#z_ui2_json2--version-1)
    * [Note 3615316 - PL22](#note-3615316---pl22)
@@ -25,6 +26,16 @@
    * [Note 2382783](#note-2382783)
    * [Note 2429758](#note-2429758)
    * [Note 2480119](#note-2480119)
+
+## PL24
+
+*`Z_UI2_JSON` `VERSION = 24`. SAP Note number assigned at `/UI2/CL_JSON` release. Changes are applied to both `Z_UI2_JSON` and the kernel edition `Z_UI2_JSON2` unless noted.*
+
+### Features
+* New: native ABAP boolean built-in type (`TYPE b`, `CL_ABAP_TYPEDESCR=>TYPEKIND_BOOL`, SAP_BASIS 7.57+) is now serialized as JSON `true`/`false` and deserialized back, the same as `ABAP_BOOL` / `XFELD` and the other CHAR1 boolean types. Both editions (`/UI2/CL_JSON` rollout pending).
+
+### Bug fixes
+* Fixed: a field of the native ABAP boolean type (`TYPE b`) was serialized as the quoted string `"X"` for true and as `null` for false (the type fell through to generic elementary handling). It is now emitted as `true` / `false`. Deserialization already worked. Both editions (`/UI2/CL_JSON` rollout pending).
 
 ## Note [3808550](https://launchpad.support.sap.com/#/notes/3808550) - PL23
 
