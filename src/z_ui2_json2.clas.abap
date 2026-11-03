@@ -59,13 +59,14 @@ CLASS z_ui2_json2 DEFINITION
         tsl_iso8601 TYPE abap_typekind VALUE '3' ##NO_TEXT,
         numc_string TYPE abap_typekind VALUE '4' ##NO_TEXT,
         json        TYPE abap_typekind VALUE '5' ##NO_TEXT,
-        bool        TYPE abap_typekind VALUE '6' ##NO_TEXT,
+        abool       TYPE abap_typekind VALUE '6' ##NO_TEXT, " CHAR1 field detected as boolean via MC_BOOL_TYPES (abap_bool, xfeld, ...)
         tribool     TYPE abap_typekind VALUE '7' ##NO_TEXT,
 
         " redefine for existing typekinds for lower releases
         utclong     TYPE abap_typekind VALUE 'p' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_UTCLONG -> 'p' only from 7.54
         int8        TYPE abap_typekind VALUE '8' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_INT8 -> '8' only from 7.40
         enum        TYPE abap_typekind VALUE 'k' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_ENUM -> 'k'
+        bool        TYPE abap_typekind VALUE 'B' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_BOOL -> 'B', native boolean (7.57+)
 
         " just aliasing
         float       TYPE abap_typekind VALUE cl_abap_typedescr=>typekind_float,
@@ -982,7 +983,7 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
             writer->write_string( name = name value = cl_http_utility=>encode_x_base64( CONV xstring( data ) ) ).
           ENDIF.
         ENDIF.
-      WHEN e_typekind-bool OR e_typekind-tribool.
+      WHEN e_typekind-abool OR e_typekind-tribool OR e_typekind-bool.
         IF data = c_bool-true.
           writer->write_boolean( name = name value = `true` ) ##NO_TEXT.
         ELSEIF data IS INITIAL AND typekind = e_typekind-tribool.
@@ -1999,7 +2000,7 @@ CLASS Z_UI2_JSON2 IMPLEMENTATION.
           ENDIF.
 
           CASE lv_typekind.
-            WHEN e_typekind-bool OR e_typekind-tribool.
+            WHEN e_typekind-abool OR e_typekind-tribool OR e_typekind-bool.
               IF sdummy(1) CA 'XxTt1'.
                 data = c_bool-true.
               ELSE.

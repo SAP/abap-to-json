@@ -244,7 +244,7 @@ CLASS lcl_util IMPLEMENTATION.
         IF bool_3state CS lv_elem_type_descr->absolute_name.
           rv_type = z_ui2_json2=>e_typekind-tribool.
         ELSE.
-          rv_type = z_ui2_json2=>e_typekind-bool.
+          rv_type = z_ui2_json2=>e_typekind-abool.
         ENDIF.
       ENDIF.
     ENDIF.

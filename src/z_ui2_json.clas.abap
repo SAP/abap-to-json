@@ -51,7 +51,7 @@ public section.
   constants MC_KEY_SEPARATOR type STRING value `-` ##NO_TEXT.
   class-data MC_BOOL_TYPES type STRING read-only value `\TYPE-POOL=ABAP\TYPE=ABAP_BOOL\TYPE=BOOLEAN\TYPE=BOOLE_D\TYPE=XFELD\TYPE=XSDBOOLEAN\TYPE=WDY_BOOLEAN` ##NO_TEXT.
   class-data MC_BOOL_3STATE type STRING read-only value `\TYPE=BOOLEAN` ##NO_TEXT.
-  constants VERSION type I value 23 ##NO_TEXT.
+  constants VERSION type I value 24 ##NO_TEXT.
   class-data MC_JSON_TYPE type STRING read-only .
 
   class-methods CLASS_CONSTRUCTOR .
@@ -317,13 +317,14 @@ protected section.
       tsl_iso8601 TYPE abap_typekind VALUE '3' ##NO_TEXT,
       numc_string TYPE abap_typekind VALUE '4' ##NO_TEXT,
       json        TYPE abap_typekind VALUE '5' ##NO_TEXT,
-      bool        TYPE abap_typekind VALUE '6' ##NO_TEXT,
+      abool       TYPE abap_typekind VALUE '6' ##NO_TEXT, " CHAR1 field detected as boolean via MC_BOOL_TYPES (abap_bool, xfeld, ...)
       tribool     TYPE abap_typekind VALUE '7' ##NO_TEXT,
 
       " redefine for existing typekeinds for lower releases
       utclong     TYPE abap_typekind VALUE 'p' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_UTCLONG -> 'p' only from 7.54
       int8        TYPE abap_typekind VALUE '8' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_INT8 -> '8' only from 7.40
       enum        TYPE abap_typekind VALUE 'k' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_ENUM -> 'k'
+      bool        TYPE abap_typekind VALUE 'B' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_BOOL -> 'B', native boolean (7.57+)
       decfloat16  TYPE abap_typekind VALUE 'a' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_DECFLOAT16 -> 'a' only from 7.40
       decfloat34  TYPE abap_typekind VALUE 'e' ##NO_TEXT, " CL_ABAP_TYPEDESCR=>TYPEKIND_DECFLOAT34 -> 'e' only from 7.40
 
@@ -770,7 +771,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
         IF mv_bool_3state CS type_descr->absolute_name.
           rv_type = e_typekind-tribool.
         ELSE.
-          rv_type = e_typekind-bool.
+          rv_type = e_typekind-abool.
         ENDIF.
       ENDIF.
     ENDIF.
@@ -1169,7 +1170,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
           xstring_to_string_int data r_json.
           CONCATENATE '"' r_json '"' INTO r_json.
         ENDIF.
-      WHEN e_typekind-bool OR e_typekind-tribool.
+      WHEN e_typekind-abool OR e_typekind-tribool OR e_typekind-bool.
         IF data EQ c_bool-true.
           r_json = `true`.                                  "#EC NOTEXT
         ELSEIF data IS INITIAL AND lv_typekind EQ e_typekind-tribool.
@@ -2282,7 +2283,7 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                       ENDIF.
 
                       CASE lv_typekind.
-                        WHEN e_typekind-bool OR e_typekind-tribool.
+                        WHEN e_typekind-abool OR e_typekind-tribool OR e_typekind-bool.
                           IF sdummy(1) CA 'XxTt1'.
                             data = c_bool-true.
                           ELSE.
