@@ -1078,6 +1078,9 @@ CLASS Z_UI2_JSON IMPLEMENTATION.
                 EXCEPTIONS
                   OTHERS = 1.
               IF sy-subrc IS INITIAL.
+                " output conversion exits (e.g. ALPHA) pad the result with trailing
+                " blanks even for a string target; strip them (issue #10)
+                r_json = substring( val = r_json len = numofchar( r_json ) ).
                 CONCATENATE '"' r_json '"' INTO r_json.
               ENDIF.
             CATCH cx_root ##CATCH_ALL ##NO_HANDLER.

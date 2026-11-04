@@ -80,6 +80,9 @@ DEFINE dump_type_int.
               EXCEPTIONS
                 OTHERS = 1.
             IF sy-subrc IS INITIAL.
+              " output conversion exits (e.g. ALPHA) pad the result with trailing
+              " blanks even for a string target; strip them (issue #10)
+              &3 = substring( val = &3 len = numofchar( &3 ) ).
               CONCATENATE '"' &3 '"' INTO &3.
             ENDIF.
           CATCH cx_root ##CATCH_ALL ##NO_HANDLER.

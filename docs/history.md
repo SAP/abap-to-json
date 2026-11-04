@@ -36,6 +36,7 @@
 
 ### Bug fixes
 * Fixed: a field of the native ABAP boolean type (`TYPE b`) was serialized as the quoted string `"X"` for true and as `null` for false (the type fell through to generic elementary handling). It is now emitted as `true` / `false`. Deserialization already worked. Both editions (`/UI2/CL_JSON` rollout pending).
+* Fixed: output conversion exits that pad their result with trailing blanks (e.g. `CONVERSION_EXIT_ALPHA_OUTPUT`) left those blanks in the serialized JSON value (`"1893348   "`). Trailing blanks from a conversion exit are now stripped (`"1893348"`). Only the `CONVERSION_EXITS = abap_true` path is affected. Both editions (`/UI2/CL_JSON` rollout pending). (GitHub issue #10.)
 
 ## Note [3808550](https://launchpad.support.sap.com/#/notes/3808550) - PL23
 
